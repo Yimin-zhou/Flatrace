@@ -17,9 +17,15 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 set (CMAKE_CXX_STANDARD 17)
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
-  add_compile_options ("-Wall" "-O3" "-DFMT_HEADER_ONLY" "-DSIMDE_ENABLE_NATIVE_ALIASES")
+  add_compile_options (-Wall -O3 -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
 else ()
   add_compile_options ("-g" "-Wall" "-O0" "-DFMT_HEADER_ONLY" "-DSIMDE_ENABLE_NATIVE_ALIASES")
+endif ()
+
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+endif ()
+
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 endif ()
 
 find_package (Threads REQUIRED)
