@@ -27,12 +27,12 @@ struct Triangle
   Triangle(const Vec3 &v0, const Vec3 &v1, const Vec3 &v2)
   :
     vertices({ v0, v1, v2 }),
-    edges({ v1 - v0, v2 - v1, v0 - v2 })
+    edges({ v1 - v0, v2 - v0 })
   {
   }
 
   std::array<Vec3, 3> vertices;
-  std::array<Vec3, 3> edges;
+  std::array<Vec3, 2> edges;
 };
 
 }
