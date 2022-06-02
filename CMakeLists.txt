@@ -39,13 +39,20 @@ include_directories (PRIVATE "third_party")
 add_library (core INTERFACE)
 target_include_directories (core INTERFACE core)
 
+add_library (utils
+  utils/ppm.cpp
+  utils/ppm.h
+)
+
 #add_subdirectory (test)
 
 add_executable (flatrace main.cpp)
 
 target_link_libraries (flatrace
   core
-  Threads::Threads)
+  utils
+  Threads::Threads
+)
 
 
 
