@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types.h"
-#include "math.h"
+#include "math_fun.h"
 
 namespace core {
 
