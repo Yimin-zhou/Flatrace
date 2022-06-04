@@ -28,6 +28,7 @@ endif ()
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 endif ()
 
+find_package (Boost 1.37.0 REQUIRED)
 find_package (Threads REQUIRED)
 find_package (GTest REQUIRED)
 
@@ -35,11 +36,14 @@ find_path (simde_INCLUDE_DIR simde/check.h REQUIRED)
 
 include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")
+include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
 
 add_library (core INTERFACE)
 target_include_directories (core INTERFACE core)
 
 add_library (utils
+  utils/obj.cpp
+  utils/obj.h
   utils/ppm.cpp
   utils/ppm.h
 )

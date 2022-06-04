@@ -3,6 +3,9 @@
 #include "core/frame.h"
 
 #include "utils/ppm.h"
+#include "utils/obj.h"
+
+#include <fmt/format.h>
 
 #include <chrono>
 #include <iostream>
@@ -23,7 +26,29 @@ int main(int argc, char **argv)
 
   using namespace std::chrono;
 
-//  const Triangle triangle({ 0.0f, -0.5f, 1.0f }, { -0.5f, 0.5f, 1.0f }, { 0.5f, 0.5f, 1.0f });
+  if (argc != 2)
+  {
+    std::cerr << "\nUsage: flatrace <mesh_file.obj>\n\n";
+    return EXIT_FAILURE;
+  }
+
+  const std::string input_file(argv[1]);
+
+  // Load triangle data
+  std::vector<Triangle> triangles;
+
+  try
+  {
+    triangles = utils::Obj::read(input_file);
+  }
+  catch (std::runtime_error &e)
+  {
+    std::cerr << fmt::format("Failed to read OBJ file '{0}'\n\t{1}", input_file, e.what()) << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  std::cerr << "Triangle count: " << triangles.size() << std::endl;
+
   const Triangle triangle({ 0.0f, -0.1f, 1.0f }, { -0.1f, 0.1f, 1.0f }, { 0.1f, 0.1f, 1.0f });
 
   Frame frame(1024, 768);
