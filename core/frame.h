@@ -26,7 +26,7 @@ struct Frame
   int width;
   int height;
 
-  std::unique_ptr<RGBA> pixels;
+  std::unique_ptr<RGBA[]> pixels;
 };
 
 }

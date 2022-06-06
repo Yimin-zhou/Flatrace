@@ -5,8 +5,10 @@
 #include <boost/spirit/include/qi.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
 
-#include <variant>
 #include <fstream>
+#include <variant>
+#include <array>
+#include <tuple>
 
 #include <fmt/format.h>
 
@@ -25,15 +27,14 @@ struct Vertex
   float z;
 };
 
-struct Group { std::string name; };
 struct Material { std::string name; };
 
 using Face = std::vector<int>;
-using Statement = std::variant<Vertex, Face, Group, Material>;
+using Statement = std::variant<std::string, Vertex, Face, Material>;
 
 struct ObjLineParser : public qi::grammar<std::string::const_iterator, std::vector<Statement>(), qi::blank_type>
 {
-  template<typename T = void>
+  template<typename T>
   using Rule = qi::rule<iterator_type, T(), qi::blank_type>;
 
   ObjLineParser() : ObjLineParser::base_type(obj)
@@ -41,15 +42,14 @@ struct ObjLineParser : public qi::grammar<std::string::const_iterator, std::vect
     label = *(qi::char_ - qi::eol);
 
     vertex = qi::lexeme['v'] >> (qi::double_ > qi::double_ > qi::double_ > qi::eol);
-    vertexIndex = (qi::int_ >> qi::omit[*('/' >> -qi::int_)]);
+    vertexIndex = qi::int_ >> qi::omit[ *('/' >> -qi::int_) ];
     face = qi::lexeme['f'] >> (qi::repeat(3, 4)[vertexIndex] > qi::eol);
 
-    group = qi::lexeme['g'] >> (label > qi::eol);
     material = qi::lexeme["usemtl"] >> (label > qi::eol);
 
     unknown = *(qi::char_ - qi::eol) >> qi::eol;
 
-    line = (vertex | face | group | material | qi::omit[unknown]);
+    line = (vertex | face | material | qi::omit[unknown]);
 
     obj = *line >> qi::eoi;
   }
@@ -58,63 +58,46 @@ struct ObjLineParser : public qi::grammar<std::string::const_iterator, std::vect
   Rule<Vertex> vertex;
   Rule<int> vertexIndex;
   Rule<Face> face;
-  Rule<Group> group;
   Rule<Material> material;
-  Rule<> unknown;
+  Rule<std::string> unknown;
   Rule<Statement> line;
   Rule<std::vector<Statement>> obj;
 };
 
-// Visitor class that interprets parsed OBJ statements, to turn them into triangle soup
+// Visitor class that interprets parsed OBJ statements, to turn them into getTriangle soup
 class ObjInterpreter
 {
   public:
-  ObjInterpreter()
-  :
-  _firstGroupVertex(0)
-  {
-  }
+    void operator()(std::string) {};
 
-  void operator()(const Obj::Vertex &vertex)
-  {
-    _vertices.push_back({ vertex.x, vertex.y, vertex.z });
-  }
-
-  void operator()(const Obj::Face &face)
-  {
-    if (face.size() == 3)
+    void operator()(const Obj::Vertex &vertex)
     {
-      _triangles.push_back({ _vertices[_firstGroupVertex + face[0] - 1], _vertices[_firstGroupVertex + face[1] - 1], _vertices[_firstGroupVertex + face[2] -1] });
+      _vertices.push_back({ vertex.x, vertex.y, vertex.z });
     }
-    else
+
+    void operator()(const Obj::Face &face)
     {
-      _triangles.push_back({ _vertices[_firstGroupVertex + face[0] - 1], _vertices[_firstGroupVertex + face[1] - 1], _vertices[_firstGroupVertex + face[2] - 1] });
-      _triangles.push_back({ _vertices[_firstGroupVertex + face[0] - 1], _vertices[_firstGroupVertex + face[2] - 1], _vertices[_firstGroupVertex + face[3] - 1] });
+      _triangles.push_back({ _vertices[face[0] - 1], _vertices[face[1] - 1], _vertices[face[2] - 1] });
+
+      if (face.size() == 4)
+      {
+        _triangles.push_back({ _vertices[face[0] - 1], _vertices[face[2] - 1], _vertices[face[3] - 1] });
+      }
     }
-  }
 
-  void operator()(const Obj::Group &group)
-  {
-    // We don't care about any grouping, but we do need to 'reset' the vertex numbering any time
-    // we encounter a group statement, as all subsequent statements will restart their vertex numbering at one
-    _firstGroupVertex = _vertices.size();
-  }
+    void operator()(const Obj::Material &material)
+    {
+      /// \todo ignore materials for now
+    }
 
-  void operator()(const Obj::Material &material)
-  {
-    /// \todo ignore materials for now
-  }
-
-  const std::vector<core::Triangle> &getTriangles() const { return _triangles; }
+    const std::vector<core::Triangle> &getTriangles() const { return _triangles; }
 
   private:
-  int _firstGroupVertex;
-
-  std::vector<core::Vec3> _vertices;
-  std::vector<core::Triangle> _triangles;
+    std::vector<core::Vec3> _vertices;
+    std::vector<core::Triangle> _triangles;
 };
 
-// Read .OBJ file contents and return its contents as triangle soup
+// Read .OBJ file contents and return its contents as getTriangle soup
 std::vector<core::Triangle> read(const std::string &filename)
 {
   std::ifstream in(filename, std::ios::in);
@@ -160,6 +143,5 @@ std::vector<core::Triangle> read(const std::string &filename)
 }
 
 BOOST_FUSION_ADAPT_STRUCT(utils::Obj::Vertex, (float, x) (float, y) (float, z))
-BOOST_FUSION_ADAPT_STRUCT(utils::Obj::Group, (std::string, name))
 BOOST_FUSION_ADAPT_STRUCT(utils::Obj::Material, (std::string, name))
 

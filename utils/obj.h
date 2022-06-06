@@ -3,6 +3,7 @@
 #include "core/types.h"
 
 #include <vector>
+#include <string>
 
 namespace utils::Obj {
 

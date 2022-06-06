@@ -19,7 +19,7 @@ set (CMAKE_CXX_STANDARD 17)
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
   add_compile_options (-Wall -O3 -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
 else ()
-  add_compile_options ("-g" "-Wall" "-O0" "-DFMT_HEADER_ONLY" "-DSIMDE_ENABLE_NATIVE_ALIASES")
+  add_compile_options (-g -Wall -O0 -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES)
 endif ()
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
@@ -38,8 +38,13 @@ include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")
 include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
 
-add_library (core INTERFACE)
-target_include_directories (core INTERFACE core)
+add_library (core
+  core/bvh.h
+  core/bvh.cpp
+  core/frame.h
+  core/intersect.h
+  core/types.h
+)
 
 add_library (utils
   utils/obj.cpp
@@ -47,8 +52,6 @@ add_library (utils
   utils/ppm.cpp
   utils/ppm.h
 )
-
-#add_subdirectory (test)
 
 add_executable (flatrace main.cpp)
 
@@ -58,11 +61,21 @@ target_link_libraries (flatrace
   Threads::Threads
 )
 
+include (CTest)
+enable_testing ()
 
+add_executable(tests
+  test/main.cpp
+  test/test_bvh.cpp
+)
 
+target_link_libraries (tests
+  core
+  utils
+  Threads::Threads
+  GTest::GTest
+)
 
-
-
-
-
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)
+file(CREATE_LINK ${CMAKE_SOURCE_DIR}/test/input ${CMAKE_BINARY_DIR}/test/input SYMBOLIC)
 
