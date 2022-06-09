@@ -35,12 +35,12 @@ BVH::Node *BVH::createNode(const int from, const int to)
   {
     for (const Vec3 &v : getTriangle(i).vertices)
     {
-      node->bbox.min = node->bbox.min.min(v);
-      node->bbox.max = node->bbox.max.max(v);
+      node->bbox.min = Vec3::min(node->bbox.min, v);
+      node->bbox.max = Vec3::max(node->bbox.max, v);
     }
 
-    centroid_bbox.min = centroid_bbox.min.min(getCentroid(i));
-    centroid_bbox.max = centroid_bbox.max.max(getCentroid(i));
+    centroid_bbox.min = Vec3::min(centroid_bbox.min, getCentroid(i));
+    centroid_bbox.max = Vec3::max(centroid_bbox.max, getCentroid(i));
   }
 
   // Subdivide if this is not a leaf node (getTriangle count below cutoff)

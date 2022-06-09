@@ -9,10 +9,10 @@
 
 namespace core {
 
+static constexpr auto INF = std::numeric_limits<float>::infinity();
+
 struct Vec3
 {
-  static constexpr auto INF = std::numeric_limits<float>::infinity();
-
   float x;
   float y;
   float z;
@@ -33,13 +33,13 @@ struct Vec3
   Vec3 operator-(const Vec3 &other) const { return { x - other.x, y - other.y, z - other.z }; }
   Vec3 operator+(const Vec3 &other) const { return { x + other.x, y + other.y, z + other.z }; }
   Vec3 operator*(const float s) const { return { x * s, y * s, z * s }; }
+  Vec3 operator/(const float s) const { return { x / s, y / s, z / s }; }
 
   Vec3 cross(const Vec3 &other) const { return { y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x }; };
   float dot(const Vec3 &other) const { return x * other.x + y * other.y + z * other.z; };
 
-  Vec3 min(const Vec3 &other) const { return { std::min(x, other.x), std::min(y, other.y), std::min(z, other.z) }; }
-  Vec3 max(const Vec3 &other) const { return { std::max(x, other.x), std::max(y, other.y), std::max(z, other.z) }; }
-
+  static Vec3 min(const Vec3 &lhs, const Vec3 &rhs) { return { std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z) }; }
+  static Vec3 max(const Vec3 &lhs, const Vec3 &rhs) { return { std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z) }; }
 };
 
 struct Ray
@@ -100,8 +100,8 @@ struct BoundingBox
 {
   BoundingBox()
   :
-    min({ Vec3::INF, Vec3::INF, Vec3::INF }),
-    max({ -Vec3::INF, -Vec3::INF, -Vec3::INF })
+    min({ INF, INF, INF }),
+    max({ -INF, -INF, -INF })
   {
   }
 

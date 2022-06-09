@@ -19,8 +19,11 @@ int main(int argc, char **argv)
   constexpr auto FRAME_WIDTH = 1024;
   constexpr auto FRAME_HEIGHT = 768;
 
-  constexpr float DX = 0.2f / FRAME_WIDTH;
-  constexpr float DY = 0.2f / FRAME_HEIGHT;
+  constexpr float VIEWPORT_WIDTH = 1.2f;
+  constexpr float VIEWPORT_HEIGHT = 1.2f;
+
+  constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
+  constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
 
   constexpr auto N_FRAMES = 1;
   constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
@@ -72,14 +75,14 @@ int main(int argc, char **argv)
 
   for (int i = 0; i < FRAME_HEIGHT; i++)
   {
-    const float y = 0.0f + (i * DY);
-    float x = -0.12f;
+    const float y = -(VIEWPORT_HEIGHT / 2.0f) + (i * DY);
+    float x = -(VIEWPORT_WIDTH / 2.0f);
 
     RGBA *p = frame.pixels.get() + (FRAME_HEIGHT - i - 1)*FRAME_WIDTH;
 
     for (int j = 0; j < FRAME_WIDTH; j++)
     {
-      Ray ray = { { x, y, 10.0f }, { 0.0f, 0.0f, -1.0f } };
+      Ray ray = { { x, y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
       const bool hit = bvh.intersect(ray);
 
       const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 255.0f) : 0);

@@ -97,8 +97,9 @@ class ObjInterpreter
     std::vector<core::Triangle> _triangles;
 };
 
-// Read .OBJ file contents and return its contents as getTriangle soup
-std::vector<core::Triangle> read(const std::string &filename)
+// Read .OBJ file contents and return its contents as triangle soup, optionally normalizing vertex
+// XYZ coordinates to [0..1] range
+std::vector<core::Triangle> read(const std::string &filename, const bool normalize)
 {
   std::ifstream in(filename, std::ios::in);
 
@@ -127,7 +128,37 @@ std::vector<core::Triangle> read(const std::string &filename)
 
       std::for_each(statements.begin(), statements.end(), [&obj_interpreter](const Obj::Statement &s) { std::visit(obj_interpreter, s); });
 
-      return obj_interpreter.getTriangles();
+      std::vector<core::Triangle> triangles = obj_interpreter.getTriangles();
+
+      if (normalize)
+      {
+        core::Vec3 xyz_min = { core::INF,  core::INF, core::INF };
+        core::Vec3 xyz_max = { -core::INF,  -core::INF, -core::INF };
+
+        for (const core::Triangle &triangle : triangles)
+        {
+          for (const core::Vec3 &v : triangle.vertices)
+          {
+            xyz_min = core::Vec3::min(xyz_min, v);
+            xyz_max = core::Vec3::max(xyz_max, v);
+          }
+        }
+
+        const core::Vec3 center = (xyz_min + xyz_max) / 2.0f;
+        const core::Vec3 range = (xyz_max - xyz_min);
+        const float max_dim = std::max(range.x, std::max(range.y, range.z));
+
+        std::transform(triangles.begin(), triangles.end(), triangles.begin(), [center, max_dim](core::Triangle &triangle)
+        {
+          const core::Vec3 v0 = (triangle.vertices[0] - center) / max_dim;
+          const core::Vec3 v1 = (triangle.vertices[1] - center) / max_dim;
+          const core::Vec3 v2 = (triangle.vertices[2] - center) / max_dim;
+
+          return core::Triangle{ v0, v1, v2 };
+        });
+      }
+
+      return triangles;
     }
     else
     {

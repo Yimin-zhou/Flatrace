@@ -7,6 +7,6 @@
 
 namespace utils::Obj {
 
-std::vector<core::Triangle> read(const std::string &filename);
+std::vector<core::Triangle> read(const std::string &filename, const bool normalize = true);
 
 }
