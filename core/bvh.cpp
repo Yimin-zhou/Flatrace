@@ -16,7 +16,7 @@ BVH::BVH(const std::vector<Triangle> &triangles)
 
   std::transform(triangles.begin(), triangles.end(), _triangleCentroids.begin(), [](const Triangle &t)
   {
-    return (t.vertices[0] + t.vertices[1] + t.vertices[2]) * (1.0f/3.0f);
+    return (t.vertices[0] + t.vertices[1] + t.vertices[2]) / 3.0f;
   });
 
   _nodes.reserve(triangles.size()*2 - 1);

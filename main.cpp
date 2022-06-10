@@ -25,6 +25,8 @@ int main(int argc, char **argv)
   constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
   constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
 
+  constexpr int TILE_SIZE = 16;
+
   constexpr auto N_FRAMES = 1;
   constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
 
@@ -71,33 +73,40 @@ int main(int argc, char **argv)
 
   const auto start = steady_clock::now();
 
-  int n_hit = 0;
-
-  for (int i = 0; i < FRAME_HEIGHT; i++)
+  for (int tile_i = 0; tile_i < (FRAME_HEIGHT / TILE_SIZE); tile_i++)
   {
-    const float y = -(VIEWPORT_HEIGHT / 2.0f) + (i * DY);
-    float x = -(VIEWPORT_WIDTH / 2.0f);
-
-    RGBA *p = frame.pixels.get() + (FRAME_HEIGHT - i - 1)*FRAME_WIDTH;
-
-    for (int j = 0; j < FRAME_WIDTH; j++)
+    for (int tile_j = 0; tile_j < (FRAME_WIDTH / TILE_SIZE); tile_j++)
     {
-      Ray ray = { { x, y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
-      const bool hit = bvh.intersect(ray);
+      const float tile_x = -(VIEWPORT_WIDTH / 2.0f) + (tile_j * TILE_SIZE * DX);
+      const float tile_y = -(VIEWPORT_HEIGHT / 2.0f) + (tile_i * TILE_SIZE * DY);
 
-      const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 255.0f) : 0);
+      float y = tile_y;
+      RGBA * p = frame.pixels.get() + (FRAME_HEIGHT - tile_i*TILE_SIZE - 1)*FRAME_WIDTH + (tile_j*TILE_SIZE);
 
-      *p = RGBA{ c, c, c, 255 };
+      for (int i = tile_i*TILE_SIZE; i < (tile_i*TILE_SIZE) + TILE_SIZE; i++)
+      {
+        float x = tile_x;
 
-      n_hit += hit;
-      x += DX;
-      p += 1;
+        for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
+        {
+          Ray ray = { { x, y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
+          const bool hit = bvh.intersect(ray);
+
+          const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 255.0f) : 0);
+
+          *p = RGBA{ c, c, c, 255 };
+
+          x += DX;
+          p += 1;
+        }
+
+        y += DY;
+        p -= (FRAME_WIDTH + TILE_SIZE);
+      }
     }
   }
 
   const auto end = steady_clock::now();
-
-  std::cerr << "N HIT: " << n_hit << std::endl;
 
   std::cerr << std::setprecision(12)
             << N_RAYS << " intersections took: " << duration_cast<milliseconds>(end - start).count() << "ms ("
