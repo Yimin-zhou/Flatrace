@@ -15,7 +15,33 @@ class BVH
 
     bool intersect(Ray &ray) const
     {
-      return intersectNode(_root, ray);
+      Node *node_stack[_depth];
+      int stack_pointer = 0;
+
+      node_stack[stack_pointer++] = _root;
+
+      while (stack_pointer != 0)
+      {
+        Node * const node = node_stack[--stack_pointer];
+
+        if (node && core::intersect(node->bbox, ray))
+        {
+          if (node->isLeaf)
+          {
+            for (int i = node->from; i < node->to; i++)
+            {
+              core::intersect(getTriangle(i), ray);
+            }
+          }
+          else
+          {
+            node_stack[stack_pointer++] = node->left;
+            node_stack[stack_pointer++] = node->right;
+          }
+        }
+      }
+
+      return (ray.t != core::INF);
     }
 
     bool failed() const { return _failed; }
@@ -32,6 +58,21 @@ class BVH
       {
       }
 
+      int depth() const
+      {
+        if (isLeaf)
+        {
+          return 1;
+        }
+        else
+        {
+          const int left_depth = (left != nullptr ? left->depth() : 0);
+          const int right_depth = (right != nullptr ? right->depth() : 0);
+
+          return 1 + std::max(left_depth, right_depth);
+        }
+      }
+
       int from;
       int to;
       bool isLeaf;
@@ -44,27 +85,6 @@ class BVH
     Node *createNode(const int from, const int to);
     std::optional<int> splitNode(const int from, const int to, const Plane &splitPlane);
 
-    bool intersectNode(const Node * const node, Ray &ray) const
-    {
-      if (core::intersect(node->bbox, ray))
-      {
-        if (node->isLeaf)
-        {
-          for (int i = node->from; i < node->to; i++)
-          {
-            core::intersect(getTriangle(i), ray);
-          }
-        }
-        else
-        {
-          intersectNode(node->left, ray);
-          intersectNode(node->right, ray);
-        }
-      }
-
-      return !std::isinf(ray.t);
-    }
-
     bool _failed;
 
     std::vector<Node> _nodes;
@@ -74,6 +94,7 @@ class BVH
     std::vector<Vec3> _triangleCentroids;
 
     Node *_root;
+    int _depth;
 };
 
 

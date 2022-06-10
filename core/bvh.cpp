@@ -21,6 +21,7 @@ BVH::BVH(const std::vector<Triangle> &triangles)
 
   _nodes.reserve(triangles.size()*2 - 1);
   _root = createNode(0, triangles.size());
+  _depth = _root->depth();
 }
 
 BVH::Node *BVH::createNode(const int from, const int to)
