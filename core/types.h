@@ -9,7 +9,7 @@
 
 namespace core {
 
-static constexpr auto INF = std::numeric_limits<float>::infinity();
+static constexpr auto INF = std::numeric_limits<float>::max();
 
 struct Vec3
 {
