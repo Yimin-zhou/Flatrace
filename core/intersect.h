@@ -13,7 +13,7 @@ inline bool intersect(const Triangle &triangle, Ray &ray)
 
   const float det = p.dot(triangle.edges[0]);
 
-  if (det < 1e-12f)
+  if (det < EPS)
   {
     return false;
   }
@@ -23,7 +23,7 @@ inline bool intersect(const Triangle &triangle, Ray &ray)
   const Vec3 tv = ray.o - triangle.vertices[0];
   const float u = tv.dot(p) * inv_det;
 
-  if (u < 0.0f || u > 1.0f)
+  if ((u < 0.0f) || (u > 1.0f))
   {
     return false;
   }
@@ -47,24 +47,26 @@ inline bool intersect(const Triangle &triangle, Ray &ray)
   return true;
 }
 
-inline bool intersect(const BoundingBox &bbox, const Ray &ray)
+inline float intersect(const BoundingBox &bbox, const Ray &ray)
 {
-  const float tx1 = (bbox.min.x - ray.o.x) / ray.d.x;
-  const float tx2 = (bbox.max.x - ray.o.x) / ray.d.x;
+  const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
+  const float tx2 = (bbox.max.x - ray.o.x) * ray.rd.x;
   float tmin = std::min(tx1, tx2);
   float tmax = std::max(tx1, tx2);
 
-  const float ty1 = (bbox.min.y - ray.o.y) / ray.d.y;
-  const float ty2 = (bbox.max.y - ray.o.y) / ray.d.y;
+  const float ty1 = (bbox.min.y - ray.o.y) * ray.rd.y;
+  const float ty2 = (bbox.max.y - ray.o.y) * ray.rd.y;
   tmin = std::max(tmin, std::min(ty1, ty2)) ;
   tmax = std::min(tmax, std::max(ty1, ty2));
 
-  const float tz1 = (bbox.min.z - ray.o.z) / ray.d.z;
-  const float tz2 = (bbox.max.z - ray.o.z) / ray.d.z;
+  const float tz1 = (bbox.min.z - ray.o.z) * ray.rd.z;
+  const float tz2 = (bbox.max.z - ray.o.z) * ray.rd.z;
   tmin = std::max(tmin, std::min(tz1, tz2));
   tmax = std::min(tmax, std::max(tz1, tz2));
 
-  return ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t));
+  const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t));
+
+  return (hit ? tmin : INF);
 }
 
 }

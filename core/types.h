@@ -9,7 +9,8 @@
 
 namespace core {
 
-static constexpr auto INF = std::numeric_limits<float>::max();
+static constexpr float INF = std::numeric_limits<float>::max();
+static constexpr float EPS = 1e-12f;
 
 struct Vec3
 {
@@ -46,12 +47,13 @@ struct Ray
 {
   Ray(const Vec3 &origin, const Vec3 &direction)
   :
-    o(origin),  d(direction), t(std::numeric_limits<float>::infinity()), dot(0.0f)
+    o(origin),  d(direction), rd({ 1.0f / d.x, 1.0f / d.y, 1.0f / d.z }), t(std::numeric_limits<float>::infinity()), dot(0.0f)
   {
   }
 
   Vec3 o;
   Vec3 d;
+  Vec3 rd;
 
   float t;
   float dot;
