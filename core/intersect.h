@@ -47,6 +47,16 @@ inline bool intersect(const Triangle &triangle, Ray &ray)
   return true;
 }
 
+inline uint8_t intersect2x2(const Triangle &triangle, Ray &ray0, Ray &ray1, Ray &ray2, Ray &ray3)
+{
+  const bool intersect_0 = intersect(triangle, ray0);
+  const bool intersect_1 = intersect(triangle, ray1);
+  const bool intersect_2 = intersect(triangle, ray2);
+  const bool intersect_3 = intersect(triangle, ray3);
+
+  return intersect_0 | (intersect_1 << 1) | (intersect_2 << 2) | (intersect_3 << 3);
+}
+
 inline float intersect(const BoundingBox &bbox, const Ray &ray)
 {
   const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
@@ -67,6 +77,16 @@ inline float intersect(const BoundingBox &bbox, const Ray &ray)
   const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t));
 
   return (hit ? tmin : INF);
+}
+
+inline uint8_t intersect2x2(const BoundingBox &bbox, const Ray &ray0, const Ray &ray1, const Ray &ray2, const Ray &ray3)
+{
+  const bool intersect_0 = (intersect(bbox, ray0) != INF);
+  const bool intersect_1 = (intersect(bbox, ray1) != INF);
+  const bool intersect_2 = (intersect(bbox, ray2) != INF);
+  const bool intersect_3 = (intersect(bbox, ray3) != INF);
+
+  return intersect_0 | (intersect_1 << 1) | (intersect_2 << 2) | (intersect_3 << 3);
 }
 
 }

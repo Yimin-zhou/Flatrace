@@ -17,59 +17,8 @@ class BVH
   public:
     BVH(const std::vector<Triangle> &triangles);
 
-    bool intersect(Ray &ray) const
-    {
-      Node *node_stack[_depth];
-      int stack_pointer = 0;
-
-      if (core::intersect(_root->bbox, ray) != INF)
-      {
-        node_stack[stack_pointer++] = _root;
-      }
-
-      // Traversal works like this: while there are nodes left on the stack, pop the topmost one. If it is a leaf,
-      // intersect & shorten the ray against the triangles in the leaf node. If the node is an internal node,
-      // intersect the ray against its left & right child node bboxes, and push those child nodes that were hit,
-      // ordered by hit distance, to ensure the closest node gets traversed first.
-      while (stack_pointer != 0)
-      {
-        Node * const node = node_stack[--stack_pointer];
-
-        if (node->isLeaf)
-        {
-          for (int i = node->from; i < node->to; i++)
-          {
-            core::intersect(getTriangle(i), ray);
-          }
-        }
-        else
-        {
-          Node *left = node->left;
-          Node *right = node->right;
-
-          float t_left = core::intersect(left->bbox, ray);
-          float t_right = core::intersect(right->bbox, ray);
-
-          if (t_left > t_right)
-          {
-            std::swap(t_left, t_right);
-            std::swap(left, right);
-          }
-
-          if (t_left != INF)
-          {
-            if (t_right != INF)
-            {
-              node_stack[stack_pointer++] = right;
-            }
-
-            node_stack[stack_pointer++] = left;
-          }
-        }
-      }
-
-      return (ray.t != core::INF);
-    }
+    bool intersect(Ray &ray) const;
+    uint8_t intersect2x2(Ray &ray0, Ray &ray1, Ray &ray2, Ray &ray3) const;
 
     bool failed() const { return _failed; }
 

@@ -14,22 +14,105 @@
 
 using namespace core;
 
+constexpr auto FRAME_WIDTH = 1024;
+constexpr auto FRAME_HEIGHT = 768;
+
+constexpr float VIEWPORT_WIDTH = 1.2f;
+constexpr float VIEWPORT_HEIGHT = 1.2f;
+
+constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
+constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
+
+constexpr int TILE_SIZE = 16;
+
+constexpr auto N_FRAMES = 1;
+constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
+
+namespace {
+
+void render_frame(const BVH &bvh, RGBA * const frameBuffer)
+{
+  for (int tile_i = 0; tile_i < (FRAME_HEIGHT / TILE_SIZE); tile_i++)
+  {
+    const float tile_y = -(VIEWPORT_HEIGHT / 2.0f) + (tile_i * TILE_SIZE * DY);
+
+    for (int tile_j = 0; tile_j < (FRAME_WIDTH / TILE_SIZE); tile_j++)
+    {
+      const float tile_x = -(VIEWPORT_WIDTH / 2.0f) + (tile_j * TILE_SIZE * DX);
+
+      float y = tile_y;
+      RGBA * p = frameBuffer + (FRAME_HEIGHT - tile_i*TILE_SIZE - 1)*FRAME_WIDTH + (tile_j*TILE_SIZE);
+
+      for (int i = tile_i*TILE_SIZE; i < (tile_i*TILE_SIZE) + TILE_SIZE; i++)
+      {
+        float x = tile_x;
+
+        for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
+        {
+          Ray ray = { { x, y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
+          const bool hit = bvh.intersect(ray);
+
+          const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 255.0f) : 0);
+
+          *p = RGBA{ c, c, c, 255 };
+
+          x += DX;
+          p += 1;
+        }
+
+        y += DY;
+        p -= (FRAME_WIDTH + TILE_SIZE);
+      }
+    }
+  }
+}
+
+
+void render_frame_2x2(const BVH &bvh, RGBA * const frameBuffer)
+{
+  for (int tile_i = 0; tile_i < FRAME_HEIGHT; tile_i += TILE_SIZE)
+  {
+    for (int tile_j = 0; tile_j < FRAME_WIDTH; tile_j += TILE_SIZE)
+    {
+      for (int bundle_i = tile_i; bundle_i < (tile_i + TILE_SIZE); bundle_i += 2)
+      {
+        const float bundle_y = -(VIEWPORT_HEIGHT / 2.0f) + (bundle_i * DY);
+
+        for (int bundle_j = tile_j; bundle_j < (tile_j + TILE_SIZE); bundle_j += 2)
+        {
+          const float bundle_x = -(VIEWPORT_WIDTH / 2.0f) + (bundle_j * DX);
+
+          RGBA * const p = frameBuffer + (FRAME_HEIGHT - bundle_i- 1)*FRAME_WIDTH + bundle_j;
+
+          Ray ray0 = { { bundle_x, bundle_y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
+          Ray ray1 = { { bundle_x + DX, bundle_y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
+          Ray ray2 = { { bundle_x, bundle_y + DY, 1.0f }, { 0.0f, 0.0f, -1.0f } };
+          Ray ray3 = { { bundle_x + DX, bundle_y + DY, 1.0f }, { 0.0f, 0.0f, -1.0f } };
+
+          const uint8_t hit = bvh.intersect2x2(ray0, ray1, ray2, ray3);
+
+          if (hit)
+          {
+            const uint8_t c0 = ((hit & 0b0001) ? static_cast<uint8_t>(std::abs(ray0.dot) * 255.0f) : 0);
+            const uint8_t c1 = ((hit & 0b0010) ? static_cast<uint8_t>(std::abs(ray1.dot) * 255.0f) : 0);
+            const uint8_t c2 = ((hit & 0b0100) ? static_cast<uint8_t>(std::abs(ray2.dot) * 255.0f) : 0);
+            const uint8_t c3 = ((hit & 0b1000) ? static_cast<uint8_t>(std::abs(ray3.dot) * 255.0f) : 0);
+
+            *p =  RGBA{ c0, c0, c0, 255 };
+            *(p + 1) =  RGBA{ c1, c1, c1, 255 };
+            *(p - FRAME_WIDTH) =  RGBA{ c2, c2, c2, 255 };
+            *(p - FRAME_WIDTH + 1) =  RGBA{ c3, c3, c3, 255 };
+          }
+        }
+      }
+    }
+  }
+}
+
+}
+
 int main(int argc, char **argv)
 {
-  constexpr auto FRAME_WIDTH = 1024;
-  constexpr auto FRAME_HEIGHT = 768;
-
-  constexpr float VIEWPORT_WIDTH = 1.2f;
-  constexpr float VIEWPORT_HEIGHT = 1.2f;
-
-  constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
-  constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
-
-  constexpr int TILE_SIZE = 16;
-
-  constexpr auto N_FRAMES = 1;
-  constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
-
   using namespace std::chrono;
 
   if (argc != 2)
@@ -73,38 +156,12 @@ int main(int argc, char **argv)
 
   const auto start = steady_clock::now();
 
-  for (int tile_i = 0; tile_i < (FRAME_HEIGHT / TILE_SIZE); tile_i++)
-  {
-    for (int tile_j = 0; tile_j < (FRAME_WIDTH / TILE_SIZE); tile_j++)
-    {
-      const float tile_x = -(VIEWPORT_WIDTH / 2.0f) + (tile_j * TILE_SIZE * DX);
-      const float tile_y = -(VIEWPORT_HEIGHT / 2.0f) + (tile_i * TILE_SIZE * DY);
+#if 0
+  render_frame(bvh, frame.pixels.get());
+#else
+  render_frame_2x2(bvh, frame.pixels.get());
+#endif
 
-      float y = tile_y;
-      RGBA * p = frame.pixels.get() + (FRAME_HEIGHT - tile_i*TILE_SIZE - 1)*FRAME_WIDTH + (tile_j*TILE_SIZE);
-
-      for (int i = tile_i*TILE_SIZE; i < (tile_i*TILE_SIZE) + TILE_SIZE; i++)
-      {
-        float x = tile_x;
-
-        for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
-        {
-          Ray ray = { { x, y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
-          const bool hit = bvh.intersect(ray);
-
-          const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 255.0f) : 0);
-
-          *p = RGBA{ c, c, c, 255 };
-
-          x += DX;
-          p += 1;
-        }
-
-        y += DY;
-        p -= (FRAME_WIDTH + TILE_SIZE);
-      }
-    }
-  }
 
   const auto end = steady_clock::now();
 
