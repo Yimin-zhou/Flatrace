@@ -78,7 +78,7 @@ bool BVH::intersect(Ray &ray) const
   return (ray.t != core::INF);
 }
 
-uint8_t BVH::intersect2x2(Ray &ray0, Ray &ray1, Ray &ray2, Ray &ray3) const
+uint8_t BVH::intersect2x2(Ray2x2 &rays) const
 {
   Node *node_stack[_depth];
   int stack_pointer = 0;
@@ -89,7 +89,7 @@ uint8_t BVH::intersect2x2(Ray &ray0, Ray &ray1, Ray &ray2, Ray &ray3) const
   {
     Node * const node = node_stack[--stack_pointer];
 
-    const uint8_t hit = core::intersect2x2(node->bbox, ray0, ray1, ray2, ray3);
+    const uint8_t hit = core::intersect2x2(node->bbox, rays);
 
     if (hit)
     {
@@ -97,7 +97,7 @@ uint8_t BVH::intersect2x2(Ray &ray0, Ray &ray1, Ray &ray2, Ray &ray3) const
       {
         for (int i = node->from; i < node->to; i++)
         {
-          core::intersect2x2(getTriangle(i), ray0, ray1, ray2, ray3);
+          core::intersect2x2(getTriangle(i), rays);
         }
       }
       else
@@ -108,7 +108,7 @@ uint8_t BVH::intersect2x2(Ray &ray0, Ray &ray1, Ray &ray2, Ray &ray3) const
     }
   }
 
-  return (ray0.t != core::INF) | ((ray1.t != core::INF) << 1) | ((ray2.t != core::INF) << 2) | ((ray3.t != core::INF) << 3);
+  return (rays.t[0] != core::INF) | ((rays.t[1] != core::INF) << 1) | ((rays.t[2] != core::INF) << 2) | ((rays.t[3] != core::INF) << 3);
 }
 
 BVH::Node *BVH::createNode(const int from, const int to)

@@ -18,7 +18,7 @@ class BVH
     BVH(const std::vector<Triangle> &triangles);
 
     bool intersect(Ray &ray) const;
-    uint8_t intersect2x2(Ray &ray0, Ray &ray1, Ray &ray2, Ray &ray3) const;
+    uint8_t intersect2x2(Ray2x2 &rays) const;
 
     bool failed() const { return _failed; }
 

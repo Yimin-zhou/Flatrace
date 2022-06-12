@@ -12,7 +12,7 @@ namespace core {
 static constexpr float INF = std::numeric_limits<float>::max();
 static constexpr float EPS = 1e-12f;
 
-struct Vec3
+struct __attribute__((aligned(16))) Vec3
 {
   float x;
   float y;
@@ -47,7 +47,7 @@ struct Ray
 {
   Ray(const Vec3 &origin, const Vec3 &direction)
   :
-    o(origin),  d(direction), rd({ 1.0f / d.x, 1.0f / d.y, 1.0f / d.z }), t(std::numeric_limits<float>::infinity()), dot(0.0f)
+    o(origin),  d(direction), rd({ 1.0f / d.x, 1.0f / d.y, 1.0f / d.z }), t(INF), dot(0.0f)
   {
   }
 
@@ -57,6 +57,42 @@ struct Ray
 
   float t;
   float dot;
+};
+
+struct  __attribute__((aligned(16))) Ray2x2
+{
+  Ray2x2(const Vec3 &origin, const Vec3 &direction, const float DX, const float DY)
+  {
+    ox = { origin.x, origin.x + DX, origin.x, origin.x + DX };
+    oy = { origin.y, origin.y, origin.y + DY, origin.y + DY };
+    oz = { origin.z, origin.z, origin.z, origin.z };
+
+    dx = { direction.x, direction.x, direction.x, direction.x };
+    dy = { direction.y, direction.y, direction.y, direction.y };
+    dz = { direction.z, direction.z, direction.z, direction.z };
+
+    rdx = { 1.0f / direction.x, 1.0f / direction.x, 1.0f / direction.x, 1.0f / direction.x };
+    rdy = { 1.0f / direction.y, 1.0f / direction.y, 1.0f / direction.y, 1.0f / direction.y };
+    rdz = { 1.0f / direction.z, 1.0f / direction.z, 1.0f / direction.z, 1.0f / direction.z };
+
+    t = { INF, INF, INF, INF };
+    dot = { 0.0f, 0.0f, 0.0f, 0.0f };
+  }
+
+  std::array<float, 4> ox;
+  std::array<float, 4> oy;
+  std::array<float, 4> oz;
+
+  std::array<float, 4> dx;
+  std::array<float, 4> dy;
+  std::array<float, 4> dz;
+
+  std::array<float, 4> rdx;
+  std::array<float, 4> rdy;
+  std::array<float, 4> rdz;
+
+  std::array<float, 4> t;
+  std::array<float, 4> dot;
 };
 
 struct Triangle
