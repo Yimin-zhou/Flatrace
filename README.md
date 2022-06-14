@@ -33,4 +33,33 @@ After that, things get more complicated, but the following thigs could all yield
   * Checkerboard rendering with temporal interpolation (thi is cheating of course, but why not)
   * Multithreaded rendering (trivial to implement, but let's save the best for last)
 
+### Optimization round 1
+
+  * Eliminated recursion in BVH traversal: ~40% reduction in bunny render time
+  * Enabled -Ofast, which implies -ffast-math (usually evil, but for this use case acceptable): ~10% reduction in bunny render time
+  * Render in 16x16 tiles to improve spatial coherence/data locality: ~7% reduction in bunny render time
+  * Some minor local optimizations: ~5% reduction in bunny render time
+  * Front-to-back ray traversal: no reduction in bunny render time (also no slowdown), but makes the render time for
+    other models (especially models that are not 'almost convex' like the bunny) much less sensitive to camera angle
+
+#### Results so far:
+
+  * Bunny render time reduced to ~80ms per frame (~10 million rays per second, ~2.2x speedup relative to baseline)
+
+### Optimization round 2
+
+  * Traverse BVH and intersect triangles in 2x2 ray packets, and use 4-way SIMD for ray-bbox and ray-triange
+    intersection logic: ~70% render time reduction
+
+#### Results so far:
+
+  * Bunny render time reduced to ~25ms per frame (~31 million rays per second, ~8x speedup relative to baseline)
+
+#### Notes 
+
+This is currently using 4-way SIMD operations only, since M1 MacBook Pro does not have wider SIMD support. It should
+be worthwhile to implement 8-way BVH traversal and triangle intersections for x86 (AVX), the savings there will
+not nearly be as much as going from scalar to 4-way SIMD (expect more SIMD lane divergence when tracing larger
+ray packets), but this should definitely shave off enough render time to pretty much level the playing field
+between x86 (let's say 9th-gen i7) and M1 Pro.
 
