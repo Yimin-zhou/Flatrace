@@ -30,7 +30,7 @@ class BVH
     {
       Node(const int from, const int to)
       :
-        from(from), to(to), isLeaf((to - from) <= 2), left(nullptr), right(nullptr)
+        from(from), to(to), isLeaf((to - from) <= 4), left(nullptr), right(nullptr)
       {
       }
 

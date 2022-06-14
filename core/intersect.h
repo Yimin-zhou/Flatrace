@@ -118,7 +118,7 @@ inline void intersect2x2(const Triangle &triangle, Ray2x2 &rays)
   //  }
   const __m128 det = dot4(p, triangle_e0);
 
-  __m128 update_rays = _mm_cmpgt_ps(det, _mm_set1_ps(EPS));
+  __m128i update_rays = _mm_cmpgt_ps(det, _mm_set1_ps(EPS));
 
   if (_mm_movemask_ps(update_rays) == NONE)
   {
@@ -185,9 +185,7 @@ inline void intersect2x2(const Triangle &triangle, Ray2x2 &rays)
   //  }
   update_rays = _mm_and_ps(update_rays, _mm_cmplt_ps(t, ray_t));
 
-  const int t_mask = _mm_movemask_ps(update_rays);
-
-  if (t_mask != NONE)
+  if (!_mm_testz_si128(update_rays, update_rays))
   {
     const Vec3_x4 triangle_normal = {
       _mm_load1_ps(&triangle.normal.x),
@@ -197,8 +195,8 @@ inline void intersect2x2(const Triangle &triangle, Ray2x2 &rays)
 
     const __m128 dot = dot4(triangle_normal, ray_d);
 
-    const __m128 new_t = _mm_blend_ps(ray_t, t, t_mask);
-    const __m128 new_dot = _mm_blend_ps(ray_dot, dot, t_mask);
+    const __m128 new_t = _mm_blendv_ps(ray_t, t, update_rays);
+    const __m128 new_dot = _mm_blendv_ps(ray_dot, dot, update_rays);
 
     _mm_store_ps(rays.t.data(), new_t);
     _mm_store_ps(rays.dot.data(), new_dot);
