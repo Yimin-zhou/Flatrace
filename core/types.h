@@ -59,6 +59,7 @@ struct Ray
   float dot;
 };
 
+// 2x2 ray bundle for 4-way SIMD BVH traversal & triangle intersection
 struct  __attribute__((aligned(16))) Ray2x2
 {
   Ray2x2(const Vec3 &origin, const Vec3 &direction, const float DX, const float DY)
@@ -93,6 +94,40 @@ struct  __attribute__((aligned(16))) Ray2x2
 
   std::array<float, 4> t;
   std::array<float, 4> dot;
+};
+
+// 4x4 ray bundle for 8-way SIMD BVH traversal & triangle intersection
+struct  __attribute__((aligned(16))) Ray4x4
+{
+  Ray4x4(const Vec3 &origin, const Vec3 &direction, const float DX, const float DY)
+  :
+    d(direction),
+    rd(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z)
+  {
+    for (int i = 0; i < 4; i++)
+    {
+      for (int j = 0; j < 4; j++)
+      {
+        ox[i*4 + j] = origin.x + j*DX;
+        oy[i*4 + j] = origin.y + i*DY;
+      }
+    }
+
+    oz = origin.z;
+
+    std::fill(t.begin(), t.end(), INF);
+    std::fill(dot.begin(), dot.end(), 0.0f);
+  }
+
+  std::array<float, 16> ox;
+  std::array<float, 16> oy;
+  float oz;
+
+  Vec3 d;
+  Vec3 rd;
+
+  std::array<float, 16> t;
+  std::array<float, 16> dot;
 };
 
 struct Triangle

@@ -18,7 +18,8 @@ class BVH
     BVH(const std::vector<Triangle> &triangles);
 
     bool intersect(Ray &ray) const;
-    uint8_t intersect2x2(Ray2x2 &rays) const;
+    int intersect2x2(Ray2x2 &rays) const;
+    int intersect4x4(Ray4x4 &rays) const;
 
     bool failed() const { return _failed; }
 
@@ -30,7 +31,7 @@ class BVH
     {
       Node(const int from, const int to)
       :
-        from(from), to(to), isLeaf((to - from) <= 4), left(nullptr), right(nullptr)
+        from(from), to(to), isLeaf((to - from) <= 2), left(nullptr), right(nullptr)
       {
       }
 

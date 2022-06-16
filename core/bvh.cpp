@@ -3,6 +3,8 @@
 #include <numeric>
 #include <iostream>
 
+#include <simde/x86/avx2.h>
+
 namespace core {
 
 BVH::BVH(const std::vector<Triangle> &triangles)
@@ -78,7 +80,7 @@ bool BVH::intersect(Ray &ray) const
   return (ray.t != core::INF);
 }
 
-uint8_t BVH::intersect2x2(Ray2x2 &rays) const
+int BVH::intersect2x2(Ray2x2 &rays) const
 {
   Node *node_stack[_depth];
   int stack_pointer = 0;
@@ -89,7 +91,7 @@ uint8_t BVH::intersect2x2(Ray2x2 &rays) const
   {
     Node * const node = node_stack[--stack_pointer];
 
-    const uint8_t hit = core::intersect2x2(node->bbox, rays);
+    const int hit = core::intersect2x2(node->bbox, rays);
 
     if (hit)
     {
@@ -108,7 +110,44 @@ uint8_t BVH::intersect2x2(Ray2x2 &rays) const
     }
   }
 
-  return (rays.t[0] != core::INF) | ((rays.t[1] != core::INF) << 1) | ((rays.t[2] != core::INF) << 2) | ((rays.t[3] != core::INF) << 3);
+  return _mm_movemask_ps(_mm_cmpneq_ps(_mm_load_ps(rays.t.data()), _mm_set1_ps(INF)));
+}
+
+int BVH::intersect4x4(Ray4x4 &rays) const
+{
+  Node *node_stack[_depth];
+  int stack_pointer = 0;
+
+  node_stack[stack_pointer++] = _root;
+
+  while (stack_pointer != 0)
+  {
+    Node * const node = node_stack[--stack_pointer];
+
+    const int hit = core::intersect4x4(node->bbox, rays);
+
+    if (hit)
+    {
+      if (node->isLeaf)
+      {
+        for (int i = node->from; i < node->to; i++)
+        {
+          core::intersect4x4(getTriangle(i), rays);
+        }
+      }
+      else
+      {
+        node_stack[stack_pointer++] = node->left;
+        node_stack[stack_pointer++] = node->right;
+      }
+    }
+  }
+
+  __m256 inf = _mm256_set1_ps(INF);
+
+  return
+    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data()), inf, SIMDE_CMP_NEQ_OQ))) |
+    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data() + 8), inf, SIMDE_CMP_NEQ_OQ)) << 8);
 }
 
 BVH::Node *BVH::createNode(const int from, const int to)

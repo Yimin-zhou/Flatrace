@@ -5,7 +5,7 @@
 #include <optional>
 #include <limits>
 
-#include <simde/x86/sse4.2.h>
+#include <simde/x86/avx2.h>
 
 #include <fmt/format.h>
 
@@ -18,6 +18,13 @@ struct Vec3_x4
   __m128 z;
 };
 
+struct Vec3_x8
+{
+  __m256 x;
+  __m256 y;
+  __m256 z;
+};
+
 // 4-way vector dot product
 __m128 dot4(const Vec3_x4 &a, const Vec3_x4 &b)
 {
@@ -28,6 +35,16 @@ __m128 dot4(const Vec3_x4 &a, const Vec3_x4 &b)
   return _mm_add_ps(_mm_add_ps(px, py), pz);
 }
 
+// 8-way vector dot product
+__m256 dot8(const Vec3_x8 &a, const Vec3_x8 &b)
+{
+  const __m256 px = _mm256_mul_ps(a.x, b.x);
+  const __m256 py = _mm256_mul_ps(a.y, b.y);
+  const __m256 pz = _mm256_mul_ps(a.z, b.z);
+
+  return _mm256_add_ps(_mm256_add_ps(px, py), pz);
+}
+
 // 4-way vector cross product
 Vec3_x4 cross4(const Vec3_x4 &a, const Vec3_x4 &b)
 {
@@ -35,6 +52,16 @@ Vec3_x4 cross4(const Vec3_x4 &a, const Vec3_x4 &b)
     _mm_sub_ps(_mm_mul_ps(a.y, b.z), _mm_mul_ps(a.z, b.y)),
     _mm_sub_ps(_mm_mul_ps(a.z, b.x), _mm_mul_ps(a.x, b.z)),
     _mm_sub_ps(_mm_mul_ps(a.x, b.y), _mm_mul_ps(a.y, b.x))
+  };
+}
+
+// 8-way vector cross product
+Vec3_x8 cross8(const Vec3_x8 &a, const Vec3_x8 &b)
+{
+  return {
+    _mm256_sub_ps(_mm256_mul_ps(a.y, b.z), _mm256_mul_ps(a.z, b.y)),
+    _mm256_sub_ps(_mm256_mul_ps(a.z, b.x), _mm256_mul_ps(a.x, b.z)),
+    _mm256_sub_ps(_mm256_mul_ps(a.x, b.y), _mm256_mul_ps(a.y, b.x))
   };
 }
 
@@ -203,6 +230,130 @@ inline void intersect2x2(const Triangle &triangle, Ray2x2 &rays)
   }
 }
 
+inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
+{
+  constexpr int NONE = 0;
+
+  static const __m256 zero = _mm256_set1_ps(0.0f);
+  static const __m256 one = _mm256_set1_ps(1.0f);
+
+  const Vec3_x8 triangle_e0 = {
+    _mm256_broadcast_ss(&triangle.edges[0].x),
+    _mm256_broadcast_ss(&triangle.edges[0].y),
+    _mm256_broadcast_ss(&triangle.edges[0].z)
+  };
+
+  const Vec3_x8 triangle_e1 = {
+    _mm256_broadcast_ss(&triangle.edges[1].x),
+    _mm256_broadcast_ss(&triangle.edges[1].y),
+    _mm256_broadcast_ss(&triangle.edges[1].z)
+  };
+
+  const Vec3_x8 ray_d = {
+    _mm256_broadcast_ss(&rays.d.x),
+    _mm256_broadcast_ss(&rays.d.y),
+    _mm256_broadcast_ss(&rays.d.z),
+  };
+
+  const Vec3_x8 triangle_normal = {
+    _mm256_broadcast_ss(&triangle.normal.x),
+    _mm256_broadcast_ss(&triangle.normal.y),
+    _mm256_broadcast_ss(&triangle.normal.z),
+  };
+
+  for (int i = 0; i < 2; i++)
+  {
+    // const Vec3 p = ray.d.cross(triangle.edges[1]);
+    const Vec3_x8 p = cross8(ray_d, triangle_e1);
+
+    //  const float det = p.dot(triangle.edges[0]);
+    //
+    //  if (det < EPS)
+    //  {
+    //    return false;
+    //  }
+    const __m256 det = dot8(p, triangle_e0);
+
+    __m256 update_rays = _mm256_cmp_ps(det, _mm256_set1_ps(EPS), SIMDE_CMP_GE_OS);
+
+    if (_mm256_movemask_ps(update_rays) == NONE)
+    {
+      continue;
+    }
+
+    // const float inv_det = 1.0f / det;
+    const __m256 inv_det = _mm256_div_ps(one, det);
+
+    //  const Vec3 tv = ray.o - triangle.vertices[0];
+    //  const float u = tv.dot(p) * inv_det;
+    //
+    //  if ((u < 0.0f) || (u > 1.0f))
+    //  {
+    //    return false;
+    //  }
+    const Vec3_x8 tv = {
+      _mm256_sub_ps(_mm256_load_ps(rays.ox.data() + 8*i), _mm256_broadcast_ss(&triangle.vertices[0].x)),
+      _mm256_sub_ps(_mm256_load_ps(rays.oy.data() + 8*i), _mm256_broadcast_ss(&triangle.vertices[0].y)),
+      _mm256_sub_ps(_mm256_broadcast_ss(&rays.oz), _mm256_broadcast_ss(&triangle.vertices[0].z)),
+    };
+
+    const __m256 u = _mm256_mul_ps(dot8(tv, p), inv_det);
+
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, zero, SIMDE_CMP_GE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, one, SIMDE_CMP_LE_OQ));
+
+    if (_mm256_movemask_ps(update_rays) == NONE)
+    {
+      continue;
+    }
+
+    //  const Vec3 qv = tv.cross(triangle.edges[0]);
+    //  const float v = qv.dot(ray.d) * inv_det;
+    //
+    //  if ((v < 0.0f) || ((u + v) > 1.0f))
+    //  {
+    //    return false;
+    //  }
+
+    const Vec3_x8 qv = cross8(tv, triangle_e0);
+    const __m256 v = _mm256_mul_ps(dot8(qv, ray_d), inv_det);
+    const __m256 u_plus_v = _mm256_add_ps(u, v);
+
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(v, zero, SIMDE_CMP_GE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u_plus_v, one, SIMDE_CMP_LE_OQ));
+
+    if (_mm256_movemask_ps(update_rays) == NONE)
+    {
+      continue;
+    }
+
+    //  const float t = qv.dot(triangle.edges[1]) * inv_det;
+    const __m256 qv_dot_e1 = dot8(qv, triangle_e1);
+    const __m256 t = _mm256_mul_ps(qv_dot_e1, inv_det);
+
+    const __m256 ray_t =  _mm256_load_ps(rays.t.data() + i*8);
+    const __m256 ray_dot =  _mm256_load_ps(rays.dot.data() + i*8);
+
+    //  if (t < ray.t)
+    //  {
+    //    ray.t = t;
+    //    ray.dot = triangle.normal.dot(ray.d);
+    //  }
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t, SIMDE_CMP_LT_OQ));
+
+    if (_mm256_movemask_ps(update_rays) != NONE)
+    {
+      const __m256 dot = dot8(triangle_normal, ray_d);
+
+      const __m256 new_t = _mm256_blendv_ps(ray_t, t, update_rays);
+      const __m256 new_dot = _mm256_blendv_ps(ray_dot, dot, update_rays);
+
+      _mm256_store_ps(rays.t.data() + i*8, new_t);
+      _mm256_store_ps(rays.dot.data() + i*8, new_dot);
+    }
+  }
+}
+
 inline float intersect(const BoundingBox &bbox, const Ray &ray)
 {
   const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
@@ -225,7 +376,7 @@ inline float intersect(const BoundingBox &bbox, const Ray &ray)
   return (hit ? tmin : INF);
 }
 
-inline uint8_t intersect2x2(const BoundingBox &bbox, const Ray2x2 &rays)
+inline int intersect2x2(const BoundingBox &bbox, const Ray2x2 &rays)
 {
   //  const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
   //  const float tx2 = (bbox.max.x - ray.o.x) * ray.rd.x;
@@ -275,5 +426,70 @@ inline uint8_t intersect2x2(const BoundingBox &bbox, const Ray2x2 &rays)
   // return (hit[0] | (hit[1] << 1) | (hit[2] << 2) | (hit[3] << 3);
   return _mm_movemask_ps(hit);
 }
+
+inline int intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
+{
+  const __m256 zero = _mm256_set1_ps(0.0f);
+
+  const __m256 ray_rd_x = _mm256_broadcast_ss(&rays.rd.x);
+  const __m256 ray_rd_y = _mm256_broadcast_ss(&rays.rd.y);
+  const __m256 ray_rd_z = _mm256_broadcast_ss(&rays.rd.z);
+
+  const __m256 ray_o_z = _mm256_broadcast_ss(&rays.oz);
+
+  int hit = 0;
+
+  for (int i = 0; i < 2; i++)
+  {
+    //  const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
+    //  const float tx2 = (bbox.max.x - ray.o.x) * ray.rd.x;
+    //  float t_min = std::min(tx1, tx2);
+    //  float t_max = std::max(tx1, tx2);
+    const __m256 ray_o_x = _mm256_load_ps(rays.ox.data() + i*8);
+
+    const __m256 tx1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.x), ray_o_x), ray_rd_x);
+    const __m256 tx2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.x), ray_o_x), ray_rd_x);
+
+    __m256 t_min = _mm256_min_ps(tx1, tx2);
+    __m256 t_max = _mm256_max_ps(tx1, tx2);
+
+    //  const float ty1 = (bbox.min.y - ray.o.y) * ray.rd.y;
+    //  const float ty2 = (bbox.max.y - ray.o.y) * ray.rd.y;
+    //  t_min = std::max(tmin, std::min(ty1, ty2)) ;
+    //  t_max = std::min(tmax, std::max(ty1, ty2));
+    const __m256 ray_o_y = _mm256_load_ps(rays.oy.data() + i*8);
+
+    const __m256 ty1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.y), ray_o_y), ray_rd_y);
+    const __m256 ty2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.y), ray_o_y), ray_rd_y);
+
+    t_min = _mm256_max_ps(t_min, _mm256_min_ps(ty1, ty2));
+    t_max = _mm256_min_ps(t_max, _mm256_max_ps(ty1, ty2));
+
+    //  const float tz1 = (bbox.min.z - ray.o.z) * ray.rd.z;
+    //  const float tz2 = (bbox.max.z - ray.o.z) * ray.rd.z;
+    //  t_min = std::max(tmin, std::min(tz1, tz2));
+    //  t_max = std::min(tmax, std::max(tz1, tz2));
+
+    const __m256 tz1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.z), ray_o_z), ray_rd_z);
+    const __m256 tz2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.z), ray_o_z), ray_rd_z);
+
+    t_min = _mm256_max_ps(t_min, _mm256_min_ps(tz1, tz2));
+    t_max = _mm256_min_ps(t_max, _mm256_max_ps(tz1, tz2));
+
+    // const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t));
+    const __m256 ray_t = _mm256_load_ps(rays.t.data() + i*8);
+
+    const __m256 h =
+      _mm256_and_ps(
+        _mm256_and_ps(_mm256_cmp_ps(t_max, t_min, SIMDE_CMP_GE_OQ), _mm256_cmp_ps(t_max, zero, SIMDE_CMP_GT_OQ)),
+        _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
+
+    hit |= (_mm256_movemask_ps(h) << i*8);
+  }
+
+  return hit;
+}
+
+
 
 }
