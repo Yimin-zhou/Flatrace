@@ -103,7 +103,6 @@ void render_frame_2x2(const BVH &bvh, RGBA * const frameBuffer)
   }
 }
 
-
 void render_frame_4x4(const BVH &bvh, RGBA * const frameBuffer)
 {
   for (int tile_i = 0; tile_i < FRAME_HEIGHT; tile_i += TILE_SIZE)

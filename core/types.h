@@ -7,6 +7,8 @@
 
 #include <fmt/format.h>
 
+#include <simde/x86/avx2.h>
+
 namespace core {
 
 static constexpr float INF = std::numeric_limits<float>::max();
@@ -104,6 +106,9 @@ struct  __attribute__((aligned(16))) Ray4x4
     d(direction),
     rd(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z)
   {
+    std::array<float, 16> ox;
+    std::array<float, 16> oy;
+
     for (int i = 0; i < 4; i++)
     {
       for (int j = 0; j < 4; j++)
@@ -113,14 +118,19 @@ struct  __attribute__((aligned(16))) Ray4x4
       }
     }
 
+    _mm256_store_ps(ox_x8.data(), _mm256_load_ps(ox.data()));
+    _mm256_store_ps(ox_x8.data() + 1, _mm256_load_ps(ox.data() + 8));
+    _mm256_store_ps(oy_x8.data(), _mm256_load_ps(oy.data()));
+    _mm256_store_ps(oy_x8.data() + 1, _mm256_load_ps(oy.data() + 8));
+
     oz = origin.z;
 
     std::fill(t.begin(), t.end(), INF);
     std::fill(dot.begin(), dot.end(), 0.0f);
   }
 
-  std::array<float, 16> ox;
-  std::array<float, 16> oy;
+  std::array<__m256, 2> ox_x8;
+  std::array<__m256, 2> oy_x8;
   float oz;
 
   Vec3 d;
