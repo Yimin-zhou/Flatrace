@@ -124,7 +124,7 @@ int BVH::intersect4x4(Ray4x4 &rays) const
   {
     Node * const node = node_stack[--stack_pointer];
 
-    const int hit = core::intersect4x4(node->bbox, rays);
+    const bool hit = core::intersect4x4(node->bbox, rays);
 
     if (hit)
     {

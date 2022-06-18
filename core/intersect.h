@@ -20,6 +20,19 @@ struct Vec3_x4
 
 struct Vec3_x8
 {
+  Vec3_x8(const core::Vec3 &v)
+  :
+    x(_mm256_broadcast_ss(&v.x)),
+    y(_mm256_broadcast_ss(&v.y)),
+    z(_mm256_broadcast_ss(&v.z))
+  {
+  }
+
+  Vec3_x8(const __m256 x_x8, const __m256 y_x8, const __m256 z_x8)
+  :
+    x(x_x8), y(y_x8), z(z_x8)
+  {
+  }
   __m256 x;
   __m256 y;
   __m256 z;
@@ -234,8 +247,8 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 {
   constexpr int NONE = 0;
 
-  static const __m256 zero = _mm256_set1_ps(0.0f);
-  static const __m256 one = _mm256_set1_ps(1.0f);
+  const __m256 ZERO_X8 = _mm256_set1_ps(0.0f);
+  const __m256 ONE_X8 = _mm256_set1_ps(1.0f);
 
   const Vec3_x8 triangle_e0 = {
     _mm256_broadcast_ss(&triangle.edges[0].x),
@@ -255,34 +268,32 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     _mm256_broadcast_ss(&rays.d.z),
   };
 
-  const Vec3_x8 triangle_normal = {
-    _mm256_broadcast_ss(&triangle.normal.x),
-    _mm256_broadcast_ss(&triangle.normal.y),
-    _mm256_broadcast_ss(&triangle.normal.z),
-  };
+  // const Vec3 p = ray.d.cross(triangle.edges[1]);
+  const Vec3 p = rays.d.cross(triangle.edges[1]);
+
+  //  const float det = p.dot(triangle.edges[0]);
+  //
+  //  if (det < EPS)
+  //  {
+  //    return false;
+  //  }
+  const float det = p.dot(triangle.edges[0]);
+
+  if (det < EPS)
+  {
+    return;
+  }
+
+  const float inv_det = 1.0f / det;
 
   for (int i = 0; i < 2; i++)
   {
-    // const Vec3 p = ray.d.cross(triangle.edges[1]);
-    const Vec3_x8 p = cross8(ray_d, triangle_e1);
+    __m256 update_rays = _mm256_castsi256_ps(_mm256_set1_epi32(0xFFFFFFFF));
 
-    //  const float det = p.dot(triangle.edges[0]);
-    //
-    //  if (det < EPS)
-    //  {
-    //    return false;
-    //  }
-    const __m256 det = dot8(p, triangle_e0);
+    const Vec3_x8 p_x8(p);
 
-    __m256 update_rays = _mm256_cmp_ps(det, _mm256_set1_ps(EPS), SIMDE_CMP_GE_OS);
-
-    if (_mm256_movemask_ps(update_rays) == NONE)
-    {
-      continue;
-    }
-
-    // const float inv_det = 1.0f / det;
-    const __m256 inv_det = _mm256_div_ps(one, det);
+    const __m256 det_x8 = _mm256_broadcast_ss(&det);
+    const __m256 inv_det_x8 = _mm256_div_ps(ONE_X8, det_x8);
 
     //  const Vec3 tv = ray.o - triangle.vertices[0];
     //  const float u = tv.dot(p) * inv_det;
@@ -297,10 +308,10 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
       _mm256_sub_ps(_mm256_broadcast_ss(&rays.oz), _mm256_broadcast_ss(&triangle.vertices[0].z)),
     };
 
-    const __m256 u = _mm256_mul_ps(dot8(tv, p), inv_det);
+    const __m256 u = _mm256_mul_ps(dot8(tv, p_x8), inv_det_x8);
 
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, zero, SIMDE_CMP_GE_OQ));
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, one, SIMDE_CMP_LE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ZERO_X8, SIMDE_CMP_GE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ONE_X8, SIMDE_CMP_LE_OQ));
 
     if (_mm256_movemask_ps(update_rays) == NONE)
     {
@@ -316,11 +327,11 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     //  }
 
     const Vec3_x8 qv = cross8(tv, triangle_e0);
-    const __m256 v = _mm256_mul_ps(dot8(qv, ray_d), inv_det);
+    const __m256 v = _mm256_mul_ps(dot8(qv, ray_d), inv_det_x8);
     const __m256 u_plus_v = _mm256_add_ps(u, v);
 
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(v, zero, SIMDE_CMP_GE_OQ));
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u_plus_v, one, SIMDE_CMP_LE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(v, ZERO_X8, SIMDE_CMP_GE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u_plus_v, ONE_X8, SIMDE_CMP_LE_OQ));
 
     if (_mm256_movemask_ps(update_rays) == NONE)
     {
@@ -329,7 +340,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 
     //  const float t = qv.dot(triangle.edges[1]) * inv_det;
     const __m256 qv_dot_e1 = dot8(qv, triangle_e1);
-    const __m256 t = _mm256_mul_ps(qv_dot_e1, inv_det);
+    const __m256 t = _mm256_mul_ps(qv_dot_e1, inv_det_x8);
 
     const __m256 ray_t =  _mm256_load_ps(rays.t.data() + i*8);
     const __m256 ray_dot =  _mm256_load_ps(rays.dot.data() + i*8);
@@ -343,7 +354,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 
     if (_mm256_movemask_ps(update_rays) != NONE)
     {
-      const __m256 dot = dot8(triangle_normal, ray_d);
+      const __m256 dot = dot8(Vec3_x8(triangle.normal), ray_d);
 
       const __m256 new_t = _mm256_blendv_ps(ray_t, t, update_rays);
       const __m256 new_dot = _mm256_blendv_ps(ray_dot, dot, update_rays);
@@ -427,9 +438,9 @@ inline int intersect2x2(const BoundingBox &bbox, const Ray2x2 &rays)
   return _mm_movemask_ps(hit);
 }
 
-inline int intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
+inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 {
-  const __m256 zero = _mm256_set1_ps(0.0f);
+  const __m256 ZERO_x8 = _mm256_set1_ps(0.0f);
 
   const __m256 ray_rd_x = _mm256_broadcast_ss(&rays.rd.x);
   const __m256 ray_rd_y = _mm256_broadcast_ss(&rays.rd.y);
@@ -437,7 +448,7 @@ inline int intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 
   const __m256 ray_o_z = _mm256_broadcast_ss(&rays.oz);
 
-  int hit = 0;
+  __m256 hit = ZERO_x8;
 
   for (int i = 0; i < 2; i++)
   {
@@ -481,13 +492,13 @@ inline int intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 
     const __m256 h =
       _mm256_and_ps(
-        _mm256_and_ps(_mm256_cmp_ps(t_max, t_min, SIMDE_CMP_GE_OQ), _mm256_cmp_ps(t_max, zero, SIMDE_CMP_GT_OQ)),
+        _mm256_and_ps(_mm256_cmp_ps(t_max, t_min, SIMDE_CMP_GE_OQ), _mm256_cmp_ps(t_max, ZERO_x8, SIMDE_CMP_GT_OQ)),
         _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
 
-    hit |= (_mm256_movemask_ps(h) << i*8);
+    hit = _mm256_or_ps(hit, h);
   }
 
-  return hit;
+  return !_mm256_testz_si256(hit, hit);
 }
 
 
