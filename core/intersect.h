@@ -492,7 +492,7 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     hit = _mm256_or_ps(hit, h);
   }
 
-  return !_mm256_testz_si256(hit, hit);
+  return !_mm256_testz_si256(_mm256_castps_si256(hit), _mm256_castps_si256(hit));
 }
 
 
