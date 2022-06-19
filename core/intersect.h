@@ -245,8 +245,6 @@ inline void intersect2x2(const Triangle &triangle, Ray2x2 &rays)
 
 inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 {
-  constexpr int NONE = 0;
-
   const __m256 ZERO_X8 = _mm256_set1_ps(0.0f);
   const __m256 ONE_X8 = _mm256_set1_ps(1.0f);
 
@@ -312,7 +310,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ZERO_X8, SIMDE_CMP_GE_OQ));
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ONE_X8, SIMDE_CMP_LE_OQ));
 
-    if (_mm256_movemask_ps(update_rays) == NONE)
+    if (_mm256_testz_ps(update_rays, update_rays))
     {
       continue;
     }
@@ -332,7 +330,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(v, ZERO_X8, SIMDE_CMP_GE_OQ));
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u_plus_v, ONE_X8, SIMDE_CMP_LE_OQ));
 
-    if (_mm256_movemask_ps(update_rays) == NONE)
+    if (_mm256_testz_ps(update_rays, update_rays))
     {
       continue;
     }
@@ -351,7 +349,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     //  }
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t, SIMDE_CMP_LT_OQ));
 
-    if (_mm256_movemask_ps(update_rays) != NONE)
+    if (!_mm256_testz_ps(update_rays, update_rays))
     {
       const __m256 dot = dot8(Vec3_x8(triangle.normal), ray_d);
 
@@ -447,8 +445,6 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 
   const __m256 ray_o_z = _mm256_broadcast_ss(&rays.oz);
 
-  __m256 hit = ZERO_x8;
-
   for (int i = 0; i < 2; i++)
   {
     //  const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
@@ -484,15 +480,19 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     // const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t));
     const __m256 ray_t = _mm256_load_ps(rays.t.data() + i*8);
 
-    const __m256 h =
-      _mm256_and_ps(
-        _mm256_and_ps(_mm256_cmp_ps(t_max, t_min, SIMDE_CMP_GE_OQ), _mm256_cmp_ps(t_max, ZERO_x8, SIMDE_CMP_GT_OQ)),
-        _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
+    __m256 h = _mm256_castsi256_ps(_mm256_set1_epi32(0xFFFFFFFF));
 
-    hit = _mm256_or_ps(hit, h);
+    h = _mm256_cmp_ps(t_max, t_min, SIMDE_CMP_GE_OQ);
+    h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, ZERO_x8, SIMDE_CMP_GT_OQ));
+    h = _mm256_and_ps(h, _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
+
+    if (!_mm256_testz_si256(h, h))
+    {
+      return true;
+    }
   }
 
-  return !_mm256_testz_si256(_mm256_castps_si256(hit), _mm256_castps_si256(hit));
+  return false;
 }
 
 
