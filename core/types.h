@@ -11,7 +11,7 @@
 
 namespace core {
 
-static constexpr float INF = std::numeric_limits<float>::max();
+static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float EPS = 1e-12f;
 
 struct __attribute__((aligned(16))) Vec3
@@ -194,6 +194,31 @@ struct BoundingBox
   {
   }
 
+  BoundingBox extended(const Vec3 &v) const
+  {
+    return { Vec3::min(min, v), Vec3::max(max, v) };
+  }
+
+  BoundingBox extended(const Triangle &t) const
+  {
+    Vec3 min_v = min;
+    Vec3 max_v = max;
+
+    for (const Vec3 &v : t.vertices)
+    {
+      min_v = Vec3::min(min_v, v);
+      max_v = Vec3::max(max_v, v);
+    }
+
+    return { min_v, max_v };
+  }
+
+  const double area() const
+  {
+    const Vec3 size = (max - min);
+
+    return 2.0f * (size.x*size.y + size.y*size.z + size.z*size.x);
+  }
 
   Vec3 min;
   Vec3 max;

@@ -5,6 +5,8 @@
 
 #include <simde/x86/avx2.h>
 
+#include <fmt/ostream.h>
+
 namespace core {
 
 BVH::BVH(const std::vector<Triangle> &triangles)
@@ -155,6 +157,11 @@ BVH::Node *BVH::createNode(const int from, const int to)
   // Create new node
   Node * const node = &_nodes.emplace_back(from, to);
 
+  if (from == to)
+  {
+    return node;
+  }
+
   // Calculate node bounding box, and getCentroid bounding box (for splitting)
   BoundingBox centroid_bbox;
 
@@ -173,50 +180,93 @@ BVH::Node *BVH::createNode(const int from, const int to)
   // Subdivide if this is not a leaf node (getTriangle count below cutoff)
   if (!node->isLeaf)
   {
-    const std::array<float, 3> bbox_dims = {
-      node->bbox.max.x - centroid_bbox.min.x,
-      centroid_bbox.max.y - centroid_bbox.min.y,
-      centroid_bbox.max.z - centroid_bbox.min.z
-    };
+    bool have_split = false;
 
-    const std::array<Plane, 3> split_planes = {
-      Plane({ centroid_bbox.min.x + (bbox_dims[0] / 2.0f), 0.0f, 0.0f }, { 1.0f , 0.0f, 0.0f }),
-      Plane({ 0.0f, centroid_bbox.min.y + (bbox_dims[1] / 2.0f), 0.0f }, { 0.0f , 1.0f, 0.0f }),
-      Plane({ 0.0f, 0.0f, centroid_bbox.min.z + (bbox_dims[2] / 2.0f) }, { 0.0f , 0.0f, 1.0f }),
-    };
+    const std::optional<Plane> split_plane = splitPlaneSAH(node, from, to, 8);
 
-    // Try to splitNode along largest node bbox dimension first
-    int split_dim = std::distance(bbox_dims.begin(), std::max_element(bbox_dims.begin(), bbox_dims.end()));
-    Plane split_plane = split_planes[split_dim];
-
-    // Try splitting until a split is found that has triangles at both sides of the splitNode plane. If
-    // one side is empty, move to the next bbox dimensions. If none of the XYZ dimensions work, the
-    // node triangles can not be splitNode (?)
-    std::optional<int> split_index;
-
-    for (int i = 0; !split_index && (i < 3); i++)
+    if (split_plane)
     {
-      split_index = splitNode(from, to, split_plane);
+      const std::optional<int> split_index = splitNode(from, to, *split_plane);
 
-      if (!split_index)
+      if (split_index)
       {
-        split_dim = (split_dim + 1) % 3;
-        split_plane = split_planes[split_dim];
+        node->left = createNode(from, *split_index);
+        node->right = createNode(*split_index, to);
+        have_split = true;
       }
     }
 
-    if (split_index)
-    {
-      node->left = createNode(from, *split_index);
-      node->right = createNode(*split_index, to);
-    }
-    else
-    {
-      _failed = true;
-    }
+    node->isLeaf = !have_split;
   }
 
   return node;
+}
+
+// Calculate split plane using surface area heuristic. This will pick a number of uniformly distributed
+// split plane positions (specified by the splitsPerDimension parameter) for each XYZ dimension, then
+// bin all triangles and sum their area. The split positions for wich the surface area heuristic
+// C = (n_left * area_left) + (n_right * area_right) is lowest will be chosen.
+std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from, const int to, int splitsPerDimension) const
+{
+  struct SplitDim
+  {
+    Vec3 normal;
+    double min;
+    double max;
+  };
+
+  const std::array<SplitDim, 3> split_dims = {
+    SplitDim{ { 1.0f, 0.0f, 0.0f }, node->bbox.min.x, node->bbox.max.x },
+    SplitDim{ { 0.0f, 1.0f, 0.0f }, node->bbox.min.y, node->bbox.max.y },
+    SplitDim{ { 0.0f, 0.0f, 1.0f }, node->bbox.min.z, node->bbox.max.z },
+  };
+
+  float best = INF;
+  std::optional<Plane> best_plane;
+
+  for (const SplitDim &split_dim : split_dims)
+  {
+    const double d = (split_dim.max - split_dim.min) / (splitsPerDimension + 1);
+
+    for (int plane_i = 1; plane_i <= splitsPerDimension; plane_i++)
+    {
+      const Plane candidate_plane = { { split_dim.normal * (split_dim.min + d * plane_i) }, split_dim.normal };
+
+      BoundingBox left_bbox = { { INF, INF, INF }, { -INF, -INF, -INF } };
+      BoundingBox right_bbox = { { INF, INF, INF }, { -INF, -INF, -INF } };
+
+      int n_left = 0;
+      int n_right = 0;
+
+      for (int i = from; i < to; i++)
+      {
+        const Triangle &triangle = getTriangle(i);
+        const Vec3 &centroid = getCentroid(i);
+
+        if (candidate_plane.distance(centroid) < 0.0f)
+        {
+          left_bbox = left_bbox.extended(triangle);
+          n_left++;
+        }
+        else
+        {
+          right_bbox = right_bbox.extended(triangle);
+          n_right++;
+        }
+      }
+
+      const bool have_split = (n_left != 0) && (n_right != 0);
+      const float c = (have_split ? n_left * left_bbox.area() + n_right * right_bbox.area() : INF);
+
+      if (c < best)
+      {
+        best_plane = candidate_plane;
+        best = c;
+      }
+    }
+  }
+
+  return *best_plane;
 }
 
 // Partition getTriangle range [from, to) into a subset behind, and a subset in front of the passed

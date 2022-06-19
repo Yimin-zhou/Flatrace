@@ -62,6 +62,8 @@ class BVH
     Node *createNode(const int from, const int to);
     std::optional<int> splitNode(const int from, const int to, const Plane &splitPlane);
 
+    std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int to, const int splitsPerDimension) const;
+
     bool _failed;
 
     std::vector<Node> _nodes;
