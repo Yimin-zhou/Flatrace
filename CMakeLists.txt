@@ -18,11 +18,11 @@ set (CMAKE_CXX_STANDARD 17)
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    add_compile_options (-g -Wall -Wno-unused-function -Ofast -march=native -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-tree-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-g -Wall -Wno-unused-function -O3 -ffast-math -fno-finite-math-only -march=native -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-tree-vectorize -fno-tree-slp-vectorize)
   endif ()
 
   if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
-    add_compile_options (-g -Wall -Wno-unused-function -Ofast -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-g -Wall -Wno-unused-function -O3 -ffast-math -fno-finite-math-only -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
   endif ()
 elseif (${CMAKE_BUILD_TYPE} STREQUAL "Profile")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
