@@ -300,8 +300,8 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     //    return false;
     //  }
     const Vec3_x8 tv = {
-      _mm256_sub_ps(rays.ox_x8[i], _mm256_broadcast_ss(&triangle.vertices[0].x)),
-      _mm256_sub_ps(rays.oy_x8[i], _mm256_broadcast_ss(&triangle.vertices[0].y)),
+      _mm256_sub_ps(_mm256_load_ps(rays.ox_x8.data() + i*8), _mm256_broadcast_ss(&triangle.vertices[0].x)),
+      _mm256_sub_ps(_mm256_load_ps(rays.oy_x8.data() + i*8), _mm256_broadcast_ss(&triangle.vertices[0].y)),
       _mm256_sub_ps(_mm256_broadcast_ss(&rays.oz), _mm256_broadcast_ss(&triangle.vertices[0].z)),
     };
 
@@ -451,8 +451,8 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     //  const float tx2 = (bbox.max.x - ray.o.x) * ray.rd.x;
     //  float t_min = std::min(tx1, tx2);
     //  float t_max = std::max(tx1, tx2);
-    const __m256 tx1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.x), rays.ox_x8[i]), ray_rd_x);
-    const __m256 tx2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.x), rays.ox_x8[i]), ray_rd_x);
+    const __m256 tx1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.x), _mm256_load_ps(rays.ox_x8.data() + i*8)), ray_rd_x);
+    const __m256 tx2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.x), _mm256_load_ps(rays.ox_x8.data() + i*8)), ray_rd_x);
 
     __m256 t_min = _mm256_min_ps(tx1, tx2);
     __m256 t_max = _mm256_max_ps(tx1, tx2);
@@ -461,8 +461,8 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     //  const float ty2 = (bbox.max.y - ray.o.y) * ray.rd.y;
     //  t_min = std::max(tmin, std::min(ty1, ty2)) ;
     //  t_max = std::min(tmax, std::max(ty1, ty2));
-    const __m256 ty1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.y), rays.oy_x8[i]), ray_rd_y);
-    const __m256 ty2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.y), rays.oy_x8[i]), ray_rd_y);
+    const __m256 ty1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.y), _mm256_load_ps(rays.oy_x8.data() + i*8)), ray_rd_y);
+    const __m256 ty2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.y), _mm256_load_ps(rays.oy_x8.data() + i*8)), ray_rd_y);
 
     t_min = _mm256_max_ps(t_min, _mm256_min_ps(ty1, ty2));
     t_max = _mm256_min_ps(t_max, _mm256_max_ps(ty1, ty2));
@@ -486,7 +486,7 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, ZERO_x8, SIMDE_CMP_GT_OQ));
     h = _mm256_and_ps(h, _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
 
-    if (!_mm256_testz_si256(h, h))
+    if (!_mm256_testz_ps(h, h))
     {
       return true;
     }

@@ -118,10 +118,10 @@ struct  __attribute__((aligned(16))) Ray4x4
       }
     }
 
-    _mm256_store_ps(ox_x8, _mm256_load_ps(ox.data()));
-    _mm256_store_ps(ox_x8 + 1, _mm256_load_ps(ox.data() + 8));
-    _mm256_store_ps(oy_x8, _mm256_load_ps(oy.data()));
-    _mm256_store_ps(oy_x8 + 1, _mm256_load_ps(oy.data() + 8));
+    _mm256_store_ps(ox_x8.data(), _mm256_load_ps(ox.data()));
+    _mm256_store_ps(ox_x8.data() + 8, _mm256_load_ps(ox.data() + 8));
+    _mm256_store_ps(oy_x8.data(), _mm256_load_ps(oy.data()));
+    _mm256_store_ps(oy_x8.data() + 8, _mm256_load_ps(oy.data() + 8));
 
     oz = origin.z;
 
@@ -129,15 +129,15 @@ struct  __attribute__((aligned(16))) Ray4x4
     std::fill(dot.begin(), dot.end(), 0.0f);
   }
 
-  __m256 ox_x8[2];
-  __m256 oy_x8[2];
+  alignas(32) std::array<float, 16> ox_x8;
+  alignas(32) std::array<float, 16> oy_x8;
   float oz;
 
   Vec3 d;
   Vec3 rd;
 
-  std::array<float, 16> t;
-  std::array<float, 16> dot;
+  alignas(32) std::array<float, 16> t;
+  alignas(32) std::array<float, 16> dot;
 };
 
 struct Triangle
