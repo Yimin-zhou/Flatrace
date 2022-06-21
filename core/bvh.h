@@ -1,6 +1,9 @@
 // Implements a bounding volume hierarchy class for accelerated ray/triangle intersections.
 //
-// This code is based on the article 'How to build a BVH - part 2' by Jacco Bikker
+// This code is based on the article 'How to build a BVH [2] & [3] by Jacco Bikker
+//
+// [2] https://jacco.ompf2.com/2022/04/18/how-to-build-a-bvh-part-2-faster-rays/
+// [3] https://jacco.ompf2.com/2022/04/21/how-to-build-a-bvh-part-3-quick-builds/
 
 #pragma once
 
@@ -35,21 +38,6 @@ class BVH
       {
       }
 
-      int depth() const
-      {
-        if (isLeaf)
-        {
-          return 1;
-        }
-        else
-        {
-          const int left_depth = (left != nullptr ? left->depth() : 0);
-          const int right_depth = (right != nullptr ? right->depth() : 0);
-
-          return 1 + std::max(left_depth, right_depth);
-        }
-      }
-
       int from;
       int to;
       bool isLeaf;
@@ -59,10 +47,29 @@ class BVH
       BoundingBox bbox;
     };
 
+    struct SplitDim
+    {
+      Vec3 normal;
+      double min = 0.0f;
+      double max = 0.0f;
+    };
+
+    struct SplitBin
+    {
+      BoundingBox bbox;
+
+      float areaLeft = 0.0f;
+      float areaRight = 0.0f;
+
+      int trianglesIn = 0;
+      int trianglesLeft = 0;
+      int trianglesRight = 0;
+    };
+
     Node *createNode(const int from, const int to);
     std::optional<int> splitNode(const int from, const int to, const Plane &splitPlane);
 
-    std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int to, const int splitsPerDimension) const;
+    std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int to, const int maxSplitsPerDimension) const;
 
     bool _failed;
 
@@ -73,7 +80,8 @@ class BVH
     std::vector<Vec3> _triangleCentroids;
 
     Node *_root;
-    int _depth;
+
+    int _maxDepth;
 };
 
 

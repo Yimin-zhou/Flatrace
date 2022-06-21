@@ -1,11 +1,17 @@
+// Implements a bounding volume hierarchy class for accelerated ray/triangle intersections.
+//
+// This code is based on the article 'How to build a BVH [2] & [3] by Jacco Bikker
+//
+// [2] https://jacco.ompf2.com/2022/04/18/how-to-build-a-bvh-part-2-faster-rays/
+// [3] https://jacco.ompf2.com/2022/04/21/how-to-build-a-bvh-part-3-quick-builds/
+
 #include "bvh.h"
 
 #include <numeric>
 #include <iostream>
+#include <cmath>
 
 #include <simde/x86/avx2.h>
-
-#include <fmt/ostream.h>
 
 namespace core {
 
@@ -25,12 +31,12 @@ BVH::BVH(const std::vector<Triangle> &triangles)
 
   _nodes.reserve(triangles.size()*2 - 1);
   _root = createNode(0, triangles.size());
-  _depth = _root->depth();
+  _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
 }
 
 bool BVH::intersect(Ray &ray) const
 {
-  Node *node_stack[_depth];
+  Node *node_stack[2 * _maxDepth];
   int stack_pointer = 0;
 
   if (core::intersect(_root->bbox, ray) != INF)
@@ -84,7 +90,7 @@ bool BVH::intersect(Ray &ray) const
 
 int BVH::intersect2x2(Ray2x2 &rays) const
 {
-  Node *node_stack[_depth];
+  Node *node_stack[2 * _maxDepth];
   int stack_pointer = 0;
 
   node_stack[stack_pointer++] = _root;
@@ -117,7 +123,7 @@ int BVH::intersect2x2(Ray2x2 &rays) const
 
 int BVH::intersect4x4(Ray4x4 &rays) const
 {
-  Node *node_stack[_depth];
+  Node *node_stack[2 * _maxDepth];
   int stack_pointer = 0;
 
   node_stack[stack_pointer++] = _root;
@@ -157,11 +163,6 @@ BVH::Node *BVH::createNode(const int from, const int to)
   // Create new node
   Node * const node = &_nodes.emplace_back(from, to);
 
-  if (from == to)
-  {
-    return node;
-  }
-
   // Calculate node bounding box, and getCentroid bounding box (for splitting)
   BoundingBox centroid_bbox;
 
@@ -182,7 +183,7 @@ BVH::Node *BVH::createNode(const int from, const int to)
   {
     bool have_split = false;
 
-    const std::optional<Plane> split_plane = splitPlaneSAH(node, from, to, 8);
+    const std::optional<Plane> split_plane = splitPlaneSAH(node, from, to, 32);
 
     if (split_plane)
     {
@@ -204,69 +205,98 @@ BVH::Node *BVH::createNode(const int from, const int to)
 
 // Calculate split plane using surface area heuristic. This will pick a number of uniformly distributed
 // split plane positions (specified by the splitsPerDimension parameter) for each XYZ dimension, then
-// bin all triangles and sum their area. The split positions for wich the surface area heuristic
+// bin all triangles and sum their area. The split positions for which the surface area heuristic
 // C = (n_left * area_left) + (n_right * area_right) is lowest will be chosen.
-std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from, const int to, int splitsPerDimension) const
+std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from, const int to, int maxSplitsPerDimension) const
 {
-  struct SplitDim
-  {
-    Vec3 normal;
-    double min;
-    double max;
-  };
-
   const std::array<SplitDim, 3> split_dims = {
     SplitDim{ { 1.0f, 0.0f, 0.0f }, node->bbox.min.x, node->bbox.max.x },
     SplitDim{ { 0.0f, 1.0f, 0.0f }, node->bbox.min.y, node->bbox.max.y },
     SplitDim{ { 0.0f, 0.0f, 1.0f }, node->bbox.min.z, node->bbox.max.z },
   };
 
+  const int splitsPerDimension = std::min(to - from, maxSplitsPerDimension);
+
+  std::vector<SplitBin> bins(splitsPerDimension + 1);
+
   float best = INF;
   std::optional<Plane> best_plane;
 
   for (const SplitDim &split_dim : split_dims)
   {
-    const double d = (split_dim.max - split_dim.min) / (splitsPerDimension + 1);
+    const float dim_width = (split_dim.max - split_dim.min);
+    const float bin_width = dim_width / bins.size();
 
-    for (int plane_i = 1; plane_i <= splitsPerDimension; plane_i++)
+    // If all triangles in the current node lie in the same axis-aligned plane, 1 of the
+    // split dimensions will have zero width (degenerate) and needs to be skipped
+    if (dim_width == 0.0f)
     {
-      const Plane candidate_plane = { { split_dim.normal * (split_dim.min + d * plane_i) }, split_dim.normal };
+      continue;
+    }
 
-      BoundingBox left_bbox = { { INF, INF, INF }, { -INF, -INF, -INF } };
-      BoundingBox right_bbox = { { INF, INF, INF }, { -INF, -INF, -INF } };
+    std::fill(bins.begin(), bins.end(), SplitBin());
 
-      int n_left = 0;
-      int n_right = 0;
+    // First bin all triangles and track the bin bounding boxes
+    for (int triangle_index = from; triangle_index < to; triangle_index++)
+    {
+      const float triangle_bin_offset = getCentroid(triangle_index).dot(split_dim.normal) - split_dim.min;
+      const int bin_index = std::min<int>(triangle_bin_offset / bin_width, bins.size() - 1);
 
-      for (int i = from; i < to; i++)
+      bins[bin_index].bbox = bins[bin_index].bbox.extended(getTriangle(triangle_index));
+      bins[bin_index].trianglesIn++;
+    }
+
+    // Now calculate the 'left of' and 'right of' bounding box area and # of triangles for each bin
+    float left_sum = 0.0f;
+    float right_sum = 0.0f;
+
+    BoundingBox left_box;
+    BoundingBox right_box;
+
+    for (int i = 0; i < splitsPerDimension; i++)
+    {
+      const int bin_index_left = i;
+      const int bin_index_right = splitsPerDimension - i - 1;
+
+      SplitBin &bin_left = bins[bin_index_left];
+      SplitBin &bin_right = bins[bin_index_right];
+
+      left_sum += bin_left.trianglesIn;
+      left_box = left_box.extended(bin_left.bbox);
+
+      bin_left.trianglesLeft = left_sum;
+      bin_left.areaLeft = left_box.area();
+
+      right_sum += bin_right.trianglesIn;
+      right_box = right_box.extended(bin_right.bbox);
+
+      bins[bin_index_right - 1].trianglesRight = right_sum;
+      bins[bin_index_right - 1].areaRight = right_box.area();
+    }
+
+    // Now find the bin with the minimum cost. Note that for N bins we have (N -1) candidate planes,
+    // so we skip bin in, and use the leftmost extent of each bins as the corresponding split plane offset.
+    for (int plane_index = 1; plane_index < splitsPerDimension; plane_index++)
+    {
+      const double d = split_dim.min + plane_index * bin_width;
+
+      const int n_left = bins[plane_index].trianglesLeft;
+      const int n_right = bins[plane_index].trianglesRight + bins[plane_index].trianglesIn;
+
+      const float cost_left = (n_left != 0 ? n_left * bins[plane_index].areaLeft : INF);
+      const float cost_right = (n_right != 0 ? n_right * (bins[plane_index].areaRight + bins[plane_index].bbox.area()) : INF);
+
+      const float cost = cost_left + cost_right;
+
+      if (cost < best)
       {
-        const Triangle &triangle = getTriangle(i);
-        const Vec3 &centroid = getCentroid(i);
-
-        if (candidate_plane.distance(centroid) < 0.0f)
-        {
-          left_bbox = left_bbox.extended(triangle);
-          n_left++;
-        }
-        else
-        {
-          right_bbox = right_bbox.extended(triangle);
-          n_right++;
-        }
-      }
-
-      const bool have_split = (n_left != 0) && (n_right != 0);
-      const float c = (have_split ? n_left * left_bbox.area() + n_right * right_bbox.area() : INF);
-
-      if (c < best)
-      {
-        best_plane = candidate_plane;
-        best = c;
+        best_plane = Plane(split_dim.normal * d, split_dim.normal);
+        best = cost;
       }
     }
   }
 
-  return *best_plane;
+  return best_plane;
 }
 
 // Partition getTriangle range [from, to) into a subset behind, and a subset in front of the passed

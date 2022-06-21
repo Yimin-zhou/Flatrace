@@ -199,6 +199,12 @@ struct BoundingBox
     return { Vec3::min(min, v), Vec3::max(max, v) };
   }
 
+  BoundingBox extended(const BoundingBox &b) const
+  {
+    return { Vec3::min(min, b.min), Vec3::max(max, b.max) };
+  }
+
+
   BoundingBox extended(const Triangle &t) const
   {
     Vec3 min_v = min;
@@ -213,11 +219,21 @@ struct BoundingBox
     return { min_v, max_v };
   }
 
-  const double area() const
+
+  const float area() const
   {
     const Vec3 size = (max - min);
 
-    return 2.0f * (size.x*size.y + size.y*size.z + size.z*size.x);
+    const float area = 2.0f * (size.x*size.y + size.y*size.z + size.z*size.x);
+
+    if (!std::isinf(area))
+    {
+      return area;
+    }
+    else
+    {
+      return (size.dot({ 1.0f, 1.0f, 1.0f }) == -INF ? 0.0f : INF);
+    }
   }
 
   Vec3 min;
