@@ -217,29 +217,32 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
 
   const int splitsPerDimension = std::min(to - from, maxSplitsPerDimension);
 
-  std::vector<SplitBin> bins(splitsPerDimension + 1);
 
   float best = INF;
   std::optional<Plane> best_plane;
 
   for (const SplitDim &split_dim : split_dims)
   {
+    std::vector<SplitBin> bins(splitsPerDimension + 1);
+
     const float dim_width = (split_dim.max - split_dim.min);
     const float bin_width = dim_width / bins.size();
 
     // If all triangles in the current node lie in the same axis-aligned plane, 1 of the
-    // split dimensions will have zero width (degenerate) and needs to be skipped
-    if (dim_width == 0.0f)
+    // split dimensions will have zero width (degenerate) and needs to be skipped. Similarly,
+    // if the bin width drops below a (somewhat arbitrary) low threshold, binning and splitting
+    // along this dimension is worthless and may lead to precision/roundoff errors, so we 
+    // drop it.
+    if (bin_width <= 1e-6)
     {
       continue;
     }
 
-    std::fill(bins.begin(), bins.end(), SplitBin());
-
     // First bin all triangles and track the bin bounding boxes
     for (int triangle_index = from; triangle_index < to; triangle_index++)
     {
-      const float triangle_bin_offset = getCentroid(triangle_index).dot(split_dim.normal) - split_dim.min;
+      const Vec3 &triangle_centroid = getCentroid(triangle_index);
+      const float triangle_bin_offset = triangle_centroid.dot(split_dim.normal) - split_dim.min;
       const int bin_index = std::min<int>(triangle_bin_offset / bin_width, bins.size() - 1);
 
       bins[bin_index].bbox = bins[bin_index].bbox.extended(getTriangle(triangle_index));
@@ -256,7 +259,7 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
     for (int i = 0; i < splitsPerDimension; i++)
     {
       const int bin_index_left = i;
-      const int bin_index_right = splitsPerDimension - i - 1;
+      const int bin_index_right = bins.size() - i - 1;
 
       SplitBin &bin_left = bins[bin_index_left];
       SplitBin &bin_right = bins[bin_index_right];
