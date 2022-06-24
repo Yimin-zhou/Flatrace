@@ -63,3 +63,68 @@ not nearly be as much as going from scalar to 4-way SIMD (expect more SIMD lane 
 ray packets), but this should definitely shave off enough render time to pretty much level the playing field
 between x86 (let's say 9th-gen i7) and M1 Pro.
 
+### Optimization round 3
+
+  * Implement 8-way SIMD using AVX intrinsics, intersecting rays in 2x4 pixel blocks at once. 
+
+    Since I'm benchmarking on an Apple M1 Pro CPU, which does not does not have
+    AVX, the AVX intrinsics will be compiled to ARM NEON instructions (I'm using
+    the excellent [SIMD-everywhere](https://github.com/simd-everywhere) library for
+    this). 
+
+ARM NEON only supports 4-lane operations for single-precision floats, but
+even despite that, going from 4-way SIMD to 8-way SIMD decreased bunny render
+time by yet another ~30%. It appears the M1 Pro has enough FP units and issue
+slot width to execute 2x4-way SIMD code at pretty much the speed you would
+expect from a native 8-way SIMD instruction set like AVX. Bunny render time has
+now gone into interactive framerate territory: ~17 ms per frame (~51 million 
+rays per second). Note this is still on a single core!
+
+Things are more interesting on the x86 side, there the 8-way SIMD code improves
+render time by almost 50%, by virtue of native AVX2 support. The previous 4-way
+SIMD implementation was still significantly trailing the M1 Pro when running on
+a Skylake Xeon-W CPU, but using 8-way AVX intrinsics performance across these
+two platforms is very close, and hard to attribute to anything in particular
+considering we are comparing two different CPU architectures, compilers, and
+Operating systems at the same time (x86 GCC Linux vs M1 Clang macOS).
+
+### Optimization round 4
+
+  * Implement surface area heuristic (SAH) for BVH building. Instead of using a simple 
+    midway split strategy when subdividing BVH nodes, we now use a surface area
+    heurstic. See [Jacco Bikker's BVH article series](https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/)
+    for more information.
+
+This change did not improve bunny render time at all, in fact, it slightly decreased 
+the number of rays per second traced. The explanation for this is straightforward:
+the goal of applying a SAH is to improve balancing of the BVH, such that each BVH
+node is subdivided in a way that tries to get the change of any aribtrary ray hitting
+either side of the split as close to 50% as possible. This avoids 'clumping' geometry
+into certain branches of the BVH, creating large node bounding boxes and high BVH
+depth. Now, the bunny model is already pretty close to convex, excluding the ears
+it can be approximated pretty closely using just two ellipsoids. This means the 
+naive (midpoint split) BVH is already pretty close to ideal, and the SAH will not 
+really help anything.
+
+Meet the digger model:
+
+
+![digger](images/digger.png "A digger")
+
+This model is not only much larger at ~130K triangles (vs. ~5K for the bunny), but
+also has much more interesing features for benchmarking the BVH performances.
+
+How does the SAH improve rander time for the digger model? Very significantly!
+Without using the SAH (using a naive split algorithm instead), render time for 
+this model was ~80ms on the M1 Pro (~10 million rays per second). Render time
+after optimizing the BVH build using SAH: ~19ms (~40 million rays per second). In
+other words: even despite having ~25x the triangle count, render time for the
+digger model is only about 1.25x highter than the bunny model. This shows the BVH
+is working as intended: while the triangle count is much, much higher for the
+digger model, the number of ray-triangle hits ('on' pixels in the output) is 
+much lower than the for the bunny model. The BVH is very effective at rejecting
+such rays quickly, resulting in only a small performance penalty compared to
+the much simpler bunny model.
+
+I will be primarily be using the digger model for benchmarking from now on,
+as it is just a lot more interesting for these experiments.
