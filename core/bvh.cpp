@@ -88,39 +88,6 @@ bool BVH::intersect(Ray &ray) const
   return (ray.t != core::INF);
 }
 
-int BVH::intersect2x2(Ray2x2 &rays) const
-{
-  Node *node_stack[2 * _maxDepth];
-  int stack_pointer = 0;
-
-  node_stack[stack_pointer++] = _root;
-
-  while (stack_pointer != 0)
-  {
-    Node * const node = node_stack[--stack_pointer];
-
-    const int hit = core::intersect2x2(node->bbox, rays);
-
-    if (hit)
-    {
-      if (node->isLeaf)
-      {
-        for (int i = node->from; i < node->to; i++)
-        {
-          core::intersect2x2(getTriangle(i), rays);
-        }
-      }
-      else
-      {
-        node_stack[stack_pointer++] = node->left;
-        node_stack[stack_pointer++] = node->right;
-      }
-    }
-  }
-
-  return _mm_movemask_ps(_mm_cmpneq_ps(_mm_load_ps(rays.t.data()), _mm_set1_ps(INF)));
-}
-
 int BVH::intersect4x4(Ray4x4 &rays) const
 {
   Node *node_stack[2 * _maxDepth];

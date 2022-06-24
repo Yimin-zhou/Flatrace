@@ -21,7 +21,6 @@ class BVH
     BVH(const std::vector<Triangle> &triangles);
 
     bool intersect(Ray &ray) const;
-    int intersect2x2(Ray2x2 &rays) const;
     int intersect4x4(Ray4x4 &rays) const;
 
     bool failed() const { return _failed; }
