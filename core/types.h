@@ -14,6 +14,7 @@ namespace core {
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float EPS = 1e-12f;
 
+
 struct __attribute__((aligned(16))) Vec3
 {
   float x;
@@ -45,117 +46,6 @@ struct __attribute__((aligned(16))) Vec3
   static Vec3 max(const Vec3 &lhs, const Vec3 &rhs) { return { std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z) }; }
 };
 
-struct Ray
-{
-  Ray(const Vec3 &origin, const Vec3 &direction)
-  :
-    o(origin),  d(direction), rd({ 1.0f / d.x, 1.0f / d.y, 1.0f / d.z }), t(INF), dot(0.0f)
-  {
-  }
-
-  Vec3 o;
-  Vec3 d;
-  Vec3 rd;
-
-  float t;
-  float dot;
-};
-
-// 2x2 ray bundle for 4-way SIMD BVH traversal & triangle intersection
-struct  __attribute__((aligned(16))) Ray2x2
-{
-  Ray2x2(const Vec3 &origin, const Vec3 &direction, const float DX, const float DY)
-  {
-    ox = { origin.x, origin.x + DX, origin.x, origin.x + DX };
-    oy = { origin.y, origin.y, origin.y + DY, origin.y + DY };
-    oz = { origin.z, origin.z, origin.z, origin.z };
-
-    dx = { direction.x, direction.x, direction.x, direction.x };
-    dy = { direction.y, direction.y, direction.y, direction.y };
-    dz = { direction.z, direction.z, direction.z, direction.z };
-
-    rdx = { 1.0f / direction.x, 1.0f / direction.x, 1.0f / direction.x, 1.0f / direction.x };
-    rdy = { 1.0f / direction.y, 1.0f / direction.y, 1.0f / direction.y, 1.0f / direction.y };
-    rdz = { 1.0f / direction.z, 1.0f / direction.z, 1.0f / direction.z, 1.0f / direction.z };
-
-    t = { INF, INF, INF, INF };
-    dot = { 0.0f, 0.0f, 0.0f, 0.0f };
-  }
-
-  std::array<float, 4> ox;
-  std::array<float, 4> oy;
-  std::array<float, 4> oz;
-
-  std::array<float, 4> dx;
-  std::array<float, 4> dy;
-  std::array<float, 4> dz;
-
-  std::array<float, 4> rdx;
-  std::array<float, 4> rdy;
-  std::array<float, 4> rdz;
-
-  std::array<float, 4> t;
-  std::array<float, 4> dot;
-};
-
-// 4x4 ray bundle for 8-way SIMD BVH traversal & triangle intersection
-struct  __attribute__((aligned(16))) Ray4x4
-{
-  Ray4x4(const Vec3 &origin, const Vec3 &direction, const float DX, const float DY)
-  :
-    d(direction),
-    rd(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z)
-  {
-    std::array<float, 16> ox;
-    std::array<float, 16> oy;
-
-    for (int i = 0; i < 4; i++)
-    {
-      for (int j = 0; j < 4; j++)
-      {
-        ox[i*4 + j] = origin.x + j*DX;
-        oy[i*4 + j] = origin.y + i*DY;
-      }
-    }
-
-    _mm256_store_ps(ox_x8.data(), _mm256_load_ps(ox.data()));
-    _mm256_store_ps(ox_x8.data() + 8, _mm256_load_ps(ox.data() + 8));
-    _mm256_store_ps(oy_x8.data(), _mm256_load_ps(oy.data()));
-    _mm256_store_ps(oy_x8.data() + 8, _mm256_load_ps(oy.data() + 8));
-
-    oz = origin.z;
-
-    std::fill(t.begin(), t.end(), INF);
-    std::fill(dot.begin(), dot.end(), 0.0f);
-  }
-
-  alignas(32) std::array<float, 16> ox_x8;
-  alignas(32) std::array<float, 16> oy_x8;
-  float oz;
-
-  Vec3 d;
-  Vec3 rd;
-
-  alignas(32) std::array<float, 16> t;
-  alignas(32) std::array<float, 16> dot;
-};
-
-struct Triangle
-{
-  Triangle() = default;
-  Triangle(const Vec3 &v0, const Vec3 &v1, const Vec3 &v2)
-  :
-    vertices({ v0, v1, v2 }),
-    edges({ v1 - v0, v2 - v0 }),
-    normal(edges[0].cross(edges[1]).normalized())
-  {
-  }
-
-  std::array<Vec3, 3> vertices;
-  std::array<Vec3, 2> edges;
-  Vec3 normal;
-};
-
 struct Plane
 {
   float a;
@@ -173,10 +63,52 @@ struct Plane
     d = -(a*p.x + b*p.y + c*p.z);
   }
 
+  Vec3 pointOnPlane() const
+  {
+    if (a != 0.0f)
+    {
+      return { d/a, 0.0f, 0.0f };
+    }
+    else if (b != 0.0f)
+    {
+      return { 0.0f, d/b, 0.0f };
+    }
+    else
+    {
+      return { 0.0f, 0.0f, d/c };
+    }
+  }
+
+  Vec3 normal() const
+  {
+    return { a, b, c };
+  }
+
   float distance(const Vec3 &v) const
   {
     return (a*v.x + b*v.y + c*v.z + d);
   }
+
+  Vec3 project(const Vec3 &v) const
+  {
+    return v - (normal() * distance(v));
+  }
+};
+
+struct Triangle
+{
+  Triangle() = default;
+  Triangle(const Vec3 &v0, const Vec3 &v1, const Vec3 &v2)
+  :
+  vertices({ v0, v1, v2 }),
+  edges({ v1 - v0, v2 - v0 }),
+  normal(edges[0].cross(edges[1]).normalized())
+  {
+  }
+
+  std::array<Vec3, 3> vertices;
+  std::array<Vec3, 2> edges;
+  Vec3 normal;
 };
 
 struct BoundingBox
@@ -219,7 +151,6 @@ struct BoundingBox
     return { min_v, max_v };
   }
 
-
   const float area() const
   {
     const Vec3 size = (max - min);
@@ -238,6 +169,92 @@ struct BoundingBox
 
   Vec3 min;
   Vec3 max;
+};
+
+struct Camera
+{
+  Camera(const Vec3 &p, const Vec3 &d, const Vec3 &up, const float zoom)
+  :
+  p(p), d(d.normalized()), zoom(zoom)
+  {
+    const Plane view_plane = { p, d };
+
+    y = (view_plane.project(up) - p).normalized();
+    x = view_plane.normal().cross(y);
+  }
+
+  Vec3 p;
+  Vec3 d;
+
+  Vec3 x;
+  Vec3 y;
+
+  float zoom;
+};
+
+struct Ray
+{
+  Ray(const Vec3 &origin, const Vec3 &direction)
+  :
+    o(origin),  d(direction), rd({ 1.0f / d.x, 1.0f / d.y, 1.0f / d.z }), t(INF), dot(0.0f)
+  {
+  }
+
+  Vec3 o;
+  Vec3 d;
+  Vec3 rd;
+
+  float t;
+  float dot;
+};
+
+// 4x4 ray bundle for 8-way SIMD BVH traversal & triangle intersection
+struct  __attribute__((aligned(16))) Ray4x4
+{
+  Ray4x4(const Camera &camera, const Vec3 &origin, const Vec3 &direction, const float DX, const float DY)
+  :
+    d(direction),
+    rd(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z)
+  {
+    alignas(32) std::array<float, 16> ox;
+    alignas(32) std::array<float, 16> oy;
+    alignas(32) std::array<float, 16> oz;
+
+    for (int i = 0; i < 4; i++)
+    {
+      for (int j = 0; j < 4; j++)
+      {
+        const float x = j*DX;
+        const float y = i*DY;
+
+        const Vec3 xyz = origin + camera.x*x + camera.y*y;
+
+        ox[i*4 + j] = xyz.x;
+        oy[i*4 + j] = xyz.y;
+        oz[i*4 + j] = xyz.z;
+      }
+    }
+
+    _mm256_store_ps(ox_x8.data(), _mm256_load_ps(ox.data()));
+    _mm256_store_ps(ox_x8.data() + 8, _mm256_load_ps(ox.data() + 8));
+    _mm256_store_ps(oy_x8.data(), _mm256_load_ps(oy.data()));
+    _mm256_store_ps(oy_x8.data() + 8, _mm256_load_ps(oy.data() + 8));
+    _mm256_store_ps(oz_x8.data(), _mm256_load_ps(oz.data()));
+    _mm256_store_ps(oz_x8.data() + 8, _mm256_load_ps(oz.data() + 8));
+
+    std::fill(t.begin(), t.end(), INF);
+    std::fill(dot.begin(), dot.end(), 0.0f);
+  }
+
+  alignas(32) std::array<float, 16> ox_x8;
+  alignas(32) std::array<float, 16> oy_x8;
+  alignas(32) std::array<float, 16> oz_x8;
+
+  Vec3 d;
+  Vec3 rd;
+
+  alignas(32) std::array<float, 16> t;
+  alignas(32) std::array<float, 16> dot;
 };
 
 }

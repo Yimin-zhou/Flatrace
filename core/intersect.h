@@ -181,7 +181,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     const Vec3_x8 tv = {
       _mm256_sub_ps(_mm256_load_ps(rays.ox_x8.data() + i*8), _mm256_broadcast_ss(&triangle.vertices[0].x)),
       _mm256_sub_ps(_mm256_load_ps(rays.oy_x8.data() + i*8), _mm256_broadcast_ss(&triangle.vertices[0].y)),
-      _mm256_sub_ps(_mm256_broadcast_ss(&rays.oz), _mm256_broadcast_ss(&triangle.vertices[0].z)),
+      _mm256_sub_ps(_mm256_load_ps(rays.oz_x8.data() + i*8), _mm256_broadcast_ss(&triangle.vertices[0].z))
     };
 
     const __m256 u = _mm256_mul_ps(dot8(tv, p_x8), inv_det_x8);
@@ -271,8 +271,6 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
   const __m256 ray_rd_y = _mm256_broadcast_ss(&rays.rd.y);
   const __m256 ray_rd_z = _mm256_broadcast_ss(&rays.rd.z);
 
-  const __m256 ray_o_z = _mm256_broadcast_ss(&rays.oz);
-
   for (int i = 0; i < 2; i++)
   {
     //  const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
@@ -299,8 +297,8 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     //  const float tz2 = (bbox.max.z - ray.o.z) * ray.rd.z;
     //  t_min = std::max(tmin, std::min(tz1, tz2));
     //  t_max = std::min(tmax, std::max(tz1, tz2));
-    const __m256 tz1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.z), ray_o_z), ray_rd_z);
-    const __m256 tz2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.z), ray_o_z), ray_rd_z);
+    const __m256 tz1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.min.z), _mm256_load_ps(rays.oz_x8.data() + i*8)), ray_rd_z);
+    const __m256 tz2 = _mm256_mul_ps(_mm256_sub_ps(_mm256_broadcast_ss(&bbox.max.z), _mm256_load_ps(rays.oz_x8.data() + i*8)), ray_rd_z);
 
     t_min = _mm256_max_ps(t_min, _mm256_min_ps(tz1, tz2));
     t_max = _mm256_min_ps(t_max, _mm256_max_ps(tz1, tz2));

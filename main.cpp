@@ -17,8 +17,8 @@ using namespace core;
 constexpr auto FRAME_WIDTH = 1024;
 constexpr auto FRAME_HEIGHT = 768;
 
-constexpr float VIEWPORT_WIDTH  = 1.2f;
-constexpr float VIEWPORT_HEIGHT = 1.2f;
+constexpr float VIEWPORT_WIDTH  = 1.0f;
+constexpr float VIEWPORT_HEIGHT = 1.0f;
 
 constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
 constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
@@ -30,7 +30,7 @@ constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
 
 namespace {
 
-void render_frame(const BVH &bvh, RGBA * const frameBuffer)
+void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer)
 {
   for (int tile_i = 0; tile_i < (FRAME_HEIGHT / TILE_SIZE); tile_i++)
   {
@@ -49,12 +49,16 @@ void render_frame(const BVH &bvh, RGBA * const frameBuffer)
 
         for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
         {
-          Ray ray = { { x, y, 1.0f }, { 0.0f, 0.0f, -1.0f } };
+          const Vec3 ray_origin = camera.p + camera.x*x + camera.y*y;
+          const Vec3 ray_direction = camera.d; //(ray_origin - (camera.p - camera.d) * camera.zoom).normalized();
+
+          Ray ray = { ray_origin, ray_direction };
+
           const bool hit = bvh.intersect(ray);
 
-          const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 255.0f) : 0);
+          const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 200.0f) : 0);
 
-          *p = RGBA{ c, c, c, 255 };
+          *p = RGBA{ c, uint8_t(c >> 1), c, 255 };
 
           x += DX;
           p += 1;
@@ -67,7 +71,7 @@ void render_frame(const BVH &bvh, RGBA * const frameBuffer)
   }
 }
 
-void render_frame_4x4(const BVH &bvh, RGBA * const frameBuffer)
+void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer)
 {
   for (int tile_i = 0; tile_i < FRAME_HEIGHT; tile_i += TILE_SIZE)
   {
@@ -83,7 +87,10 @@ void render_frame_4x4(const BVH &bvh, RGBA * const frameBuffer)
 
           RGBA * const p = frameBuffer + (FRAME_HEIGHT - bundle_i- 1)*FRAME_WIDTH + bundle_j;
 
-          Ray4x4 rays({ bundle_x, bundle_y, 1.0f }, { 0.0f, 0.0f, -1.0f }, DX, DY);
+          const Vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
+          const Vec3 ray_direction = camera.d; //(ray_origin - (camera.p - camera.d) * camera.zoom).normalized();
+
+          Ray4x4 rays = { camera, bundle_origin, ray_direction, DX, DY };
 
           const int hit = bvh.intersect4x4(rays);
 
@@ -178,14 +185,16 @@ int main(int argc, char **argv)
 
   Frame frame(1024, 768);
 
+  Camera camera = { { 2.0f, 2.0f, 2.0f }, { -1.0f, -1.0f, -1.0f }, { 0.0f, 1.0f, 0.0f }, 5.0f };
+
   for (int i = 0; i < 10; i++)
   {
     const auto start = steady_clock::now();
 
 #if 0
-    render_frame(bvh, frame.pixels.get());
+    render_frame(camera, bvh, frame.pixels.get());
 #else
-    render_frame_4x4(bvh, frame.pixels.get());
+    render_frame_4x4(camera, bvh, frame.pixels.get());
 #endif
 
     const auto end = steady_clock::now();
