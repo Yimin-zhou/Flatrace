@@ -1,24 +1,30 @@
 #include "core/types.h"
-#include "core/intersect.h"
 #include "core/frame.h"
 #include "core/bvh.h"
 
 #include "utils/ppm.h"
 #include "utils/obj.h"
 
+#include <SDL2/SDL.h>
+
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_sdl.h>
+#include <imgui/imgui_impl_sdlrenderer.h>
 #include <fmt/format.h>
 
 #include <chrono>
 #include <iostream>
-#include <iomanip>
 
 using namespace core;
+
+constexpr auto WINDOW_WIDTH = 1024;
+constexpr auto WINDOW_HEIGHT = 768;
 
 constexpr auto FRAME_WIDTH = 1024;
 constexpr auto FRAME_HEIGHT = 768;
 
-constexpr float VIEWPORT_WIDTH  = 1.0f;
-constexpr float VIEWPORT_HEIGHT = 1.0f;
+constexpr float VIEWPORT_WIDTH  = 1.4f;
+constexpr float VIEWPORT_HEIGHT = 1.4f;
 
 constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
 constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
@@ -183,12 +189,79 @@ int main(int argc, char **argv)
 
   std::cerr << fmt::format("BVH construction took {0} ms\n", duration_cast<milliseconds>(end_bvh - start_bvh).count());
 
-  Frame frame(1024, 768);
-
-  Camera camera = { { 2.0f, 2.0f, 2.0f }, { -1.0f, -1.0f, -1.0f }, { 0.0f, 1.0f, 0.0f }, 5.0f };
-
-  for (int i = 0; i < 10; i++)
+    // Initialize SDL
+  if (SDL_Init(SDL_INIT_VIDEO) < 0)
   {
+    std::cout << "Failed to initialize SDL2" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  // Create SDL window and renderer
+  SDL_Window * const window = SDL_CreateWindow(
+    "flatrace",
+    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+    WINDOW_WIDTH, WINDOW_HEIGHT,
+    SDL_WINDOW_ALLOW_HIGHDPI);
+
+  SDL_Renderer * const renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+
+  // Check window size vs drawable size. On macOS HiDPI screens, these will be different, and
+  // everything will be rendered ridiculously small unless we enable render scaling.
+  {
+    int window_width, window_height;
+    int drawable_width, drawable_height;
+
+    SDL_GetWindowSize(window, &window_width, &window_height);
+    SDL_GetRendererOutputSize(renderer, &drawable_width, &drawable_height);
+
+    SDL_RenderSetScale(renderer, (float) drawable_width / window_width, (float) drawable_height / window_height);
+  }
+
+  // The framebuffer will be streamed to a texture which is blitted to the SDL window at each frame
+  SDL_Texture *framebuffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, FRAME_WIDTH, FRAME_HEIGHT);
+
+  // Init ImGui
+  ImGui::CreateContext();
+
+  ImGuiIO &io = ImGui::GetIO();
+  (void) io;
+
+  io.IniFilename = nullptr;
+
+  ImGui_ImplSDL2_InitForSDLRenderer(window);
+  ImGui_ImplSDLRenderer_Init(renderer);
+
+  // Framebuffer for the raytracer
+  Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
+
+  // Main render loop
+  bool quit = false;
+  float theta = 0.0f;
+
+  while (!quit)
+  {
+    // Handle pending events
+    SDL_Event e;
+
+    while (SDL_PollEvent(&e))
+    {
+      ImGui_ImplSDL2_ProcessEvent(&e);
+
+      switch (e.type)
+      {
+        case SDL_QUIT:
+          quit = true;
+          break;
+      }
+    }
+
+    const float cx = std::cos(theta) * 2.0f;
+    const float cz = std::sin(theta) * 2.0f;
+
+    Camera camera = { { cx, 1.0f, cz }, { -cx, -1.0f, -cz }, { 0.0f, 1.0f, 0.0f }, 5.0f };
+
+    theta += (2.0f*M_PI / 120.0f);
+
     const auto start = steady_clock::now();
 
 #if 0
@@ -199,12 +272,34 @@ int main(int argc, char **argv)
 
     const auto end = steady_clock::now();
 
-    std::cerr << std::setprecision(12)
-              << N_RAYS << " intersections took: " << duration_cast<milliseconds>(end - start).count() << "ms ("
-              << N_RAYS * (1'000'000.0 / duration_cast<microseconds>(end - start).count()) << " rays/second)" << std::endl;
-  }
+    const auto us = duration_cast<microseconds>(end - start).count();
 
-  utils::Ppm::write("out.ppm", frame);
+    // Update output texture and blit to window
+    SDL_UpdateTexture(framebuffer_texture, nullptr, (void *) frame.pixels.get(), FRAME_WIDTH*4);
+
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, framebuffer_texture, nullptr, nullptr);
+
+    // Add ImGui overlays
+    ImGui_ImplSDLRenderer_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Render time", nullptr);
+
+    if (!ImGui::IsWindowCollapsed())
+    {
+      ImGui::Text("%s", fmt::format("{0} ms, {1:.2f}M rays/second", us / 1000, ((double) N_RAYS / us)).c_str());
+    }
+
+    ImGui::End();
+
+    ImGui::Render();
+
+    ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
+
+    SDL_RenderPresent(renderer);
+  }
 
   return EXIT_SUCCESS;
 }

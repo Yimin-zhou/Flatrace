@@ -40,6 +40,7 @@ endif ()
 
 find_package (Boost 1.37.0 REQUIRED)
 find_package (Threads REQUIRED)
+find_package (SDL2 2.0.17 REQUIRED)
 find_package (GTest REQUIRED)
 
 find_path (simde_INCLUDE_DIR simde/check.h REQUIRED)
@@ -47,6 +48,9 @@ find_path (simde_INCLUDE_DIR simde/check.h REQUIRED)
 include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")
 include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
+include_directories (PRIVATE ${SDL2_INCLUDE_DIRS})
+
+add_subdirectory (third_party/imgui)
 
 add_library (core
   core/bvh.h
@@ -68,7 +72,8 @@ add_executable (flatrace main.cpp)
 target_link_libraries (flatrace
   core
   utils
-  Threads::Threads
+  imgui
+  ${SDL2_LIBRARIES} Threads::Threads
 )
 
 include (CTest)
