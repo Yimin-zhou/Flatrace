@@ -152,13 +152,15 @@ int main(int argc, char **argv)
 {
   using namespace std::chrono;
 
-  if (argc != 2)
+  if (argc < 2)
   {
     std::cerr << "\nUsage: flatrace <mesh_file.obj>\n\n";
     return EXIT_FAILURE;
   }
 
   const std::string input_file(argv[1]);
+
+  const bool flip = (argc == 3) && (argv[2][0] == '1');
 
   // Load getTriangle data
   std::vector<Triangle> triangles;
@@ -174,6 +176,20 @@ int main(int argc, char **argv)
   }
 
   std::cerr << "Triangle count: " << triangles.size() << std::endl;
+
+  // Flip y/z coordinates if '1' was passed on the command line, after the input file name
+  if (flip)
+  {
+    std::transform(triangles.begin(), triangles.end(), triangles.begin(), [](const Triangle &t) -> Triangle
+    {
+      const Vec3 &v0f = { t.vertices[0].x, t.vertices[0].z, t.vertices[0].y };
+      const Vec3 &v1f = { t.vertices[1].x, t.vertices[1].z, t.vertices[1].y };
+      const Vec3 &v2f = { t.vertices[2].x, t.vertices[2].z, t.vertices[2].y };
+
+      return Triangle(v0f, v2f, v1f);
+    });
+  }
+
 
   const auto start_bvh = steady_clock::now();
 
