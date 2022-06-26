@@ -211,10 +211,9 @@ struct Ray
 // 4x4 ray bundle for 8-way SIMD BVH traversal & triangle intersection
 struct  __attribute__((aligned(16))) Ray4x4
 {
-  Ray4x4(const Camera &camera, const Vec3 &origin, const Vec3 &direction, const float DX, const float DY)
+  Ray4x4(const Camera &camera, const Vec3 &o, const Vec3 &d, const Vec3 &rd, const float DX, const float DY)
   :
-    d(direction),
-    rd(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z)
+    d(d), rd(rd)
   {
     alignas(32) std::array<float, 16> ox;
     alignas(32) std::array<float, 16> oy;
@@ -227,7 +226,7 @@ struct  __attribute__((aligned(16))) Ray4x4
         const float x = j*DX;
         const float y = i*DY;
 
-        const Vec3 xyz = origin + camera.x*x + camera.y*y;
+        const Vec3 xyz = o + camera.x*x + camera.y*y;
 
         ox[i*4 + j] = xyz.x;
         oy[i*4 + j] = xyz.y;
@@ -242,8 +241,11 @@ struct  __attribute__((aligned(16))) Ray4x4
     _mm256_store_ps(oz_x8.data(), _mm256_load_ps(oz.data()));
     _mm256_store_ps(oz_x8.data() + 8, _mm256_load_ps(oz.data() + 8));
 
-    std::fill(t.begin(), t.end(), INF);
-    std::fill(dot.begin(), dot.end(), 0.0f);
+    _mm256_store_ps(t.data(), _mm256_set1_ps(INF));
+    _mm256_store_ps(t.data() + 8, _mm256_set1_ps(INF));
+
+    _mm256_store_ps(dot.data(), _mm256_set1_ps(0.0f));
+    _mm256_store_ps(dot.data() + 8, _mm256_set1_ps(0.0f));
   }
 
   alignas(32) std::array<float, 16> ox_x8;

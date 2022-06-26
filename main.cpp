@@ -79,6 +79,8 @@ void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer
 
 void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer)
 {
+  const Vec3 rd = { 1.0f / camera.d.x, 1.0f / camera.d.y, 1.0f / camera.d.z };
+
   for (int tile_i = 0; tile_i < FRAME_HEIGHT; tile_i += TILE_SIZE)
   {
     for (int tile_j = 0; tile_j < FRAME_WIDTH; tile_j += TILE_SIZE)
@@ -94,9 +96,8 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
           RGBA * const p = frameBuffer + (FRAME_HEIGHT - bundle_i- 1)*FRAME_WIDTH + bundle_j;
 
           const Vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
-          const Vec3 ray_direction = camera.d; //(ray_origin - (camera.p - camera.d) * camera.zoom).normalized();
 
-          Ray4x4 rays = { camera, bundle_origin, ray_direction, DX, DY };
+          Ray4x4 rays = { camera, bundle_origin, camera.d, rd, DX, DY };
 
           const int hit = bvh.intersect4x4(rays);
 
