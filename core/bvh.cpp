@@ -99,21 +99,37 @@ int BVH::intersect4x4(Ray4x4 &rays) const
   {
     Node * const node = node_stack[--stack_pointer];
 
-    const bool hit = core::intersect4x4(node->bbox, rays);
-
-    if (hit)
+    if (node->isLeaf)
     {
-      if (node->isLeaf)
+      for (int i = node->from; i < node->to; i++)
       {
-        for (int i = node->from; i < node->to; i++)
-        {
-          core::intersect4x4(getTriangle(i), rays);
-        }
+        core::intersect4x4(getTriangle(i), rays);
       }
-      else
+    }
+    else
+    {
+      Node * child_0 = node->left;
+      Node * child_1 = node->right;
+
+      float t_0 = core::intersect4x4(child_0->bbox , rays);
+      float t_1 = core::intersect4x4(child_1->bbox, rays);
+
+      // Swap nodes based on shortest intersection distance. This reduces traversal time dependency
+      // on the camera direction, by shortening rays before traversing obscured nodes.
+      if (t_0 > t_1)
       {
-        node_stack[stack_pointer++] = node->left;
-        node_stack[stack_pointer++] = node->right;
+        std::swap(t_0, t_1);
+        std::swap(child_0, child_1);
+      }
+
+      if (!std::isinf(t_1))
+      {
+        node_stack[stack_pointer++] = child_1;
+      }
+
+      if (!std::isinf(t_0))
+      {
+        node_stack[stack_pointer++] = child_0;
       }
     }
   }

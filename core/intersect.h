@@ -263,7 +263,7 @@ inline float intersect(const BoundingBox &bbox, const Ray &ray)
   return (hit ? tmin : INF);
 }
 
-inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
+inline float intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 {
   const __m256 ZERO_x8 = _mm256_set1_ps(0.0f);
 
@@ -314,11 +314,15 @@ inline bool intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 
     if (!_mm256_testz_ps(h, h))
     {
-      return true;
+      alignas(32) std::array<float, 8> t;
+
+      _mm256_store_ps(&t, t_min);
+
+      return *std::min_element(t.begin(), t.end());
     }
   }
 
-  return false;
+  return INF;
 }
 
 

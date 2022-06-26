@@ -190,7 +190,6 @@ int main(int argc, char **argv)
     });
   }
 
-
   const auto start_bvh = steady_clock::now();
 
   BVH bvh(triangles);
