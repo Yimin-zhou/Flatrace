@@ -20,11 +20,11 @@ add_compile_options(-g -Wall -Wno-unused-function -DFMT_HEADER_ONLY -DSDL_DISABL
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    add_compile_options (-O3 -ffast-math -fno-finite-math-only -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-Ofast -ffast-math -fno-finite-math-only -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
   endif ()
 
   if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
-    add_compile_options (-O3 -ffast-math -fno-finite-math-only -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-Ofast -ffast-math -fno-finite-math-only -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
   endif ()
 elseif (${CMAKE_BUILD_TYPE} STREQUAL "Profile")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
