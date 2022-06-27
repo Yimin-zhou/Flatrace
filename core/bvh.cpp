@@ -110,6 +110,8 @@ bool BVH::intersect(Ray &ray) const
 
 int BVH::intersect4x4(Ray4x4 &rays) const
 {
+  static const __m256 inf_x8 = _mm256_set1_ps(INF);
+
   Node *node_stack[2 * _maxDepth];
   int stack_pointer = 0;
 
@@ -131,7 +133,7 @@ int BVH::intersect4x4(Ray4x4 &rays) const
       Node * child_0 = node->left;
       Node * child_1 = node->right;
 
-      float t_0 = core::intersect4x4(child_0->bbox , rays);
+      float t_0 = core::intersect4x4(child_0->bbox, rays);
       float t_1 = core::intersect4x4(child_1->bbox, rays);
 
       // Swap nodes based on shortest intersection distance. This reduces traversal time dependency
@@ -142,23 +144,21 @@ int BVH::intersect4x4(Ray4x4 &rays) const
         std::swap(child_0, child_1);
       }
 
-      if (!std::isinf(t_1))
+      if (t_0 != INF)
       {
-        node_stack[stack_pointer++] = child_1;
-      }
+        if (t_1 != INF)
+        {
+          node_stack[stack_pointer++] = child_1;
+        }
 
-      if (!std::isinf(t_0))
-      {
         node_stack[stack_pointer++] = child_0;
       }
     }
   }
 
-  __m256 inf = _mm256_set1_ps(INF);
-
   return
-    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data()), inf, SIMDE_CMP_NEQ_OQ))) |
-    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data() + 8), inf, SIMDE_CMP_NEQ_OQ)) << 8);
+    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data()), inf_x8, SIMDE_CMP_NEQ_OQ))) |
+    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data() + 8), inf_x8, SIMDE_CMP_NEQ_OQ)) << 8);
 }
 
 BVH::Node *BVH::createNode(const int from, const int to)
