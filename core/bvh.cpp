@@ -32,6 +32,26 @@ BVH::BVH(const std::vector<Triangle> &triangles)
   _nodes.reserve(triangles.size()*2 - 1);
   _root = createNode(0, triangles.size());
   _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
+
+  // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
+  // data locality and avoids having to use indirection when iterating triangles for intersection
+  linearize();
+}
+
+// Linearize triangle indices
+void BVH::linearize()
+{
+  std::vector<Triangle> linearized_triangles;
+  std::vector<int> linearized_triangle_ids;
+
+  for (const int triangle_id : _triangleIds)
+  {
+    linearized_triangle_ids.push_back(linearized_triangles.size());
+    linearized_triangles.push_back(_triangles[triangle_id]);
+  }
+
+  std::swap(_triangleIds, linearized_triangle_ids);
+  std::swap(_triangles, linearized_triangles);
 }
 
 bool BVH::intersect(Ray &ray) const
@@ -103,7 +123,7 @@ int BVH::intersect4x4(Ray4x4 &rays) const
     {
       for (int i = node->from; i < node->to; i++)
       {
-        core::intersect4x4(getTriangle(i), rays);
+        core::intersect4x4(_triangles[i], rays);
       }
     }
     else
