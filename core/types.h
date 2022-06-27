@@ -14,7 +14,6 @@ namespace core {
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float EPS = 1e-12f;
 
-
 struct __attribute__((aligned(16))) Vec3
 {
   float x;

@@ -16,25 +16,27 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 # Compiler configuration
 set (CMAKE_CXX_STANDARD 17)
 
+add_compile_options(-g -Wall -Wno-unused-function -DFMT_HEADER_ONLY -DSDL_DISABLE_IMMINTRIN_H -DSIMDE_ENABLE_NATIVE_ALIASES)
+
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    add_compile_options (-g -Wall -Wno-unused-function -O3 -ffast-math -fno-finite-math-only -march=native -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-tree-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-O3 -ffast-math -fno-finite-math-only -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
   endif ()
 
   if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
-    add_compile_options (-g -Wall -Wno-unused-function -O3 -ffast-math -fno-finite-math-only -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-O3 -ffast-math -fno-finite-math-only -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
   endif ()
 elseif (${CMAKE_BUILD_TYPE} STREQUAL "Profile")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    add_compile_options (-g -Wall -Wno-unused-function -O2 -march=native -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-tree-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-O2 -ffast-math -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
   endif ()
 
   if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
-    add_compile_options (-g -Wall -Wno-unused-function -O2 -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-O2 -fno-vectorize -fno-tree-vectorize -fno-slp-vectorize -fno-tree-slp-vectorize)
   endif ()
 
 else ()
-  add_compile_options (-g -Wall -O0 -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES)
+  add_compile_options (-O0)
 endif ()
 
 
