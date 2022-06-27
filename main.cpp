@@ -254,6 +254,9 @@ int main(int argc, char **argv)
   bool quit = false;
   float theta = 0.0f;
 
+  float max_rps = -INF;
+  float min_rps = INF;
+
   while (!quit)
   {
     // Handle pending events
@@ -288,7 +291,12 @@ int main(int argc, char **argv)
 
     const auto end = steady_clock::now();
 
-    const auto us = duration_cast<microseconds>(end - start).count();
+    const int us = duration_cast<microseconds>(end - start).count();
+    const int ms = us / 1000;
+    const float rps = ((float) N_RAYS / us);
+
+    max_rps = std::max(max_rps, rps);
+    min_rps = std::min(min_rps, rps);
 
     // Update output texture and blit to window
     SDL_UpdateTexture(framebuffer_texture, nullptr, (void *) frame.pixels.get(), FRAME_WIDTH*4);
@@ -305,7 +313,8 @@ int main(int argc, char **argv)
 
     if (!ImGui::IsWindowCollapsed())
     {
-      ImGui::Text("%s", fmt::format("{0} ms, {1:.2f}M rays/second", us / 1000, ((double) N_RAYS / us)).c_str());
+      ImGui::Text("%s", fmt::format("{0} ms, {1:.2f}M rps", ms, ((double) N_RAYS / us)).c_str());
+      ImGui::Text("%s", fmt::format("min/max rps: {0:.2f}M/{1:.2f}M", min_rps, max_rps).c_str());
     }
 
     ImGui::End();
