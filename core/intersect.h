@@ -312,13 +312,20 @@ inline float intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, ZERO_x8, SIMDE_CMP_GT_OQ));
     h = _mm256_and_ps(h, _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
 
-    if (!_mm256_testz_ps(h, h))
+    if (!_mm256_testz_si256(_mm256_castps_si256(h), _mm256_castps_si256(h)))
     {
-      alignas(32) std::array<float, 8> t;
+      // Find minimum t value over all rays that hit something and return it. We use a series of
+      // lane swaps (permutes) and min operations to avoid branches, which has shown to be faster
+      // than copying out the 8 t-values and doing a (non-vectorized) std::min_element on them.
+      const __m256 v0 = _mm256_blendv_ps(_mm256_set1_ps(INF), t_min, h);
+      const __m256 v1 = _mm256_permute_ps(v0, 0b10'11'00'01);
+      const __m256 v2 = _mm256_min_ps(v0, v1);
+      const __m256 v3 = _mm256_permute_ps(v2, 0b01'00'11'10);
+      const __m256 v4 = _mm256_min_ps(v2, v3);
+      const __m256 v5 = _mm256_castpd_ps(_mm256_permute4x64_pd(_mm256_castps_pd(v4), 0b01'00'11'10));
+      const __m256 t_hit_min = _mm256_min_ps(v4, v5);
 
-      _mm256_store_ps(&t, t_min);
-
-      return *std::min_element(t.begin(), t.end());
+      return _mm256_cvtss_f32(t_hit_min);
     }
   }
 
