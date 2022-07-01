@@ -57,55 +57,63 @@ void BVH::linearize()
 bool BVH::intersect(Ray &ray) const
 {
   Node *node_stack[2 * _maxDepth];
-  int stack_pointer = 0;
 
-  if (core::intersect(_root->bbox, ray) != INF)
+  if (core::intersect(_root->bbox, ray) == INF)
   {
-    node_stack[stack_pointer++] = _root;
+    return false;
   }
 
-  // Traversal works like this: while there are nodes left on the stack, pop the topmost one. If it is a leaf,
-  // intersect & shorten the ray against the triangles in the leaf node. If the node is an internal node,
-  // intersect the ray against its left & right child node bboxes, and push those child nodes that were hit,
-  // ordered by hit distance, to ensure the closest node gets traversed first.
-  while (stack_pointer != 0)
+  for (int i = 0; i < 3; i++)
   {
-    Node * const node = node_stack[--stack_pointer];
+    int stack_pointer = 0;
 
-    if (node->isLeaf)
+    node_stack[stack_pointer++] = _root;
+
+    // Traversal works like this: while there are nodes left on the stack, pop the topmost one. If it is a leaf,
+    // intersect & shorten the ray against the triangles in the leaf node. If the node is an internal node,
+    // intersect the ray against its left & right child node bboxes, and push those child nodes that were hit,
+    // ordered by hit distance, to ensure the closest node gets traversed first.
+    while (stack_pointer != 0)
     {
-      for (int i = node->from; i < node->to; i++)
-      {
-        core::intersect(getTriangle(i), ray);
-      }
-    }
-    else
-    {
-      Node *left = node->left;
-      Node *right = node->right;
+      Node * const node = node_stack[--stack_pointer];
 
-      float t_left = core::intersect(left->bbox, ray);
-      float t_right = core::intersect(right->bbox, ray);
-
-      if (t_left > t_right)
+      if (node->isLeaf)
       {
-        std::swap(t_left, t_right);
-        std::swap(left, right);
-      }
-
-      if (t_left != INF)
-      {
-        if (t_right != INF)
+        for (int i = node->from; i < node->to; i++)
         {
-          node_stack[stack_pointer++] = right;
+          core::intersect(getTriangle(i), ray);
+        }
+      }
+      else
+      {
+        Node *left = node->left;
+        Node *right = node->right;
+
+        float t_left = core::intersect(left->bbox, ray);
+        float t_right = core::intersect(right->bbox, ray);
+
+        if (t_left > t_right)
+        {
+          std::swap(t_left, t_right);
+          std::swap(left, right);
         }
 
-        node_stack[stack_pointer++] = left;
+        if (t_left != INF)
+        {
+          if (t_right != INF)
+          {
+            node_stack[stack_pointer++] = right;
+          }
+
+          node_stack[stack_pointer++] = left;
+        }
       }
     }
+
+    ray.nextIntersection();
   }
 
-  return (ray.t != core::INF);
+  return (ray.t[0] != core::INF);
 }
 
 int BVH::intersect4x4(Ray4x4 &rays) const

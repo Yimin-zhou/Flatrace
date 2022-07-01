@@ -113,10 +113,10 @@ inline bool intersect(const Triangle &triangle, Ray &ray)
 
   const float t = qv.dot(triangle.edges[1]) * inv_det;
 
-  if (t < ray.t)
+  if ((t < ray.t[ray.n]) && (std::abs(t - ray.t0) > EPS))
   {
-    ray.t = t;
-    ray.dot = triangle.normal.dot(ray.d);
+    ray.t[ray.n] = t;
+    ray.dot[ray.n] = triangle.normal.dot(ray.d);
   }
 
   return true;
@@ -258,7 +258,7 @@ inline float intersect(const BoundingBox &bbox, const Ray &ray)
   tmin = std::max(tmin, std::min(tz1, tz2));
   tmax = std::min(tmax, std::max(tz1, tz2));
 
-  const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t));
+  const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t[ray.n]) && (tmax > ray.t0));
 
   return (hit ? tmin : INF);
 }

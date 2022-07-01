@@ -56,15 +56,30 @@ void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer
         for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
         {
           const Vec3 ray_origin = camera.p + camera.x*x + camera.y*y;
-          const Vec3 ray_direction = camera.d; //(ray_origin - (camera.p - camera.d) * camera.zoom).normalized();
+          const Vec3 ray_direction = camera.d;
 
           Ray ray = { ray_origin, ray_direction };
 
           const bool hit = bvh.intersect(ray);
 
-          const uint8_t c = (hit ? static_cast<uint8_t>(std::abs(ray.dot) * 200.0f) : 0);
+          float intensity = 0.0f;
 
-          *p = RGBA{ c, uint8_t(c >> 1), c, 255 };
+          const float src_alpha = 0.6f;
+
+          if (hit)
+          {
+            float dst_alpha = 1.0f;
+
+            for (int n = 0; n < 3; n++)
+            {
+              intensity += dst_alpha * (src_alpha * std::abs(ray.dot[n]));
+              dst_alpha *= (1.0 - src_alpha);
+            }
+          }
+
+          const uint8_t c = intensity*230.0f;
+
+          *p = RGBA{ c, c, c, 255 };
 
           x += DX;
           p += 1;
@@ -234,7 +249,7 @@ int main(int argc, char **argv)
   }
 
   // The framebuffer will be streamed to a texture which is blitted to the SDL window at each frame
-  SDL_Texture *framebuffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, FRAME_WIDTH, FRAME_HEIGHT);
+  SDL_Texture *framebuffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, FRAME_WIDTH, FRAME_HEIGHT);
 
   // Init ImGui
   ImGui::CreateContext();
@@ -283,7 +298,7 @@ int main(int argc, char **argv)
 
     const auto start = steady_clock::now();
 
-#if 0
+#if 1
     render_frame(camera, bvh, frame.pixels.get());
 #else
     render_frame_4x4(camera, bvh, frame.pixels.get());
