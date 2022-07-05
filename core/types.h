@@ -221,7 +221,7 @@ struct  __attribute__((aligned(16))) Ray4x4
 {
   Ray4x4(const Camera &camera, const Vec3 &o, const Vec3 &d, const Vec3 &rd, const float DX, const float DY)
   :
-    d(d), rd(rd)
+    d(d), rd(rd), n(0)
   {
     alignas(32) std::array<float, 16> ox;
     alignas(32) std::array<float, 16> oy;
@@ -249,11 +249,29 @@ struct  __attribute__((aligned(16))) Ray4x4
     _mm256_store_ps(oz_x8.data(), _mm256_load_ps(oz.data()));
     _mm256_store_ps(oz_x8.data() + 8, _mm256_load_ps(oz.data() + 8));
 
-    _mm256_store_ps(t.data(), _mm256_set1_ps(INF));
-    _mm256_store_ps(t.data() + 8, _mm256_set1_ps(INF));
+    _mm256_store_ps(t0.data(), _mm256_set1_ps(-INF));
+    _mm256_store_ps(t0.data() + 8, _mm256_set1_ps(-INF));
 
-    _mm256_store_ps(dot.data(), _mm256_set1_ps(0.0f));
-    _mm256_store_ps(dot.data() + 8, _mm256_set1_ps(0.0f));
+    for (int n = 0; n < 3; n ++)
+    {
+      _mm256_store_ps(t.data() + n*16, _mm256_set1_ps(INF));
+      _mm256_store_ps(t.data() + n*16 + 8, _mm256_set1_ps(INF));
+    }
+
+    for (int n = 0; n < 3; n ++)
+    {
+      _mm256_store_ps(dot.data() + n*16, _mm256_set1_ps(0.0f));
+      _mm256_store_ps(dot.data() + n*16 + 8, _mm256_set1_ps(0.0f));
+    }
+  }
+
+  void nextIntersection()
+  {
+    // t0 = t[n];
+    _mm256_store_ps(t0.data(), _mm256_load_ps(t.data() + n*16));
+    _mm256_store_ps(t0.data() + 8, _mm256_load_ps(t.data() + n*16 + 8));
+
+    n++;
   }
 
   alignas(32) std::array<float, 16> ox_x8;
@@ -263,8 +281,11 @@ struct  __attribute__((aligned(16))) Ray4x4
   Vec3 d;
   Vec3 rd;
 
-  alignas(32) std::array<float, 16> t;
-  alignas(32) std::array<float, 16> dot;
+  int n;
+  alignas(32) std::array<float, 16> t0;
+
+  alignas(32) std::array<float, 48> t;
+  alignas(32) std::array<float, 48> dot;
 };
 
 }

@@ -29,10 +29,12 @@ constexpr float VIEWPORT_HEIGHT = 1.4f;
 constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
 constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
 
-constexpr int TILE_SIZE = 16;
+constexpr auto TILE_SIZE = 16;
 
 constexpr auto N_FRAMES = 1;
 constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
+
+constexpr auto MAX_INTERSECTIONS = 3;
 
 namespace {
 
@@ -60,7 +62,7 @@ void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer
 
           Ray ray = { ray_origin, ray_direction };
 
-          const bool hit = bvh.intersect(ray);
+          const bool hit = bvh.intersect(ray, MAX_INTERSECTIONS);
 
           float intensity = 0.0f;
 
@@ -114,48 +116,41 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
 
           Ray4x4 rays = { camera, bundle_origin, camera.d, rd, DX, DY };
 
-          const int hit = bvh.intersect4x4(rays);
+          const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
 
-          // TODO: obviously the unrolled 4x4 pixel handling should also be vectorized....
-          const uint8_t c0  = ((hit & (1 << 0)) ? static_cast<uint8_t>(std::abs(rays.dot[0]) * 255.0f) : 0);
-          const uint8_t c1  = ((hit & (1 << 1)) ? static_cast<uint8_t>(std::abs(rays.dot[1]) * 255.0f) : 0);
-          const uint8_t c2  = ((hit & (1 << 2)) ? static_cast<uint8_t>(std::abs(rays.dot[2]) * 255.0f) : 0);
-          const uint8_t c3  = ((hit & (1 << 3)) ? static_cast<uint8_t>(std::abs(rays.dot[3]) * 255.0f) : 0);
+          __m256i c_0 = _mm256_set1_epi32(0);
+          __m256i c_1 = _mm256_set1_epi32(0);
 
-          const uint8_t c4  = ((hit & (1 << 4)) ? static_cast<uint8_t>(std::abs(rays.dot[4]) * 255.0f) : 0);
-          const uint8_t c5  = ((hit & (1 << 5)) ? static_cast<uint8_t>(std::abs(rays.dot[5]) * 255.0f) : 0);
-          const uint8_t c6  = ((hit & (1 << 6)) ? static_cast<uint8_t>(std::abs(rays.dot[6]) * 255.0f) : 0);
-          const uint8_t c7  = ((hit & (1 << 7)) ? static_cast<uint8_t>(std::abs(rays.dot[7]) * 255.0f) : 0);
+          if (hit)
+          {
+            const __m256 src_alpha = _mm256_set1_ps(0.6f);
 
-          const uint8_t c8  = ((hit & (1 << 8)) ? static_cast<uint8_t>(std::abs(rays.dot[8]) * 255.0f) : 0);
-          const uint8_t c9  = ((hit & (1 << 9)) ? static_cast<uint8_t>(std::abs(rays.dot[9]) * 255.0f) : 0);
-          const uint8_t c10 = ((hit & (1 << 10)) ? static_cast<uint8_t>(std::abs(rays.dot[10]) * 255.0f) : 0);
-          const uint8_t c11 = ((hit & (1 << 11)) ? static_cast<uint8_t>(std::abs(rays.dot[11]) * 255.0f) : 0);
+            __m256 dst_alpha = _mm256_set1_ps(1.0f);
 
-          const uint8_t c12 = ((hit & (1 << 12)) ? static_cast<uint8_t>(std::abs(rays.dot[12]) * 255.0f) : 0);
-          const uint8_t c13 = ((hit & (1 << 13)) ? static_cast<uint8_t>(std::abs(rays.dot[13]) * 255.0f) : 0);
-          const uint8_t c14 = ((hit & (1 << 14)) ? static_cast<uint8_t>(std::abs(rays.dot[14]) * 255.0f) : 0);
-          const uint8_t c15 = ((hit & (1 << 15)) ? static_cast<uint8_t>(std::abs(rays.dot[15]) * 255.0f) : 0);
+            __m256 intensity_0 = _mm256_set1_ps(0.0f);
+            __m256 intensity_1 = _mm256_set1_ps(0.0f);
 
-          *p =  RGBA{ c0, 0, 0, 255 };
-          *(p + 1) =  RGBA{ c1, 0, 0, 255 };
-          *(p + 2) =  RGBA{ c2, 0, 0, 255 };
-          *(p + 3) =  RGBA{ c3, 0, 0, 255 };
+            for (int i = 0; i < 3; i++)
+            {
+              // intensity += dst_alpha * (src_alpha * std::abs(ray.dot[n]));
+              // dst_alpha *= (1.0 - src_alpha);
+              const __m256 dot_0 = _mm256_andnot_ps(_mm256_set1_ps(-0.0f), _mm256_load_ps(rays.dot.data() + i*16));
+              const __m256 dot_1 = _mm256_andnot_ps(_mm256_set1_ps(-0.0f), _mm256_load_ps(rays.dot.data() + i*16 + 8));
 
-          *(p - FRAME_WIDTH) =  RGBA{ c4, 0, 0, 255 };
-          *(p - FRAME_WIDTH + 1) =  RGBA{ c5, 0, 0, 255 };
-          *(p - FRAME_WIDTH + 2) =  RGBA{ c6, 0, 0, 255 };
-          *(p - FRAME_WIDTH + 3) =  RGBA{ c7, 0, 0, 255 };
+              intensity_0 = _mm256_add_ps(intensity_0, _mm256_mul_ps(dst_alpha, _mm256_mul_ps(src_alpha, dot_0)));
+              intensity_1 = _mm256_add_ps(intensity_1, _mm256_mul_ps(dst_alpha, _mm256_mul_ps(src_alpha, dot_1)));
 
-          *(p - 2*FRAME_WIDTH) =  RGBA{ c8, 0, 0, 255 };
-          *(p - 2*FRAME_WIDTH + 1) =  RGBA{ c9, 0, 0, 255 };
-          *(p - 2*FRAME_WIDTH + 2) =  RGBA{ c10, 0, 0, 255 };
-          *(p - 2*FRAME_WIDTH + 3) =  RGBA{ c11, 0, 0, 255 };
+              dst_alpha = _mm256_mul_ps(dst_alpha, _mm256_sub_ps(_mm256_set1_ps(1.0f), src_alpha));
+            }
 
-          *(p - 3*FRAME_WIDTH) =  RGBA{ c12, 0, 0, 255 };
-          *(p - 3*FRAME_WIDTH + 1) =  RGBA{ c13, 0, 0, 255 };
-          *(p - 3*FRAME_WIDTH + 2) =  RGBA{ c14, 0, 0, 255 };
-          *(p - 3*FRAME_WIDTH + 3) =  RGBA{ c15, 0, 0, 255 };
+            c_0 = _mm256_slli_epi32(_mm256_abs_epi32(_mm256_cvtps_epi32(_mm256_mul_ps(intensity_0, _mm256_set1_ps(255.0f)))), 0);
+            c_1 = _mm256_slli_epi32(_mm256_abs_epi32(_mm256_cvtps_epi32(_mm256_mul_ps(intensity_1, _mm256_set1_ps(255.0f)))), 0);
+          }
+
+          _mm_store_si128(reinterpret_cast<__m128i *>(p), _mm256_extracti128_si256(c_1, 1));
+          _mm_store_si128(reinterpret_cast<__m128i *>(p + FRAME_WIDTH), _mm256_extracti128_si256(c_1, 0));
+          _mm_store_si128(reinterpret_cast<__m128i *>(p + 2*FRAME_WIDTH), _mm256_extracti128_si256(c_0, 1));
+          _mm_store_si128(reinterpret_cast<__m128i *>(p + 3*FRAME_WIDTH), _mm256_extracti128_si256(c_0, 0));
         }
       }
     }
@@ -298,7 +293,7 @@ int main(int argc, char **argv)
 
     const auto start = steady_clock::now();
 
-#if 1
+#if 0
     render_frame(camera, bvh, frame.pixels.get());
 #else
     render_frame_4x4(camera, bvh, frame.pixels.get());

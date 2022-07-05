@@ -54,7 +54,7 @@ void BVH::linearize()
   std::swap(_triangles, linearized_triangles);
 }
 
-bool BVH::intersect(Ray &ray) const
+bool BVH::intersect(Ray &ray, const int maxIntersections) const
 {
   Node *node_stack[2 * _maxDepth];
 
@@ -63,7 +63,7 @@ bool BVH::intersect(Ray &ray) const
     return false;
   }
 
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < maxIntersections; i++)
   {
     int stack_pointer = 0;
 
@@ -116,57 +116,74 @@ bool BVH::intersect(Ray &ray) const
   return (ray.t[0] != core::INF);
 }
 
-int BVH::intersect4x4(Ray4x4 &rays) const
+bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
 {
   static const __m256 inf_x8 = _mm256_set1_ps(INF);
 
   Node *node_stack[2 * _maxDepth];
-  int stack_pointer = 0;
 
-  node_stack[stack_pointer++] = _root;
+  bool hit = false;
+  bool dead = false;
 
-  while (stack_pointer != 0)
+  for (int i = 0; !dead && (i < maxIntersections); i++)
   {
-    Node * const node = node_stack[--stack_pointer];
+    int stack_pointer = 0;
 
-    if (node->isLeaf)
+    node_stack[stack_pointer++] = _root;
+
+    while (stack_pointer != 0)
     {
-      for (int i = node->from; i < node->to; i++)
-      {
-        core::intersect4x4(_triangles[i], rays);
-      }
-    }
-    else
-    {
-      Node * child_0 = node->left;
-      Node * child_1 = node->right;
+      Node * const node = node_stack[--stack_pointer];
 
-      float t_0 = core::intersect4x4(child_0->bbox, rays);
-      float t_1 = core::intersect4x4(child_1->bbox, rays);
-
-      // Swap nodes based on shortest intersection distance. This reduces traversal time dependency
-      // on the camera direction, by shortening rays before traversing obscured nodes.
-      if (t_0 > t_1)
+      if (node->isLeaf)
       {
-        std::swap(t_0, t_1);
-        std::swap(child_0, child_1);
-      }
-
-      if (t_0 != INF)
-      {
-        if (t_1 != INF)
+        for (int i = node->from; i < node->to; i++)
         {
-          node_stack[stack_pointer++] = child_1;
+          core::intersect4x4(_triangles[i], rays);
+        }
+      }
+      else
+      {
+        Node * child_0 = node->left;
+        Node * child_1 = node->right;
+
+        float t_0 = core::intersect4x4(child_0->bbox, rays);
+        float t_1 = core::intersect4x4(child_1->bbox, rays);
+
+        // Swap nodes based on shortest intersection distance. This reduces traversal time dependency
+        // on the camera direction, by shortening rays before traversing obscured nodes.
+        if (t_0 > t_1)
+        {
+          std::swap(t_0, t_1);
+          std::swap(child_0, child_1);
         }
 
-        node_stack[stack_pointer++] = child_0;
+        if (t_0 != INF)
+        {
+          if (t_1 != INF)
+          {
+            node_stack[stack_pointer++] = child_1;
+          }
+
+          node_stack[stack_pointer++] = child_0;
+        }
       }
+    }
+
+    const __m256 h = _mm256_or_ps(
+      _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16), inf_x8, SIMDE_CMP_NEQ_OQ),
+      _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16 + 8), inf_x8, SIMDE_CMP_NEQ_OQ));
+
+    dead = _mm256_testz_ps(h, h);
+
+    if (!dead)
+    {
+      rays.nextIntersection();
+      hit = true;
     }
   }
 
-  return
-    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data()), inf_x8, SIMDE_CMP_NEQ_OQ))) |
-    (_mm256_movemask_ps(_mm256_cmp_ps(_mm256_load_ps(rays.t.data() + 8), inf_x8, SIMDE_CMP_NEQ_OQ)) << 8);
+  return hit;
 }
 
 BVH::Node *BVH::createNode(const int from, const int to)
@@ -227,7 +244,6 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
   };
 
   const int splitsPerDimension = std::min(to - from, maxSplitsPerDimension);
-
 
   float best = INF;
   std::optional<Plane> best_plane;

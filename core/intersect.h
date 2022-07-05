@@ -113,7 +113,7 @@ inline bool intersect(const Triangle &triangle, Ray &ray)
 
   const float t = qv.dot(triangle.edges[1]) * inv_det;
 
-  if ((t < ray.t[ray.n]) && (std::abs(t - ray.t0) > EPS))
+  if ((t < ray.t[ray.n]) && (t > ray.t0))
   {
     ray.t[ray.n] = t;
     ray.dot[ray.n] = triangle.normal.dot(ray.d);
@@ -218,15 +218,17 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     const __m256 qv_dot_e1 = dot8(qv, triangle_e1);
     const __m256 t = _mm256_mul_ps(qv_dot_e1, inv_det_x8);
 
-    const __m256 ray_t =  _mm256_load_ps(rays.t.data() + i*8);
-    const __m256 ray_dot =  _mm256_load_ps(rays.dot.data() + i*8);
-
-    //  if (t < ray.t)
+    //  if ((t < ray.t[ray.n]) && (t > ray.t0))
     //  {
-    //    ray.t = t;
-    //    ray.dot = triangle.normal.dot(ray.d);
+    //    ray.t[ray.n] = t;
+    //    ray.dot[ray.n] = triangle.normal.dot(ray.d);
     //  }
+    const __m256 ray_t =  _mm256_load_ps(rays.t.data() + rays.n*16 + i*8);
+    const __m256 ray_t0 =  _mm256_load_ps(rays.t0.data() + i*8);
+    const __m256 ray_dot =  _mm256_load_ps(rays.dot.data() + rays.n*16 + i*8);
+
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t, SIMDE_CMP_LT_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t0, SIMDE_CMP_GT_OQ));
 
     if (!_mm256_testz_ps(update_rays, update_rays))
     {
@@ -235,8 +237,8 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
       const __m256 new_t = _mm256_blendv_ps(ray_t, t, update_rays);
       const __m256 new_dot = _mm256_blendv_ps(ray_dot, dot, update_rays);
 
-      _mm256_store_ps(rays.t.data() + i*8, new_t);
-      _mm256_store_ps(rays.dot.data() + i*8, new_dot);
+      _mm256_store_ps(rays.t.data() + rays.n*16 + i*8, new_t);
+      _mm256_store_ps(rays.dot.data() + rays.n*16 + i*8, new_dot);
     }
   }
 }
@@ -303,14 +305,15 @@ inline float intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
     t_min = _mm256_max_ps(t_min, _mm256_min_ps(tz1, tz2));
     t_max = _mm256_min_ps(t_max, _mm256_max_ps(tz1, tz2));
 
-    // const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t));
-    const __m256 ray_t = _mm256_load_ps(rays.t.data() + i*8);
+    // const bool hit = ((tmax >= tmin) && (tmax > 0.0f) && (tmin < ray.t) && (tmax > ray.t0))
+    const __m256 ray_t = _mm256_load_ps(rays.t.data() + rays.n*16 + i*8);
 
     __m256 h = _mm256_castsi256_ps(_mm256_set1_epi32(0xFFFFFFFF));
 
     h = _mm256_cmp_ps(t_max, t_min, SIMDE_CMP_GE_OQ);
     h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, ZERO_x8, SIMDE_CMP_GT_OQ));
     h = _mm256_and_ps(h, _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
+    h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, _mm256_load_ps(rays.t0.data() + i*8), SIMDE_CMP_GT_OQ));
 
     if (!_mm256_testz_si256(_mm256_castps_si256(h), _mm256_castps_si256(h)))
     {
