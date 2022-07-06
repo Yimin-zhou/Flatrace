@@ -7,6 +7,8 @@ if (NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE "Debug")
 endif ()
 
+set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/site_cmake")
+
 set (CMAKE_OSX_DEPLOYMENT_TARGET 12.0)
 
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -39,9 +41,8 @@ else ()
   add_compile_options (-O0)
 endif ()
 
-
 find_package (Boost 1.37.0 REQUIRED)
-find_package (Threads REQUIRED)
+find_package (TBB REQUIRED)
 find_package (SDL2 2.0.17 REQUIRED)
 find_package (GTest REQUIRED)
 
@@ -51,6 +52,7 @@ include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")
 include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
 include_directories (PRIVATE ${SDL2_INCLUDE_DIRS})
+include_directories (PRIVATE ${TBB_INCLUDE_DIR})
 
 add_subdirectory (third_party/imgui)
 
@@ -75,7 +77,8 @@ target_link_libraries (flatrace
   core
   utils
   imgui
-  ${SDL2_LIBRARIES} Threads::Threads
+  ${SDL2_LIBRARIES}
+  ${TBB_LIBRARIES}
 )
 
 include (CTest)
@@ -89,7 +92,6 @@ add_executable(tests
 target_link_libraries (tests
   core
   utils
-  Threads::Threads
   GTest::GTest
 )
 

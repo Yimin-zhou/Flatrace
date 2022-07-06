@@ -7,9 +7,12 @@
 
 #include <SDL2/SDL.h>
 
+#include <tbb/parallel_for.h>
+
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl.h>
 #include <imgui/imgui_impl_sdlrenderer.h>
+
 #include <fmt/format.h>
 
 #include <chrono>
@@ -98,10 +101,21 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
 {
   const Vec3 rd = { 1.0f / camera.d.x, 1.0f / camera.d.y, 1.0f / camera.d.z };
 
-  for (int tile_i = 0; tile_i < FRAME_HEIGHT; tile_i += TILE_SIZE)
+  constexpr int NX = FRAME_WIDTH / TILE_SIZE;
+  constexpr int NY = FRAME_HEIGHT / TILE_SIZE;
+
+//  for (int tile_i = 0; tile_i < FRAME_HEIGHT; tile_i += TILE_SIZE)
+//  {
+//    for (int tile_j = 0; tile_j < FRAME_WIDTH; tile_j += TILE_SIZE)
+//    {
+
+  tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
   {
-    for (int tile_j = 0; tile_j < FRAME_WIDTH; tile_j += TILE_SIZE)
+    for (int tile_idx = r.begin(); tile_idx != r.end(); tile_idx++)
     {
+      const int tile_i = (tile_idx / NX) * TILE_SIZE;
+      const int tile_j = (tile_idx % NX) * TILE_SIZE;
+
       for (int bundle_i = tile_i; bundle_i < (tile_i + TILE_SIZE); bundle_i += 4)
       {
         const float bundle_y = -(VIEWPORT_HEIGHT / 2.0f) + (bundle_i * DY);
@@ -154,7 +168,9 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
         }
       }
     }
-  }
+  });
+//    }
+//  }
 }
 
 }
