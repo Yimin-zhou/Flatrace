@@ -26,8 +26,8 @@ constexpr auto WINDOW_HEIGHT = 768;
 constexpr auto FRAME_WIDTH = 1024;
 constexpr auto FRAME_HEIGHT = 768;
 
-constexpr float VIEWPORT_WIDTH  = 1.4f;
-constexpr float VIEWPORT_HEIGHT = 1.4f;
+constexpr float VIEWPORT_WIDTH  = 1.2f;
+constexpr float VIEWPORT_HEIGHT = 1.2f;
 
 constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
 constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
@@ -104,11 +104,6 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
   constexpr int NX = FRAME_WIDTH / TILE_SIZE;
   constexpr int NY = FRAME_HEIGHT / TILE_SIZE;
 
-//  for (int tile_i = 0; tile_i < FRAME_HEIGHT; tile_i += TILE_SIZE)
-//  {
-//    for (int tile_j = 0; tile_j < FRAME_WIDTH; tile_j += TILE_SIZE)
-//    {
-
   tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
   {
     for (int tile_idx = r.begin(); tile_idx != r.end(); tile_idx++)
@@ -169,8 +164,6 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
       }
     }
   });
-//    }
-//  }
 }
 
 }
@@ -246,6 +239,8 @@ int main(int argc, char **argv)
     SDL_WINDOW_ALLOW_HIGHDPI);
 
   SDL_Renderer * const renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+
+  SDL_RenderSetVSync(renderer, 1);
 
   // Check window size vs drawable size. On macOS HiDPI screens, these will be different, and
   // everything will be rendered ridiculously small unless we enable render scaling.
