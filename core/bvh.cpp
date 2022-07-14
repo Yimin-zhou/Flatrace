@@ -37,6 +37,8 @@ BVH::BVH(const std::vector<Triangle> &triangles)
   _root = createNode(0, triangles.size());
   _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
 
+  std::cerr << "NODE SIZE: " << sizeof(Node) << std::endl;
+
   // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
   // data locality and avoids having to use indirection when iterating triangles for intersection
   linearize();

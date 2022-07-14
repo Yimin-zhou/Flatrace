@@ -101,17 +101,21 @@ struct Plane
 struct Triangle
 {
   Triangle() = default;
-  Triangle(const Vec3 &v0, const Vec3 &v1, const Vec3 &v2)
+  Triangle(const int id, const Vec3 &v0, const Vec3 &v1, const Vec3 &v2, const int material)
   :
-  vertices({ v0, v1, v2 }),
-  edges({ v1 - v0, v2 - v0 }),
-  normal(edges[0].cross(edges[1]).normalized())
+    id(id),
+    vertices({ v0, v1, v2 }),
+    edges({ v1 - v0, v2 - v0 }),
+    normal(edges[0].cross(edges[1]).normalized()),
+    material(material)
   {
   }
 
+  int id;
   std::array<Vec3, 3> vertices;
   std::array<Vec3, 2> edges;
   Vec3 normal;
+  int material;
 };
 
 struct BoundingBox
@@ -218,6 +222,7 @@ struct Ray
 
   std::array<float, 3> t = { INF, INF, INF };
   std::array<float, 3> dot = { 0.0f, 0.0f, 0.0f };
+  std::array<int, 3> triangle = { -1, -1, -1 };
 };
 
 // 4x4 ray bundle for 8-way SIMD BVH traversal & triangle intersection
@@ -267,6 +272,12 @@ struct  __attribute__((aligned(16))) Ray4x4
       _mm256_store_ps(dot.data() + n*16, _mm256_set1_ps(0.0f));
       _mm256_store_ps(dot.data() + n*16 + 8, _mm256_set1_ps(0.0f));
     }
+
+    for (int n = 0; n < 3; n ++)
+    {
+      _mm256_store_si256(reinterpret_cast<__m256i *>(triangle.data() + n*16), _mm256_set1_epi32(0));
+      _mm256_store_si256(reinterpret_cast<__m256i *>(triangle.data() + n*16 + 8), _mm256_set1_epi32(0));
+    }
   }
 
   void nextIntersection()
@@ -290,6 +301,7 @@ struct  __attribute__((aligned(16))) Ray4x4
 
   alignas(32) std::array<float, 48> t;
   alignas(32) std::array<float, 48> dot;
+  alignas(32) std::array<int, 48> triangle;
 };
 
 }

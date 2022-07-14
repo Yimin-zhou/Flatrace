@@ -121,6 +121,7 @@ inline bool intersect(const Triangle &triangle, Ray &ray)
   {
     ray.t[ray.n] = t;
     ray.dot[ray.n] = triangle.normal.dot(ray.d);
+    ray.triangle[ray.n] = triangle.id;
   }
 
   return true;
@@ -227,9 +228,10 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     //    ray.t[ray.n] = t;
     //    ray.dot[ray.n] = triangle.normal.dot(ray.d);
     //  }
-    const __m256 ray_t =  _mm256_load_ps(rays.t.data() + rays.n*16 + i*8);
-    const __m256 ray_t0 =  _mm256_load_ps(rays.t0.data() + i*8);
-    const __m256 ray_dot =  _mm256_load_ps(rays.dot.data() + rays.n*16 + i*8);
+    const __m256 ray_t = _mm256_load_ps(rays.t.data() + rays.n*16 + i*8);
+    const __m256 ray_t0 = _mm256_load_ps(rays.t0.data() + i*8);
+    const __m256 ray_dot = _mm256_load_ps(rays.dot.data() + rays.n*16 + i*8);
+    const __m256i ray_triangle = _mm256_load_si256(reinterpret_cast<const __m256i *>(rays.triangle.data() + rays.n*16 + i*8));
 
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t, _CMP_LT_OQ));
     update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t0, _CMP_GT_OQ));
@@ -240,9 +242,12 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 
       const __m256 new_t = _mm256_blendv_ps(ray_t, t, update_rays);
       const __m256 new_dot = _mm256_blendv_ps(ray_dot, dot, update_rays);
+//      const __m256i new_triangle =  _mm256_set1_epi32(triangle.id);
+       const __m256i new_triangle = _mm256_castps_si256(_mm256_blendv_ps(_mm256_castsi256_ps(ray_triangle), _mm256_castsi256_ps(_mm256_set1_epi32(triangle.id)), update_rays));
 
       _mm256_store_ps(rays.t.data() + rays.n*16 + i*8, new_t);
       _mm256_store_ps(rays.dot.data() + rays.n*16 + i*8, new_dot);
+      _mm256_store_si256(reinterpret_cast<__m256i *>(rays.triangle.data() + rays.n*16 + i*8), new_triangle);
     }
   }
 }

@@ -20,35 +20,56 @@
 
 using namespace core;
 
+namespace {
+
 constexpr auto WINDOW_WIDTH = 1024;
 constexpr auto WINDOW_HEIGHT = 768;
 
 constexpr auto FRAME_WIDTH = 1024;
 constexpr auto FRAME_HEIGHT = 768;
 
-constexpr float VIEWPORT_WIDTH  = 1.2f;
-constexpr float VIEWPORT_HEIGHT = 1.2f;
+constexpr auto VIEWPORT_WIDTH  = 1.2f;
+constexpr auto VIEWPORT_HEIGHT = 1.2f;
 
-constexpr float DX = VIEWPORT_WIDTH / FRAME_WIDTH;
-constexpr float DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
+constexpr auto DX = VIEWPORT_WIDTH / FRAME_WIDTH;
+constexpr auto DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
 
 constexpr auto TILE_SIZE = 16;
+constexpr auto BUNDLE_SIZE = 4;
+
+constexpr auto NX = FRAME_WIDTH / TILE_SIZE;
+constexpr auto NY = FRAME_HEIGHT / TILE_SIZE;
 
 constexpr auto N_FRAMES = 1;
 constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
 
 constexpr auto MAX_INTERSECTIONS = 3;
 
-namespace {
+constexpr auto SPEED = 0.05f;
 
+// Arbitrary color palette for materials
+static const std::array<std::array<float, 4>, 8> COLORS = { {
+  { { 1.0f, 0.0f, 0.0f, 1.0f } },
+  { { 0.0f, 1.0f, 0.0f, 1.0f } },
+  { { 0.0f, 0.0f, 1.0f, 1.0f } },
+  { { 1.0f, 1.0f, 0.0f, 1.0f } },
+  { { 1.0f, 0.0f, 1.0f, 1.0f } },
+  { { 0.0f, 1.0f, 1.0f, 1.0f } },
+  { { 1.0f, 0.5f, 0.5f, 1.0f } },
+  { { 0.5f, 0.5f, 1.0f, 1.0f } },
+} };
+
+// Reference implementation that traces 1 ray at a time (no SIMD)
 void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer)
 {
-  for (int tile_i = 0; tile_i < (FRAME_HEIGHT / TILE_SIZE); tile_i++)
+  tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
   {
-    const float tile_y = -(VIEWPORT_HEIGHT / 2.0f) + (tile_i * TILE_SIZE * DY);
-
-    for (int tile_j = 0; tile_j < (FRAME_WIDTH / TILE_SIZE); tile_j++)
+    for (int tile_idx = r.begin(); tile_idx != r.end(); tile_idx++)
     {
+      const int tile_i = (tile_idx / NX);
+      const int tile_j = (tile_idx % NX);
+
+      const float tile_y = -(VIEWPORT_HEIGHT / 2.0f) + (tile_i * TILE_SIZE * DY);
       const float tile_x = -(VIEWPORT_WIDTH / 2.0f) + (tile_j * TILE_SIZE * DX);
 
       float y = tile_y;
@@ -67,24 +88,39 @@ void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer
 
           const bool hit = bvh.intersect(ray, MAX_INTERSECTIONS);
 
-          float intensity = 0.0f;
-
           const float src_alpha = 0.6f;
+
+          __m128i c = _mm_set1_epi32(0);
 
           if (hit)
           {
+            __m128 cf = _mm_set1_ps(0.0f);
+
             float dst_alpha = 1.0f;
 
             for (int n = 0; n < 3; n++)
             {
-              intensity += dst_alpha * (src_alpha * std::abs(ray.dot[n]));
+              const int triangle = ray.triangle[n];
+
+              // c += COLORS[bvh.getTriangle(ray.triangle[0]).material & 0x07] * (dst_alpha * src_alpha * std::abs(ray.dot[n]));
+              const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f), _mm_load1_ps(&ray.dot[n]));
+              const __m128 tri_color = _mm_load_ps(COLORS[bvh.getTriangle(triangle).material & 0x07].data());
+              const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
+
+              const float alpha = dst_alpha * src_alpha;
+
+              cf = _mm_add_ps(cf, _mm_mul_ps(_mm_load1_ps(&alpha), shaded_color));
+
               dst_alpha *= (1.0 - src_alpha);
             }
+
+            // c = min(255 * cf)
+            cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
+            c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
           }
 
-          const uint8_t c = intensity*230.0f;
-
-          *p = RGBA{ c, c, c, 255 };
+          // *p = c;
+          _mm_storeu_si32(p, c);
 
           x += DX;
           p += 1;
@@ -94,32 +130,32 @@ void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer
         p -= (FRAME_WIDTH + TILE_SIZE);
       }
     }
-  }
+  });
 }
 
+// 8-way SIMD implementation that traces 4x4 'ray bundles'
 void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer)
 {
   const Vec3 rd = { 1.0f / camera.d.x, 1.0f / camera.d.y, 1.0f / camera.d.z };
-
-  constexpr int NX = FRAME_WIDTH / TILE_SIZE;
-  constexpr int NY = FRAME_HEIGHT / TILE_SIZE;
 
   tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
   {
     for (int tile_idx = r.begin(); tile_idx != r.end(); tile_idx++)
     {
-      const int tile_i = (tile_idx / NX) * TILE_SIZE;
-      const int tile_j = (tile_idx % NX) * TILE_SIZE;
+      const int tile_i = (tile_idx / NX);
+      const int tile_j = (tile_idx % NX);
 
-      for (int bundle_i = tile_i; bundle_i < (tile_i + TILE_SIZE); bundle_i += 4)
+      for (int bundle_i = 0; bundle_i < TILE_SIZE/BUNDLE_SIZE; bundle_i++)
       {
-        const float bundle_y = -(VIEWPORT_HEIGHT / 2.0f) + (bundle_i * DY);
+        const int bundle_py = (tile_i * TILE_SIZE) + (bundle_i * BUNDLE_SIZE);
+        const float bundle_y = -(VIEWPORT_HEIGHT / 2.0f) + (bundle_py * DY);
 
-        for (int bundle_j = tile_j; bundle_j < (tile_j + TILE_SIZE); bundle_j += 4)
+        for (int bundle_j = 0; bundle_j < TILE_SIZE/BUNDLE_SIZE; bundle_j++)
         {
-          const float bundle_x = -(VIEWPORT_WIDTH / 2.0f) + (bundle_j * DX);
+          const int bundle_px = (tile_j * TILE_SIZE) + (bundle_j * BUNDLE_SIZE);
+          const float bundle_x = -(VIEWPORT_WIDTH / 2.0f) + (bundle_px * DX);
 
-          RGBA * const p = frameBuffer + ((FRAME_HEIGHT - bundle_i - 4) * FRAME_WIDTH) + bundle_j;
+          RGBA * const p = frameBuffer + ((FRAME_HEIGHT - bundle_py - BUNDLE_SIZE) * FRAME_WIDTH) + bundle_px;
 
           const Vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
 
@@ -127,39 +163,45 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
 
           const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
 
-          __m256i c_0 = _mm256_set1_epi32(0);
-          __m256i c_1 = _mm256_set1_epi32(0);
+          __m128 src_alpha = _mm_set1_ps(0.6f);
 
-          if (hit)
+          for (int r = 0; r < 16; r++)
           {
-            const __m256 src_alpha = _mm256_set1_ps(0.6f);
+            const int ray_i = r / 4;
+            const int ray_j = r % 4;
 
-            __m256 dst_alpha = _mm256_set1_ps(1.0f);
+            __m128i c = _mm_set1_epi32(0);
 
-            __m256 intensity_0 = _mm256_set1_ps(0.0f);
-            __m256 intensity_1 = _mm256_set1_ps(0.0f);
-
-            for (int i = 0; i < 3; i++)
+            if (hit)
             {
-              // intensity += dst_alpha * (src_alpha * std::abs(ray.dot[n]));
-              // dst_alpha *= (1.0 - src_alpha);
-              const __m256 dot_0 = _mm256_andnot_ps(_mm256_set1_ps(-0.0f), _mm256_load_ps(rays.dot.data() + i*16));
-              const __m256 dot_1 = _mm256_andnot_ps(_mm256_set1_ps(-0.0f), _mm256_load_ps(rays.dot.data() + i*16 + 8));
+              __m128 dst_alpha = _mm_set1_ps(1.0f);
 
-              intensity_0 = _mm256_add_ps(intensity_0, _mm256_mul_ps(dst_alpha, _mm256_mul_ps(src_alpha, dot_0)));
-              intensity_1 = _mm256_add_ps(intensity_1, _mm256_mul_ps(dst_alpha, _mm256_mul_ps(src_alpha, dot_1)));
+              __m128 cf = _mm_set1_ps(0.0f);
 
-              dst_alpha = _mm256_mul_ps(dst_alpha, _mm256_sub_ps(_mm256_set1_ps(1.0f), src_alpha));
+              for (int n = 0; n < 3; n++)
+              {
+                const int triangle = rays.triangle[n*16 + r];
+
+                // c += COLORS[bvh.getTriangle(ray.triangle[0]).material & 0x07] * (dst_alpha * src_alpha * std::abs(ray.dot[n]));
+                const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f), _mm_load1_ps(rays.dot.data() + n*16 + r));
+                const __m128 tri_color = _mm_load_ps(COLORS[bvh.getTriangle(triangle).material & 0x07].data());
+                const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
+
+                const __m128 alpha = _mm_mul_ps(dst_alpha, src_alpha);
+
+                cf = _mm_add_ps(cf, _mm_mul_ps(alpha, shaded_color));
+
+                // dst_alpha *= (1.0 - src_alpha);
+                dst_alpha = _mm_mul_ps(dst_alpha, _mm_sub_ps(_mm_set1_ps(1.0f), src_alpha));
+              }
+
+              // c = min(255 * cf)
+              cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
+              c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
             }
 
-            c_0 = _mm256_slli_epi32(_mm256_abs_epi32(_mm256_cvtps_epi32(_mm256_mul_ps(intensity_0, _mm256_set1_ps(255.0f)))), 0);
-            c_1 = _mm256_slli_epi32(_mm256_abs_epi32(_mm256_cvtps_epi32(_mm256_mul_ps(intensity_1, _mm256_set1_ps(255.0f)))), 0);
+            _mm_storeu_si32(p + ((BUNDLE_SIZE - ray_i - 1) * FRAME_WIDTH) + ray_j, c);
           }
-
-          _mm_store_si128(reinterpret_cast<__m128i *>(p), _mm256_extracti128_si256(c_1, 1));
-          _mm_store_si128(reinterpret_cast<__m128i *>(p + FRAME_WIDTH), _mm256_extracti128_si256(c_1, 0));
-          _mm_store_si128(reinterpret_cast<__m128i *>(p + 2*FRAME_WIDTH), _mm256_extracti128_si256(c_0, 1));
-          _mm_store_si128(reinterpret_cast<__m128i *>(p + 3*FRAME_WIDTH), _mm256_extracti128_si256(c_0, 0));
         }
       }
     }
@@ -206,7 +248,7 @@ int main(int argc, char **argv)
       const Vec3 &v1f = { t.vertices[1].x, t.vertices[1].z, t.vertices[1].y };
       const Vec3 &v2f = { t.vertices[2].x, t.vertices[2].z, t.vertices[2].y };
 
-      return Triangle(v0f, v2f, v1f);
+      return { t.id, v0f, v2f, v1f, t.material };
     });
   }
 
@@ -300,11 +342,11 @@ int main(int argc, char **argv)
 
     Camera camera = { { cx, 1.0f, cz }, { -cx, -1.0f, -cz }, { 0.0f, 1.0f, 0.0f }, 5.0f };
 
-    theta += (2.0f*M_PI / 120.0f);
+    theta += (2.0f*M_PI / 120.0f) * SPEED;
 
     const auto start = steady_clock::now();
 
-#if 0
+#if 1
     render_frame(camera, bvh, frame.pixels.get());
 #else
     render_frame_4x4(camera, bvh, frame.pixels.get());

@@ -8,7 +8,7 @@
 #include <fstream>
 #include <variant>
 #include <array>
-#include <tuple>
+#include <map>
 
 #include <fmt/format.h>
 
@@ -77,17 +77,19 @@ class ObjInterpreter
 
     void operator()(const Obj::Face &face)
     {
-      _triangles.push_back({ _vertices[face[0] - 1], _vertices[face[1] - 1], _vertices[face[2] - 1] });
+      _triangles.emplace_back(static_cast<int>(_triangles.size()), _vertices[face[0] - 1], _vertices[face[1] - 1], _vertices[face[2] - 1], _currentMaterial);
 
       if (face.size() == 4)
       {
-        _triangles.push_back({ _vertices[face[0] - 1], _vertices[face[2] - 1], _vertices[face[3] - 1] });
+        _triangles.emplace_back(static_cast<int>(_triangles.size()), _vertices[face[0] - 1], _vertices[face[2] - 1], _vertices[face[3] - 1], _currentMaterial);
       }
     }
 
     void operator()(const Obj::Material &material)
     {
-      /// \todo ignore materials for now
+      const auto &[m, existed] = _materials.insert({ material.name, static_cast<int>(_materials.size()) });
+
+      _currentMaterial = m->second;
     }
 
     const std::vector<core::Triangle> &getTriangles() const { return _triangles; }
@@ -95,6 +97,9 @@ class ObjInterpreter
   private:
     std::vector<core::Vec3> _vertices;
     std::vector<core::Triangle> _triangles;
+
+    std::map<std::string, int> _materials;
+    int _currentMaterial = 0;
 };
 
 // Read .OBJ file contents and return its contents as triangle soup, optionally normalizing vertex
@@ -154,7 +159,7 @@ std::vector<core::Triangle> read(const std::string &filename, const bool normali
           const core::Vec3 v1 = (triangle.vertices[1] - center) / max_dim;
           const core::Vec3 v2 = (triangle.vertices[2] - center) / max_dim;
 
-          return core::Triangle{ v0, v1, v2 };
+          return core::Triangle{ triangle.id, v0, v1, v2, triangle.material };
         });
       }
 
