@@ -176,6 +176,71 @@ std::vector<core::Triangle> read(const std::string &filename, const bool normali
   }
 }
 
+// Write simple obj file containing a grid of cubes, useful for testing/debugging
+void write_test_cubes(const std::string &filename)
+{
+  static const std::array<core::Vec3, 8> UNIT_CUBE_VERTICES = {
+    core::Vec3{ 1.000000, -1.000000, -1.000000 },
+    core::Vec3{ 1.000000, -1.000000, 1.000000 },
+    core::Vec3{ -1.000000, -1.000000, 1.000000 },
+    core::Vec3{ -1.000000, -1.000000, -1.000000 },
+    core::Vec3{ 1.000000, 1.000000, -1.000000 },
+    core::Vec3{ 1.000000, 1.000000, 1.000000 },
+    core::Vec3{ -1.000000, 1.000000, 1.000000 },
+    core::Vec3{ -1.000000, 1.000000, -1.000000 },
+  };
+
+  static const std::array<std::array<int, 3>, 12> UNIT_CUBE_FACES = { {
+    { { 2, 3, 4 } },
+    { { 8, 7, 6 } },
+    { { 5, 6, 2 } },
+    { { 6, 7, 3 } },
+    { { 3, 7, 8 } },
+    { { 1, 4, 8 } },
+    { { 1, 2, 4 } },
+    { { 5, 8, 6 } },
+    { { 1, 5, 2 } },
+    { { 2, 6, 3 } },
+    { { 4, 3, 8 } },
+    { { 5, 1, 8 } },
+  } };
+
+  std::ofstream out(filename);
+
+  if (!out.is_open())
+  {
+    throw std::runtime_error(fmt::format("Failed to open file '{0}' for writing"));
+  }
+
+  int n = 0;
+
+  for (int i = -1; i <= +1; i++)
+  {
+    for (int j = -1; j <= +1; j++)
+    {
+      for (int k = -1; k <= +1; k++)
+      {
+
+        out << fmt::format("usemtl m{0}\n", n);
+
+        for (const auto &v : UNIT_CUBE_VERTICES)
+        {
+          out << fmt::format("v {0} {1} {2}\n", v.x + j*4.0f, v.y + i*4.0f, v.z + k*4.0f);
+        }
+
+        for (const auto &f : UNIT_CUBE_FACES)
+        {
+          out << fmt::format("f {0} {1} {2}\n", f[0] + n*8, f[1] + n*8, f[2] + n*8);
+        }
+
+        n++;
+      }
+    }
+  }
+
+  out.close();
+}
+
 }
 
 BOOST_FUSION_ADAPT_STRUCT(utils::Obj::Vertex, (float, x) (float, y) (float, z))

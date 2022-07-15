@@ -3,11 +3,13 @@
 #include "core/types.h"
 #include "core/bvh.h"
 
+#include "utils/obj.h"
+
 using namespace core;
 
 namespace test {
 
-TEST(BvhTest, testConstruction)
+TEST(FlatRace, testConstruction)
 {
   const std::vector<std::pair<int, Vec3>> POINTS = {
     { 0, { -20.0f, -20.0f, 0.0f } },
@@ -22,6 +24,11 @@ TEST(BvhTest, testConstruction)
   std::transform(POINTS.begin(), POINTS.end(), triangles.begin(), [](const auto &v) -> Triangle { return { v.first, v.second, v.second, v.second, 0 }; });
 
   BVH bvh(triangles);
+}
+
+TEST(FlatRace, testWriteCubes)
+{
+  utils::Obj::write_test_cubes("test_cubes.obj");
 }
 
 }

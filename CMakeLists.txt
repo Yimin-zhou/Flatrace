@@ -90,7 +90,7 @@ enable_testing ()
 
 add_executable(tests
   test/main.cpp
-  test/test_bvh.cpp
+  test/test_flatrace.cpp
 )
 
 target_link_libraries (tests

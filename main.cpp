@@ -28,8 +28,8 @@ constexpr auto WINDOW_HEIGHT = 768;
 constexpr auto FRAME_WIDTH = 1024;
 constexpr auto FRAME_HEIGHT = 768;
 
-constexpr auto VIEWPORT_WIDTH  = 1.2f;
-constexpr auto VIEWPORT_HEIGHT = 1.2f;
+constexpr auto VIEWPORT_WIDTH  = 1.6f;
+constexpr auto VIEWPORT_HEIGHT = 1.6f;
 
 constexpr auto DX = VIEWPORT_WIDTH / FRAME_WIDTH;
 constexpr auto DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
@@ -346,7 +346,7 @@ int main(int argc, char **argv)
 
     const auto start = steady_clock::now();
 
-#if 1
+#if 0
     render_frame(camera, bvh, frame.pixels.get());
 #else
     render_frame_4x4(camera, bvh, frame.pixels.get());
