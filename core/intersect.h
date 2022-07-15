@@ -5,7 +5,11 @@
 #include <optional>
 #include <limits>
 
-#include <simde/x86/avx2.h>
+#ifdef IS_X86
+  #include <immintrin.h>
+#else
+  #include <simde/x86/avx2.h>
+#endif
 
 #include <fmt/format.h>
 
@@ -186,8 +190,8 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 
     const __m256 u = _mm256_mul_ps(dot8(tv, p_x8), inv_det_x8);
 
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ZERO_X8, SIMDE_CMP_GE_OQ));
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ONE_X8, SIMDE_CMP_LE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ZERO_X8, _CMP_GE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u, ONE_X8, _CMP_LE_OQ));
 
     if (_mm256_testz_ps(update_rays, update_rays))
     {
@@ -206,8 +210,8 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     const __m256 v = _mm256_mul_ps(dot8(qv, ray_d), inv_det_x8);
     const __m256 u_plus_v = _mm256_add_ps(u, v);
 
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(v, ZERO_X8, SIMDE_CMP_GE_OQ));
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u_plus_v, ONE_X8, SIMDE_CMP_LE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(v, ZERO_X8, _CMP_GE_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(u_plus_v, ONE_X8, _CMP_LE_OQ));
 
     if (_mm256_testz_ps(update_rays, update_rays))
     {
@@ -227,8 +231,8 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
     const __m256 ray_t0 =  _mm256_load_ps(rays.t0.data() + i*8);
     const __m256 ray_dot =  _mm256_load_ps(rays.dot.data() + rays.n*16 + i*8);
 
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t, SIMDE_CMP_LT_OQ));
-    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t0, SIMDE_CMP_GT_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t, _CMP_LT_OQ));
+    update_rays = _mm256_and_ps(update_rays, _mm256_cmp_ps(t, ray_t0, _CMP_GT_OQ));
 
     if (!_mm256_testz_ps(update_rays, update_rays))
     {
@@ -310,10 +314,10 @@ inline float intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 
     __m256 h = _mm256_castsi256_ps(_mm256_set1_epi32(0xFFFFFFFF));
 
-    h = _mm256_cmp_ps(t_max, t_min, SIMDE_CMP_GE_OQ);
-    h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, ZERO_x8, SIMDE_CMP_GT_OQ));
-    h = _mm256_and_ps(h, _mm256_cmp_ps(t_min, ray_t, SIMDE_CMP_LT_OQ));
-    h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, _mm256_load_ps(rays.t0.data() + i*8), SIMDE_CMP_GT_OQ));
+    h = _mm256_cmp_ps(t_max, t_min, _CMP_GE_OQ);
+    h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, ZERO_x8, _CMP_GT_OQ));
+    h = _mm256_and_ps(h, _mm256_cmp_ps(t_min, ray_t, _CMP_LT_OQ));
+    h = _mm256_and_ps(h, _mm256_cmp_ps(t_max, _mm256_load_ps(rays.t0.data() + i*8), _CMP_GT_OQ));
 
     if (!_mm256_testz_si256(_mm256_castps_si256(h), _mm256_castps_si256(h)))
     {

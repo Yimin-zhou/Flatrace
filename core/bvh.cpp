@@ -11,7 +11,11 @@
 #include <iostream>
 #include <cmath>
 
-#include <simde/x86/avx2.h>
+#ifdef IS_X86
+  #include <immintrin.h>
+#else
+  #include <simde/x86/avx2.h>
+#endif
 
 namespace core {
 
@@ -171,8 +175,8 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
     }
 
     const __m256 h = _mm256_or_ps(
-      _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16), inf_x8, SIMDE_CMP_NEQ_OQ),
-      _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16 + 8), inf_x8, SIMDE_CMP_NEQ_OQ));
+      _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16), inf_x8, _CMP_NEQ_OQ),
+      _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16 + 8), inf_x8, _CMP_NEQ_OQ));
 
     dead = _mm256_testz_ps(h, h);
 

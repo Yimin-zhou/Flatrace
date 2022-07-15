@@ -7,7 +7,11 @@
 
 #include <fmt/format.h>
 
-#include <simde/x86/avx2.h>
+#ifdef IS_X86
+  #include <immintrin.h>
+#else
+  #include <simde/x86/avx2.h>
+#endif
 
 namespace core {
 

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.0.2)
 
 # Project & build system configuration
 project (flatrace VERSION 0.0.1)
@@ -18,7 +18,11 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 # Compiler configuration
 set (CMAKE_CXX_STANDARD 17)
 
-add_compile_options(-g -Wall -Wno-unused-function -DFMT_HEADER_ONLY -DSDL_DISABLE_IMMINTRIN_H -DSIMDE_ENABLE_NATIVE_ALIASES)
+add_compile_options(-g -Wall -Wno-unused-function -DFMT_HEADER_ONLY -DSIMDE_ENABLE_NATIVE_ALIASES)
+
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "i386")
+  add_compile_options(-DIS_X86 -mavx2)
+endif ()
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
