@@ -119,7 +119,7 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
         {
           const float bundle_x = -(VIEWPORT_WIDTH / 2.0f) + (bundle_j * DX);
 
-          RGBA * const p = frameBuffer + (FRAME_HEIGHT - bundle_i- 1)*FRAME_WIDTH + bundle_j;
+          RGBA * const p = frameBuffer + ((FRAME_HEIGHT - bundle_i - 4) * FRAME_WIDTH) + bundle_j;
 
           const Vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
 
