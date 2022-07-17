@@ -65,7 +65,7 @@ void BVH::linearize()
 
 bool BVH::intersect(Ray &ray, const int maxIntersections) const
 {
-  Node *node_stack[2 * _maxDepth];
+  const Node *node_stack[2 * _maxDepth];
 
   if (core::intersect(_root->bbox, ray) == INF)
   {
@@ -84,19 +84,19 @@ bool BVH::intersect(Ray &ray, const int maxIntersections) const
     // ordered by hit distance, to ensure the closest node gets traversed first.
     while (stack_pointer != 0)
     {
-      Node * const node = node_stack[--stack_pointer];
+      const Node * const node = node_stack[--stack_pointer];
 
-      if (node->isLeaf)
+      if (node->isLeaf())
       {
-        for (int i = node->from; i < node->to; i++)
+        for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
         {
           core::intersect(getTriangle(i), ray);
         }
       }
       else
       {
-        Node *left = node->left;
-        Node *right = node->right;
+        const Node *left = &_nodes[node->leftFrom];
+        const Node *right = left + 1;
 
         float t_left = core::intersect(left->bbox, ray);
         float t_right = core::intersect(right->bbox, ray);
@@ -129,7 +129,7 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
 {
   static const __m256 inf_x8 = _mm256_set1_ps(INF);
 
-  Node *node_stack[2 * _maxDepth];
+  const Node *node_stack[2 * _maxDepth];
 
   bool hit = false;
   bool dead = false;
@@ -142,19 +142,19 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
 
     while (stack_pointer != 0)
     {
-      Node * const node = node_stack[--stack_pointer];
+      const Node * const node = node_stack[--stack_pointer];
 
-      if (node->isLeaf)
+      if (node->isLeaf())
       {
-        for (int i = node->from; i < node->to; i++)
+        for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
         {
           core::intersect4x4(_triangles[i], rays);
         }
       }
       else
       {
-        Node * child_0 = node->left;
-        Node * child_1 = node->right;
+        const Node * child_0 = &_nodes[node->leftFrom];
+        const Node * child_1 = child_0 + 1;
 
         float t_0 = core::intersect4x4(child_0->bbox, rays);
         float t_1 = core::intersect4x4(child_1->bbox, rays);
@@ -200,7 +200,7 @@ BVH::Node *BVH::splitNode(Node * const node)
   // Calculate node bounding box, and getCentroid bounding box (for splitting)
   BoundingBox centroid_bbox;
 
-  for (int i = node->from; i < node->to ; i++)
+  for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
   {
     for (const Vec3 &v : getTriangle(i).vertices)
     {
@@ -213,29 +213,32 @@ BVH::Node *BVH::splitNode(Node * const node)
   }
 
   // Subdivide if this is not a leaf node (getTriangle count below cutoff)
-  if (!node->isLeaf)
+  if (node->count > 3)
   {
-    bool have_split = false;
-
-    const std::optional<Plane> split_plane = splitPlaneSAH(node, node->from, node->to, 32);
+    const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
 
     if (split_plane)
     {
-      const std::optional<int> split_index = partition(node->from, node->to, *split_plane);
+      const std::optional<int> split_index = partition(node->leftFrom, node->count, *split_plane);
 
       if (split_index)
       {
-        node->left = &_nodes.emplace_back(node->from, *split_index);
-        node->right = &_nodes.emplace_back(*split_index, node->to);
+        const int left_index = _nodes.size();
+        const int right_index = left_index + 1;
 
-        splitNode(node->left);
-        splitNode(node->right);
+        const int left_count = *split_index - node->leftFrom;
+        const int right_count = node->count - left_count;
 
-        have_split = true;
+        _nodes.emplace_back(node->leftFrom, left_count);
+        _nodes.emplace_back(*split_index, right_count);
+
+        splitNode(&_nodes[left_index]);
+        splitNode(&_nodes[right_index]);
+
+        node->leftFrom = left_index;
+        node->count = 0;
       }
     }
-
-    node->isLeaf = !have_split;
   }
 
   return node;
@@ -245,7 +248,7 @@ BVH::Node *BVH::splitNode(Node * const node)
 // split plane positions (specified by the splitsPerDimension parameter) for each XYZ dimension, then
 // bin all triangles and sum their area. The split positions for which the surface area heuristic
 // C = (n_left * area_left) + (n_right * area_right) is lowest will be chosen.
-std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from, const int to, int maxSplitsPerDimension) const
+std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from, const int count, int maxSplitsPerDimension) const
 {
   const std::array<SplitDim, 3> split_dims = {
     SplitDim{ { 1.0f, 0.0f, 0.0f }, node->bbox.min.x, node->bbox.max.x },
@@ -253,7 +256,7 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
     SplitDim{ { 0.0f, 0.0f, 1.0f }, node->bbox.min.z, node->bbox.max.z },
   };
 
-  const int splitsPerDimension = std::min(to - from, maxSplitsPerDimension);
+  const int splitsPerDimension = std::min(count, maxSplitsPerDimension);
 
   float best = INF;
   std::optional<Plane> best_plane;
@@ -276,7 +279,7 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
     }
 
     // First bin all triangles and track the bin bounding boxes
-    for (int triangle_index = from; triangle_index < to; triangle_index++)
+    for (int triangle_index = from; triangle_index < (from + count); triangle_index++)
     {
       const Vec3 &triangle_centroid = getCentroid(triangle_index);
       const float triangle_bin_offset = triangle_centroid.dot(split_dim.normal) - split_dim.min;
@@ -339,12 +342,12 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
   return best_plane;
 }
 
-// Partition getTriangle range [from, to) into a subset behind, and a subset in front of the passed
+// Partition getTriangle range [leftFrom, leftFrom + count) into a subset behind, and a subset in front of the passed
 // split plane, and return the index of the resulting partition point
-std::optional<int> BVH::partition(const int from, const int to, const Plane &splitPlane)
+std::optional<int> BVH::partition(const int from, const int count, const Plane &splitPlane)
 {
   int left_to = from;
-  int right_from = to;
+  int right_from = from + count;
 
   while (left_to < right_from)
   {
@@ -361,7 +364,7 @@ std::optional<int> BVH::partition(const int from, const int to, const Plane &spl
   }
 
   const int n_left = (left_to - from);
-  const int n_right = (to - right_from);
+  const int n_right = count - n_left;
 
   return ((n_left != 0) && (n_right != 0) ? std::make_optional(left_to) : std::nullopt);
 }

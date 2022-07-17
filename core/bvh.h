@@ -31,19 +31,19 @@ class BVH
   private:
     struct Node
     {
-      Node(const int from, const int to)
-      :
-        from(from), to(to), isLeaf((to - from) <= 3), left(nullptr), right(nullptr)
-      {
-      }
+      public:
+        Node(const int from, const int count)
+        :
+          leftFrom(from), count(count)
+        {
+        }
 
-      int from;
-      int to;
-      bool isLeaf;
+        BoundingBox bbox;
 
-      Node *left;
-      Node *right;
-      BoundingBox bbox;
+        int leftFrom;
+        int count;
+
+        bool isLeaf() const { return (count != 0); }
     };
 
     struct SplitDim
@@ -67,8 +67,8 @@ class BVH
 
     Node *splitNode(Node * const node);
 
-    std::optional<int> partition(const int from, const int to, const Plane &splitPlane);
-    std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int to, const int maxSplitsPerDimension) const;
+    std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
+    std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int count, const int maxSplitsPerDimension) const;
 
     void linearize();
 
