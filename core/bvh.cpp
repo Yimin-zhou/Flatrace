@@ -34,7 +34,10 @@ BVH::BVH(const std::vector<Triangle> &triangles)
   });
 
   _nodes.reserve(triangles.size()*2 - 1);
-  _root = createNode(0, triangles.size());
+  _root = &_nodes.emplace_back(0, triangles.size());
+
+  splitNode(_root);
+
   _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
 
   std::cerr << "NODE SIZE: " << sizeof(Node) << std::endl;
@@ -192,15 +195,12 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
   return hit;
 }
 
-BVH::Node *BVH::createNode(const int from, const int to)
+BVH::Node *BVH::splitNode(Node * const node)
 {
-  // Create new node
-  Node * const node = &_nodes.emplace_back(from, to);
-
   // Calculate node bounding box, and getCentroid bounding box (for splitting)
   BoundingBox centroid_bbox;
 
-  for (int i = from; i < to ; i++)
+  for (int i = node->from; i < node->to ; i++)
   {
     for (const Vec3 &v : getTriangle(i).vertices)
     {
@@ -217,16 +217,20 @@ BVH::Node *BVH::createNode(const int from, const int to)
   {
     bool have_split = false;
 
-    const std::optional<Plane> split_plane = splitPlaneSAH(node, from, to, 32);
+    const std::optional<Plane> split_plane = splitPlaneSAH(node, node->from, node->to, 32);
 
     if (split_plane)
     {
-      const std::optional<int> split_index = splitNode(from, to, *split_plane);
+      const std::optional<int> split_index = partition(node->from, node->to, *split_plane);
 
       if (split_index)
       {
-        node->left = createNode(from, *split_index);
-        node->right = createNode(*split_index, to);
+        node->left = &_nodes.emplace_back(node->from, *split_index);
+        node->right = &_nodes.emplace_back(*split_index, node->to);
+
+        splitNode(node->left);
+        splitNode(node->right);
+
         have_split = true;
       }
     }
@@ -336,8 +340,8 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
 }
 
 // Partition getTriangle range [from, to) into a subset behind, and a subset in front of the passed
-// split plane, and return the index of the resulting splitNode point
-std::optional<int> BVH::splitNode(const int from, const int to, const Plane &splitPlane)
+// split plane, and return the index of the resulting partition point
+std::optional<int> BVH::partition(const int from, const int to, const Plane &splitPlane)
 {
   int left_to = from;
   int right_from = to;

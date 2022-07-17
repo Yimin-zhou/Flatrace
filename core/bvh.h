@@ -65,9 +65,9 @@ class BVH
       int trianglesRight = 0;
     };
 
-    Node *createNode(const int from, const int to);
+    Node *splitNode(Node * const node);
 
-    std::optional<int> splitNode(const int from, const int to, const Plane &splitPlane);
+    std::optional<int> partition(const int from, const int to, const Plane &splitPlane);
     std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int to, const int maxSplitsPerDimension) const;
 
     void linearize();
