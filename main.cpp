@@ -28,8 +28,8 @@ constexpr auto WINDOW_HEIGHT = 768;
 constexpr auto FRAME_WIDTH = 1024;
 constexpr auto FRAME_HEIGHT = 768;
 
-constexpr auto VIEWPORT_WIDTH  = 1.6f;
-constexpr auto VIEWPORT_HEIGHT = 1.6f;
+constexpr auto VIEWPORT_WIDTH  = 1.2f;
+constexpr auto VIEWPORT_HEIGHT = 1.2f;
 
 constexpr auto DX = VIEWPORT_WIDTH / FRAME_WIDTH;
 constexpr auto DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
@@ -163,7 +163,7 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
 
           const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
 
-          __m128 src_alpha = _mm_set1_ps(0.6f);
+          __m128 src_alpha = _mm_set1_ps(0.48f);
 
           for (int r = 0; r < 16; r++)
           {

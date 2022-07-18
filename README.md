@@ -128,3 +128,76 @@ the much simpler bunny model.
 
 I will be primarily be using the digger model for benchmarking from now on,
 as it is just a lot more interesting for these experiments.
+
+### Optimization round 5 
+
+  * Reduce size of BVH node structure from 64 to 32 bytes, and ensure child
+    nodes are adjacent in memory. 
+  * Re-order triangles after BVH construction, such that triangles in the 
+    same leaf node are adjacent in memory.
+
+These two optimizations improve cache utilization, fitting 2 (x86) or 4 (M1)
+nodes per cache line, and increaing the working set that can be kept in cache.
+On M1 Pro with it's very large L2 cache, 128-byte cache lines, and very high
+RAM bandwidth, the performance difference of this optimization is neglible. On
+x86_64, peak ray throughput is improved by up to ~5%, indicating cache
+utilization probably wasn't too bad to begin with.  Maybe there is more to be
+won here, e.g. by optimizing the BVH node order for cache efficiency.  To be
+sure, the percentage L2 cache misses should be profiled before and after this
+optimization.
+
+### Optimization round 6 - the big one
+
+All low-hanging fruit has been addressed, so it's time to bring out the big guns:
+
+  * Parallelize rendering. Ray tracing is an embarrasingly parallel workload,
+    and hence extremely easy to parallelize. Just replace the main loop over
+    all tiles to render by a parallel for. I'm using TBB parallel_for which 
+    supports automatic work stealing, so fast (empty) tiles don't introduce
+    idle (waiting) threads.
+
+![digger](images/final_bmk.png "This is where we can safely say we've proven our point")
+
+On M1 Pro (8 performance cores + 2 efficiency cores) speedup compared to 
+single-threaded rendering, ~7x, which is more than I had hoped for. The peak
+ray throughput for the digger model ends up over 600 million rays per second,
+at which point you should start wondering whether this task has become
+memory-bound and throwing additional cores at the problem is not going to
+help much. 
+
+Note: the minimum rps (rays per second) figure in the above screenshot is
+is pretty much useless and only hit for the first one or two frames: cold 
+cache, maybe some OS scheduling effects, etc.
+
+I expect there's probably more performance on the table by optimizing the BVH
+layout to further improve cache utilization, but honestly these kinds of ray
+throughput numbers sufficiently prove the point: if all you care for is
+flat-shaded ray tracing, even for relatively high-detail models a moder CPU can
+easily attain interactive framerates. At 600M rays per second peak, and 300M+
+rays per second average, a CPU based raytracer like this can fill a 1920x1080
+framebuffer at 200-300 frames per second. Not bad at all.
+
+Obviously different models camera angles and fill ratio's will have wildly 
+varying performance characteristics. The flatrace demo program renders the 
+loaded model on a turntable tracking the min & max ray throughput, and while
+there are differences, every model I've thrown at it, even those with over
+half a million triangles, easily renders at interactive framerates. On M1 
+Pro, the CPU doesn't even break a sweat, hitting frame times under 3ms even
+for the most complex models.
+
+### Bonus material
+
+I've also implemented transparent rendering, tracing up to 3 intersections
+for each ray, because why not? The implementation is probably far from ideal
+as each ray that hits something is re-started, and there is only early rejection
+of BVH nodes that are in front of the closest intersection already found. The
+ray throughput for transparent rendering is pretty much reduced to 30% of the
+throughput for non-transparent rendering. I'm convinced this can be significantly
+improved, and a lot of work can be avoid by re-using intersection results so each 
+ray only needs to be traced once. But even this naive implementation still
+easily yields interactive framerates.
+
+![trabsparent_digger](images/transparent_digger.png "Transparent digger")
+![transparent_cubes](images/transparent_cubes.png "Transparent colored cubes")
+
+Computers really *are* fast! Good job and thanks a bunch semiconductor engineers! :D
