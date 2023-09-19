@@ -50,7 +50,8 @@ find_package (TBB REQUIRED)
 find_package (SDL2 2.0.17 REQUIRED)
 find_package (GTest REQUIRED)
 
-find_path (simde_INCLUDE_DIR simde/check.h REQUIRED)
+# find_path (simde_INCLUDE_DIR simde/check.h REQUIRED)
+set (simde_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/simde/simde")
 
 include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")

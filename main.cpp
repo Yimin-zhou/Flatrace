@@ -214,15 +214,16 @@ int main(int argc, char **argv)
 {
   using namespace std::chrono;
 
-  if (argc < 2)
-  {
-    std::cerr << "\nUsage: flatrace <mesh_file.obj>\n\n";
-    return EXIT_FAILURE;
-  }
-
-  const std::string input_file(argv[1]);
-
+  // if (argc < 2)
+  // {
+  //   std::cerr << "\nUsage: ./flatrace <mesh_file.obj>\n\n";
+  //   return EXIT_FAILURE;
+  // }
+  // const std::string input_file(argv[1]);
   const bool flip = (argc == 3) && (argv[2][0] == '1');
+  
+  // Set a default model
+  const std::string input_file("Luxury_House.obj");
 
   // Load getTriangle data
   std::vector<Triangle> triangles;
