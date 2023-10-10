@@ -1,9 +1,11 @@
-#include "core/types.h"
-#include "core/frame.h"
-#include "core/bvh.h"
+#include "src/core/types.h"
+#include "src/core/frame.h"
+#include "src/core/bvh.h"
 
-#include "utils/ppm.h"
-#include "utils/obj.h"
+#include "src/utils/ppm.h"
+#include "src/utils/obj.h"
+
+#include "src/debug/visualization.h"
 
 #include <SDL2/SDL.h>
 
@@ -223,7 +225,7 @@ int main(int argc, char **argv)
   const bool flip = (argc == 3) && (argv[2][0] == '1');
   
   // Set a default model
-  const std::string input_file("Luxury_House.obj");
+  const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/Luxury_House.obj");
 
   // Load getTriangle data
   std::vector<Triangle> triangles;
@@ -353,11 +355,15 @@ int main(int argc, char **argv)
     render_frame_4x4(camera, bvh, frame.pixels.get());
 #endif
 
+    // TODO draw bvh visualization
+// debug::draw_bvh(renderer, bvh);
+
     const auto end = steady_clock::now();
 
     const int us = duration_cast<microseconds>(end - start).count();
     const int ms = us / 1000;
     const float rps = ((float) N_RAYS / us);
+    const float fps = 1000 / ms;
 
     max_rps = std::max(max_rps, rps);
     min_rps = std::min(min_rps, rps);
@@ -377,7 +383,7 @@ int main(int argc, char **argv)
 
     if (!ImGui::IsWindowCollapsed())
     {
-      ImGui::Text("%s", fmt::format("{0} ms, {1:.2f}M rps", ms, ((double) N_RAYS / us)).c_str());
+      ImGui::Text("%s", fmt::format("{0} ms, {1} fps, {1:.2f}M rps", ms, fps, ((double) N_RAYS / us)).c_str());
       ImGui::Text("%s", fmt::format("min/max rps: {0:.2f}M/{1:.2f}M", min_rps, max_rps).c_str());
     }
 

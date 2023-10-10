@@ -62,25 +62,27 @@ include_directories (PRIVATE ${TBB_INCLUDE_DIR})
 add_subdirectory (third_party/imgui)
 
 add_library (core
-  core/bvh.h
-  core/bvh.cpp
-  core/frame.h
-  core/intersect.h
-  core/types.h
+        src/core/bvh.h
+        src/core/bvh.cpp
+        src/core/frame.h
+        src/core/intersect.h
+        src/core/types.h
+        src/debug/visualization.cpp
+        src/debug/visualization.h
 )
 
 add_library (utils
-  utils/obj.cpp
-  utils/obj.h
-  utils/ppm.cpp
-  utils/ppm.h
+        src/utils/obj.cpp
+        src/utils/obj.h
+        src/utils/ppm.cpp
+        src/utils/ppm.h
 )
 
 add_executable (flatrace main.cpp)
 
 target_link_libraries (flatrace
-  core
-  utils
+        core
+        utils
   imgui
   ${SDL2_LIBRARIES}
   ${TBB_LIBRARIES}
@@ -95,8 +97,8 @@ add_executable(tests
 )
 
 target_link_libraries (tests
-  core
-  utils
+        core
+        utils
   GTest::GTest
 )
 
