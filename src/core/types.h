@@ -235,6 +235,9 @@ struct  __attribute__((aligned(16))) Ray4x4
     alignas(32) std::array<float, 16> oy;
     alignas(32) std::array<float, 16> oz;
 
+    // For debugging: Initialize the node visit counters
+//    std::fill(bvh_nodes_visited.begin(), bvh_nodes_visited.end(), 0);
+
     for (int i = 0; i < 4; i++)
     {
       for (int j = 0; j < 4; j++)
@@ -291,6 +294,9 @@ struct  __attribute__((aligned(16))) Ray4x4
   alignas(32) std::array<float, 16> ox_x8;
   alignas(32) std::array<float, 16> oy_x8;
   alignas(32) std::array<float, 16> oz_x8;
+
+  // For debugging
+//  alignas(32) std::array<int, 16> bvh_nodes_visited;
 
   Vec3 d;
   Vec3 rd;

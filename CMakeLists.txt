@@ -69,6 +69,7 @@ add_library (core
         src/core/types.h
         src/debug/visualization.cpp
         src/debug/visualization.h
+        src/debug/bvhCounter.h
 )
 
 add_library (utils

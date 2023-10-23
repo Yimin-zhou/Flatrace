@@ -6,6 +6,7 @@
 #include "src/utils/obj.h"
 
 #include "src/debug/visualization.h"
+#include "src/debug/bvhCounter.h"
 
 #include <SDL2/SDL.h>
 
@@ -22,8 +23,10 @@
 
 using namespace core;
 
-namespace {
+// TODO this should for each ray
+std::atomic<int> BVHNodeCounter::counter(0);
 
+namespace {
 constexpr auto WINDOW_WIDTH = 1024;
 constexpr auto WINDOW_HEIGHT = 768;
 
@@ -76,7 +79,7 @@ void render_frame(const Camera &camera, const BVH &bvh, RGBA * const frameBuffer
 
       float y = tile_y;
       RGBA * p = frameBuffer + (FRAME_HEIGHT - tile_i*TILE_SIZE - 1)*FRAME_WIDTH + (tile_j*TILE_SIZE);
-
+      // TODO change color
       for (int i = tile_i*TILE_SIZE; i < (tile_i*TILE_SIZE) + TILE_SIZE; i++)
       {
         float x = tile_x;
@@ -165,7 +168,7 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
 
           const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
 
-          __m128 src_alpha = _mm_set1_ps(0.48f);
+          __m128 src_alpha = _mm_set1_ps(1.0f);
 
           for (int r = 0; r < 16; r++)
           {
@@ -197,7 +200,23 @@ void render_frame_4x4(const Camera &camera, const BVH &bvh, RGBA * const frameBu
                 dst_alpha = _mm_mul_ps(dst_alpha, _mm_sub_ps(_mm_set1_ps(1.0f), src_alpha));
               }
 
-              // c = min(255 * cf)
+//              // For debugging: Retrieve the number of nodes this ray has traversed.
+//              {
+//                    int nodesTraversed = rays.bvh_nodes_visited[r];  // assuming nodes_visited is an array of 16 ints
+//                    // Modify color based on the number of traversed nodes.
+//                    float factor = static_cast<float>(nodesTraversed) / 1.0f;  // Convert to a suitable factor, e.g., [0.0, 1.0]
+//                    factor = (factor > 1.0f) ? 1.0f : factor;  // clamp the value
+//                    __m128 factor_vec = _mm_set1_ps(factor);
+//                    __m128 red_channel = _mm_shuffle_ps(cf, cf, _MM_SHUFFLE(0, 0, 0, 0)); // isolate red channel
+//                    // Apply the factor only to the red channel
+//                    red_channel = _mm_mul_ps(red_channel, factor_vec);
+//
+//                    // Combine back into the original color
+//                    __m128 green_blue_alpha = _mm_shuffle_ps(cf, cf,
+//                                                             _MM_SHUFFLE(3, 2, 1, 1)); // keep green, blue, and alpha
+//                    cf = _mm_move_ss(green_blue_alpha, red_channel); // replace red with modified value
+//              }
+                // c = min(255 * cf)
               cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
               c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
             }
@@ -349,6 +368,8 @@ int main(int argc, char **argv)
 
     const auto start = steady_clock::now();
 
+
+
 #if 0
     render_frame(camera, bvh, frame.pixels.get());
 #else
@@ -356,7 +377,7 @@ int main(int argc, char **argv)
 #endif
 
     // TODO draw bvh visualization
-// debug::draw_bvh(renderer, bvh);
+    // debug::draw_bvh(renderer, bvh);
 
     const auto end = steady_clock::now();
 
@@ -385,6 +406,7 @@ int main(int argc, char **argv)
     {
       ImGui::Text("%s", fmt::format("{0} ms, {1} fps, {1:.2f}M rps", ms, fps, ((double) N_RAYS / us)).c_str());
       ImGui::Text("%s", fmt::format("min/max rps: {0:.2f}M/{1:.2f}M", min_rps, max_rps).c_str());
+      ImGui::Text("%s", fmt::format("BVH node count: {0}", BVHNodeCounter::getCount()).c_str());
     }
 
     ImGui::End();
