@@ -202,7 +202,8 @@ struct Ray
 {
   Ray(const Vec3 &origin, const Vec3 &direction)
   :
-    o(origin),  d(direction), rd({ 1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z })
+    o(origin),  d(direction), rd({ 1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z }),
+    bvh_nodes_visited(0)
   {
   }
 
@@ -222,6 +223,8 @@ struct Ray
   std::array<float, 3> t = { INF, INF, INF };
   std::array<float, 3> dot = { 0.0f, 0.0f, 0.0f };
   std::array<int, 3> triangle = { -1, -1, -1 };
+
+  int bvh_nodes_visited;
 };
 
 // 4x4 ray bundle for 8-way SIMD BVH traversal & triangle intersection

@@ -6,7 +6,6 @@
 // [3] https://jacco.ompf2.com/2022/04/21/how-to-build-a-bvh-part-3-quick-builds/
 
 #include "bvh.h"
-#include "src/debug/bvhCounter.h"
 
 #include <numeric>
 #include <iostream>
@@ -96,6 +95,9 @@ bool BVH::intersect(Ray &ray, const int maxIntersections) const
       }
       else
       {
+#ifdef DEBUG
+          ray.bvh_nodes_visited++;
+#endif
         const Node *left = &_nodes[node->leftFrom];
         const Node *right = left + 1;
 

@@ -7,6 +7,8 @@ if (NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE "Debug")
 endif ()
 
+add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG>")
+
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/site_cmake")
 
 set (CMAKE_OSX_DEPLOYMENT_TARGET 12.0)
@@ -69,7 +71,7 @@ add_library (core
         src/core/types.h
         src/debug/visualization.cpp
         src/debug/visualization.h
-        src/debug/bvhCounter.h
+        src/core/trace.h
 )
 
 add_library (utils
