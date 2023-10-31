@@ -23,11 +23,11 @@
 #include <iostream>
 
 namespace {
-    constexpr auto WINDOW_WIDTH = 1024;
-    constexpr auto WINDOW_HEIGHT = 768;
+    constexpr auto WINDOW_WIDTH = 1920;
+    constexpr auto WINDOW_HEIGHT = 1080;
 
-    constexpr auto FRAME_WIDTH = 1024;
-    constexpr auto FRAME_HEIGHT = 768;
+    constexpr auto FRAME_WIDTH = 1920;
+    constexpr auto FRAME_HEIGHT = 1080;
 
     constexpr auto VIEWPORT_WIDTH  = 1.2f;
     constexpr auto VIEWPORT_HEIGHT = 1.2f;
@@ -77,7 +77,7 @@ namespace {
 
 
     // Reference implementation that traces 1 ray at a time (no SIMD)
-    void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer)
+    void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer, int maxDepth)
     {
         tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
         {
@@ -104,14 +104,22 @@ namespace {
 
                         const bool hit = bvh.intersect(ray, MAX_INTERSECTIONS);
 
-                        const float src_alpha = 1.0f;
+                        const float src_alpha = 0.4f;
 
                         __m128i c = _mm_set1_epi32(0);
 
                         if (hit)
                         {
                             __m128 cf = _mm_set1_ps(0.0f);
-
+#ifdef DEBUG
+                            {
+                                core::Vec3 heat_map_color = get_color_map(
+                                        ray.bvh_nodes_visited, 1, maxDepth - 1);
+                                cf = _mm_set_ps(heat_map_color.z, heat_map_color.y, heat_map_color.x, 1.0f);
+                                cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
+                                c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
+                            }
+#elif
                             float dst_alpha = 1.0f;
 
                             for (int n = 0; n < 3; n++)
@@ -132,18 +140,8 @@ namespace {
                             // c = min(255 * cf)
                             cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                             c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
-
-#ifdef DEBUG
-                            {
-                                core::Vec3 heat_map_color = get_color_map(
-                                        ray.bvh_nodes_visited, 0, 100);
-                                cf = _mm_set_ps(heat_map_color.z, heat_map_color.y, heat_map_color.x, 1.0f);
-                                cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
-                                c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
-                            }
 #endif
                         }
-
                         // *p = c;
                         _mm_storeu_si32(p, c);
 

@@ -9,15 +9,33 @@
 
 #include "types.h"
 #include "intersect.h"
+#include "imgui/imgui.h"
 
 #include <vector>
 #include <optional>
 
 namespace core {
 
+struct Node
+{
+public:
+    Node(const int from, const int count)
+            :
+            leftFrom(from), count(count)
+    {
+    }
+
+    BoundingBox bbox;
+
+    int leftFrom;
+    int count;
+
+    bool isLeaf() const { return (count != 0); }
+};
+
 class BVH
 {
-  public:
+public:
     BVH(const std::vector<Triangle> &triangles);
 
     bool intersect(Ray &ray, const int maxIntersections) const;
@@ -28,27 +46,14 @@ class BVH
     const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
     const Vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
 
-    // return the root bounding box
-    const BoundingBox& getRootBBox() const { return _root->bbox; }
+    // return the root node
+    const Node *getRoot() const { return _root; }
+    // return all nodes
+    const std::vector<Node> &getNodes() const { return _nodes; }
+    // return max depth of the BVH
+    int getMaxDepth() const { return _maxDepth; }
 
-  private:
-    struct Node
-    {
-      public:
-        Node(const int from, const int count)
-        :
-          leftFrom(from), count(count)
-        {
-        }
-
-        BoundingBox bbox;
-
-        int leftFrom;
-        int count;
-
-        bool isLeaf() const { return (count != 0); }
-    };
-
+private:
     struct SplitDim
     {
       Vec3 normal;

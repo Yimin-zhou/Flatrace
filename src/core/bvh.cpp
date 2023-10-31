@@ -40,7 +40,9 @@ BVH::BVH(const std::vector<Triangle> &triangles)
 
   _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
 
-  std::cerr << "NODE SIZE: " << sizeof(Node) << std::endl;
+  std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
+  std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
+  std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
 
   // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
   // data locality and avoids having to use indirection when iterating triangles for intersection
@@ -88,6 +90,9 @@ bool BVH::intersect(Ray &ray, const int maxIntersections) const
 
       if (node->isLeaf())
       {
+#ifdef DEBUG
+          ray.bvh_nodes_visited++;
+#endif
         for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
         {
           core::intersect(getTriangle(i), ray);
@@ -95,9 +100,6 @@ bool BVH::intersect(Ray &ray, const int maxIntersections) const
       }
       else
       {
-#ifdef DEBUG
-          ray.bvh_nodes_visited++;
-#endif
         const Node *left = &_nodes[node->leftFrom];
         const Node *right = left + 1;
 
@@ -208,7 +210,7 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
     return hit;
 }
 
-BVH::Node *BVH::splitNode(Node * const node)
+Node *BVH::splitNode(Node * const node)
 {
   // Calculate node bounding box, and getCentroid bounding box (for splitting)
   BoundingBox centroid_bbox;

@@ -1,5 +1,38 @@
 #include "src/core/trace.h"
 
+void renderBVHtree(const core::Node* node, const std::vector<core::Node>& nodes, int depth = 0)
+{
+    if (!node) return;
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (node->isLeaf()) flags |= ImGuiTreeNodeFlags_Leaf;
+
+    bool nodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)node, flags, "Node Depth %d", depth);
+
+    if (ImGui::IsItemClicked()) {
+        // Handle node click, if necessary
+    }
+
+    if (nodeOpen)
+    {
+        ImGui::Text("Bounding Box: Min(%f, %f, %f) Max(%f, %f, %f)",
+                    node->bbox.min.x, node->bbox.min.y, node->bbox.min.z,
+                    node->bbox.max.x, node->bbox.max.y, node->bbox.max.z);
+
+        if (node->isLeaf())
+        {
+            ImGui::Text("Leaf Node: Triangles from %d to %d", node->leftFrom, node->leftFrom + node->count);
+        }
+        else
+        {
+            renderBVHtree(&nodes[node->leftFrom], nodes, depth + 1);
+            // Assuming binary tree structure here
+            renderBVHtree(&nodes[node->leftFrom + 1], nodes, depth + 1);
+        }
+        ImGui::TreePop();
+    }
+}
+
 int main(int argc, char **argv)
 {
     using namespace std::chrono;
@@ -14,7 +47,7 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/Luxury_House.obj");
+    const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/bunny.obj");
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
@@ -112,6 +145,10 @@ int main(int argc, char **argv)
     float max_rps = -INF;
     float min_rps = INF;
 
+    // For debugging BVH nodes
+    int maxDepth = bvh.getMaxDepth();
+    int nodeCount = bvh.getNodes().size();
+
     while (!quit)
     {
         // Handle pending events
@@ -139,7 +176,7 @@ int main(int argc, char **argv)
         const auto start = steady_clock::now();
 
         #if 1
-        render_frame(camera, bvh, frame.pixels.get());
+        render_frame(camera, bvh, frame.pixels.get(), maxDepth);
         #else
         render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
@@ -168,15 +205,29 @@ int main(int argc, char **argv)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Render time", nullptr);
-
-        if (!ImGui::IsWindowCollapsed())
         {
-          ImGui::Text("%s", fmt::format("{0} ms, {1} fps, {1:.2f}M rps", ms, fps, ((double) N_RAYS / us)).c_str());
-          ImGui::Text("%s", fmt::format("min/max rps: {0:.2f}M/{1:.2f}M", min_rps, max_rps).c_str());
+            ImGui::Begin("BVH Viewer");
+            ImGui::Text("Number of Nodes: %d", nodeCount);
+            ImGui::Text("Max Depth: %d", maxDepth);
+            ImGui::Separator();  // Adds a horizontal line for visual separation
+            if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                renderBVHtree(bvh.getRoot(), bvh.getNodes());
+            }
+            ImGui::End();
         }
 
-        ImGui::End();
+        {
+            ImGui::Begin("Render time", nullptr);
+
+            if (!ImGui::IsWindowCollapsed()) {
+                ImGui::Text("%s",
+                            fmt::format("{0} ms, {1} fps, {1:.2f}M rps", ms, fps, ((double) N_RAYS / us)).c_str());
+                ImGui::Text("%s", fmt::format("min/max rps: {0:.2f}M/{1:.2f}M", min_rps, max_rps).c_str());
+            }
+
+            ImGui::End();
+        }
 
         ImGui::Render();
 
