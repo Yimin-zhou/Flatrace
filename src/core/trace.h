@@ -23,11 +23,11 @@
 #include <iostream>
 
 namespace {
-    constexpr auto WINDOW_WIDTH = 1920;
-    constexpr auto WINDOW_HEIGHT = 1080;
+    constexpr auto WINDOW_WIDTH = 1024 * 2;
+    constexpr auto WINDOW_HEIGHT = 728 * 2;
 
-    constexpr auto FRAME_WIDTH = 1920;
-    constexpr auto FRAME_HEIGHT = 1080;
+    constexpr auto FRAME_WIDTH = 1024 * 2;
+    constexpr auto FRAME_HEIGHT = 728 * 2;
 
     constexpr auto VIEWPORT_WIDTH  = 1.2f;
     constexpr auto VIEWPORT_HEIGHT = 1.2f;
@@ -63,15 +63,27 @@ namespace {
     // For debugging
     core::Vec3 get_color_map(int value, int minVal, int maxVal)
     {
-        float normalized = static_cast<float>(value - minVal) / static_cast<float>(maxVal - minVal);
+        // TODO: the red channel is always +1, maybe remove the transparency?
+        // create a gradient from blue -> green -> red, and use it as a lookup table
+        std::vector<core::Vec3> color_map =
+        {
+                {0.0f, 0.0f, 1.0f}, // blue
+                {0.0f, 1.0f, 1.0f}, // cyan
+                {0.0f, 1.0f, 0.0f}, // green
+                {1.0f, 1.0f, 0.0f}, // yellow
+                {1.0f, 0.0f, 0.0f}, // red
+        };
 
-        //from blue to red.
-        core::Vec3 blue = {0.0f, 0.0f, 1.0f};
-        core::Vec3 red = {1.0f, 0.0f, 0.0f};
+        float factor = static_cast<float>(value - minVal) / static_cast<float>(maxVal - minVal);
+        factor = (factor > 1.0f) ? 1.0f : factor;
+        factor = (factor < 0.0f) ? 0.0f : factor;
 
-        core::Vec3 color;
-        color = blue + (red - blue) * normalized;
+        // linearly interpolate between the two colors
+        float f_index = factor * (color_map.size() - 1);
+        int index = static_cast<int>(f_index);
+        float fraction = f_index - index;
 
+        core::Vec3 color = color_map[index] * (1.0f - fraction) + color_map[index + 1] * fraction;
         return color;
     }
 
