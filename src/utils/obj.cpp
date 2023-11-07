@@ -95,7 +95,7 @@ class ObjInterpreter
     const std::vector<core::Triangle> &getTriangles() const { return _triangles; }
 
   private:
-    std::vector<core::Vec3> _vertices;
+    std::vector<glm::vec3> _vertices;
     std::vector<core::Triangle> _triangles;
 
     std::map<std::string, int> _materials;
@@ -137,27 +137,27 @@ std::vector<core::Triangle> read(const std::string &filename, const bool normali
 
       if (normalize)
       {
-        core::Vec3 xyz_min = { core::INF,  core::INF, core::INF };
-        core::Vec3 xyz_max = { -core::INF,  -core::INF, -core::INF };
+        glm::vec3 xyz_min = { core::INF,  core::INF, core::INF };
+        glm::vec3 xyz_max = { -core::INF,  -core::INF, -core::INF };
 
         for (const core::Triangle &triangle : triangles)
         {
-          for (const core::Vec3 &v : triangle.vertices)
+          for (const glm::vec3 &v : triangle.vertices)
           {
-            xyz_min = core::Vec3::min(xyz_min, v);
-            xyz_max = core::Vec3::max(xyz_max, v);
+            xyz_min = glm::min(xyz_min, v);
+            xyz_max = glm::max(xyz_max, v);
           }
         }
 
-        const core::Vec3 center = (xyz_min + xyz_max) / 2.0f;
-        const core::Vec3 range = (xyz_max - xyz_min);
+        const glm::vec3 center = (xyz_min + xyz_max) / 2.0f;
+        const glm::vec3 range = (xyz_max - xyz_min);
         const float max_dim = std::max(range.x, std::max(range.y, range.z));
 
         std::transform(triangles.begin(), triangles.end(), triangles.begin(), [center, max_dim](core::Triangle &triangle)
         {
-          const core::Vec3 v0 = (triangle.vertices[0] - center) / max_dim;
-          const core::Vec3 v1 = (triangle.vertices[1] - center) / max_dim;
-          const core::Vec3 v2 = (triangle.vertices[2] - center) / max_dim;
+          const glm::vec3 v0 = (triangle.vertices[0] - center) / max_dim;
+          const glm::vec3 v1 = (triangle.vertices[1] - center) / max_dim;
+          const glm::vec3 v2 = (triangle.vertices[2] - center) / max_dim;
 
           return core::Triangle{ triangle.id, v0, v1, v2, triangle.material };
         });
@@ -179,15 +179,15 @@ std::vector<core::Triangle> read(const std::string &filename, const bool normali
 // Write simple obj file containing a grid of cubes, useful for testing/debugging
 void write_test_cubes(const std::string &filename)
 {
-  static const std::array<core::Vec3, 8> UNIT_CUBE_VERTICES = {
-    core::Vec3{ 1.000000, -1.000000, -1.000000 },
-    core::Vec3{ 1.000000, -1.000000, 1.000000 },
-    core::Vec3{ -1.000000, -1.000000, 1.000000 },
-    core::Vec3{ -1.000000, -1.000000, -1.000000 },
-    core::Vec3{ 1.000000, 1.000000, -1.000000 },
-    core::Vec3{ 1.000000, 1.000000, 1.000000 },
-    core::Vec3{ -1.000000, 1.000000, 1.000000 },
-    core::Vec3{ -1.000000, 1.000000, -1.000000 },
+  static const std::array<glm::vec3, 8> UNIT_CUBE_VERTICES = {
+    glm::vec3{ 1.000000, -1.000000, -1.000000 },
+    glm::vec3{ 1.000000, -1.000000, 1.000000 },
+    glm::vec3{ -1.000000, -1.000000, 1.000000 },
+    glm::vec3{ -1.000000, -1.000000, -1.000000 },
+    glm::vec3{ 1.000000, 1.000000, -1.000000 },
+    glm::vec3{ 1.000000, 1.000000, 1.000000 },
+    glm::vec3{ -1.000000, 1.000000, 1.000000 },
+    glm::vec3{ -1.000000, 1.000000, -1.000000 },
   };
 
   static const std::array<std::array<int, 3>, 12> UNIT_CUBE_FACES = { {

@@ -17,15 +17,15 @@ namespace debug {
         float zmax = bbox.max.z;
 
         // Define the 8 vertices of the box
-        std::vector<core::Vec3> vertices = {
-                core::Vec3(xmin, ymin, zmin),
-                core::Vec3(xmax, ymin, zmin),
-                core::Vec3(xmax, ymax, zmin),
-                core::Vec3(xmin, ymax, zmin),
-                core::Vec3(xmin, ymin, zmax),
-                core::Vec3(xmax, ymin, zmax),
-                core::Vec3(xmax, ymax, zmax),
-                core::Vec3(xmin, ymax, zmax)
+        std::vector<glm::vec3> vertices = {
+                glm::vec3(xmin, ymin, zmin),
+                glm::vec3(xmax, ymin, zmin),
+                glm::vec3(xmax, ymax, zmin),
+                glm::vec3(xmin, ymax, zmin),
+                glm::vec3(xmin, ymin, zmax),
+                glm::vec3(xmax, ymin, zmax),
+                glm::vec3(xmax, ymax, zmax),
+                glm::vec3(xmin, ymax, zmax)
         };
 
         // Define the 12 triangles of the box

@@ -69,9 +69,9 @@ int main(int argc, char **argv)
     {
         std::transform(triangles.begin(), triangles.end(), triangles.begin(), [](const Triangle &t) -> Triangle
         {
-            const Vec3 &v0f = { t.vertices[0].x, t.vertices[0].z, t.vertices[0].y };
-            const Vec3 &v1f = { t.vertices[1].x, t.vertices[1].z, t.vertices[1].y };
-            const Vec3 &v2f = { t.vertices[2].x, t.vertices[2].z, t.vertices[2].y };
+            const glm::vec3 &v0f = { t.vertices[0].x, t.vertices[0].z, t.vertices[0].y };
+            const glm::vec3 &v1f = { t.vertices[1].x, t.vertices[1].z, t.vertices[1].y };
+            const glm::vec3 &v2f = { t.vertices[2].x, t.vertices[2].z, t.vertices[2].y };
 
             return { t.id, v0f, v2f, v1f, t.material };
         });

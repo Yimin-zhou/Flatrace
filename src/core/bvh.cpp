@@ -217,14 +217,14 @@ Node *BVH::splitNode(Node * const node)
 
   for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
   {
-    for (const Vec3 &v : getTriangle(i).vertices)
+    for (const glm::vec3 &v : getTriangle(i).vertices)
     {
-      node->bbox.min = Vec3::min(node->bbox.min, v);
-      node->bbox.max = Vec3::max(node->bbox.max, v);
+      node->bbox.min = glm::min(node->bbox.min, v);
+      node->bbox.max = glm::max(node->bbox.max, v);
     }
 
-    centroid_bbox.min = Vec3::min(centroid_bbox.min, getCentroid(i));
-    centroid_bbox.max = Vec3::max(centroid_bbox.max, getCentroid(i));
+    centroid_bbox.min = glm::min(centroid_bbox.min, getCentroid(i));
+    centroid_bbox.max = glm::max(centroid_bbox.max, getCentroid(i));
   }
 
   // Subdivide if this is not a leaf node (getTriangle count below cutoff)
@@ -296,8 +296,8 @@ std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from,
     // First bin all triangles and track the bin bounding boxes
     for (int triangle_index = from; triangle_index < (from + count); triangle_index++)
     {
-      const Vec3 &triangle_centroid = getCentroid(triangle_index);
-      const float triangle_bin_offset = triangle_centroid.dot(split_dim.normal) - split_dim.min;
+      const glm::dvec3 &triangle_centroid = getCentroid(triangle_index);
+      const float triangle_bin_offset =  glm::dot(triangle_centroid, split_dim.normal) - split_dim.min;
       const int bin_index = std::min<int>(triangle_bin_offset / bin_width, bins.size() - 1);
 
       bins[bin_index].bbox = bins[bin_index].bbox.extended(getTriangle(triangle_index));
@@ -366,7 +366,7 @@ std::optional<int> BVH::partition(const int from, const int count, const Plane &
 
   while (left_to < right_from)
   {
-    const Vec3 c = getCentroid(left_to);
+    const glm::vec3 c = getCentroid(left_to);
 
     if (splitPlane.distance(c) < 0.0f)
     {

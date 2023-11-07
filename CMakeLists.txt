@@ -47,6 +47,7 @@ else ()
   add_compile_options (-O0)
 endif ()
 
+find_package(glm REQUIRED)
 find_package (Boost 1.37.0 REQUIRED)
 find_package (TBB REQUIRED)
 find_package (SDL2 2.0.17 REQUIRED)
@@ -91,6 +92,7 @@ target_link_libraries (flatrace
   ${TBB_LIBRARIES}
 )
 
+target_include_directories(flatrace PRIVATE ${GLM_INCLUDE_DIRS})
 include (CTest)
 enable_testing ()
 

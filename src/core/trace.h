@@ -44,7 +44,7 @@ namespace {
     constexpr auto N_FRAMES = 1;
     constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
 
-    constexpr auto MAX_INTERSECTIONS = 3;
+    constexpr auto MAX_INTERSECTIONS = 1;
 
     constexpr auto SPEED = 0.05f;
 
@@ -59,13 +59,22 @@ namespace {
                                                                         { { 1.0f, 0.5f, 0.5f, 1.0f } },
                                                                         { { 0.5f, 0.5f, 1.0f, 1.0f } },
                                                                 } };
-
+//    static const std::array<std::array<float, 4>, 8> COLORS = { {
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                } };
     // For debugging
-    core::Vec3 get_color_map(int value, int minVal, int maxVal)
+    glm::vec3 get_color_map(int value, int minVal, int maxVal)
     {
         // TODO: the red channel is always +1, maybe remove the transparency?
         // create a gradient from blue -> green -> red, and use it as a lookup table
-        std::vector<core::Vec3> color_map =
+        std::vector<glm::vec3> color_map =
         {
                 {0.0f, 0.0f, 1.0f}, // blue
                 {0.0f, 1.0f, 1.0f}, // cyan
@@ -83,7 +92,7 @@ namespace {
         int index = static_cast<int>(f_index);
         float fraction = f_index - index;
 
-        core::Vec3 color = color_map[index] * (1.0f - fraction) + color_map[index + 1] * fraction;
+        glm::vec3 color = color_map[index] * (1.0f - fraction) + color_map[index + 1] * fraction;
         return color;
     }
 
@@ -109,8 +118,8 @@ namespace {
 
                     for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
                     {
-                        const core::Vec3 ray_origin = camera.p + camera.x*x + camera.y*y;
-                        const core::Vec3 ray_direction = camera.d;
+                        const glm::vec3 ray_origin = camera.p + camera.x*x + camera.y*y;
+                        const glm::vec3 ray_direction = camera.d;
 
                         core::Ray ray = { ray_origin, ray_direction };
 
@@ -125,7 +134,7 @@ namespace {
                             __m128 cf = _mm_set1_ps(0.0f);
 #ifdef DEBUG
                             {
-                                core::Vec3 heat_map_color = get_color_map(
+                                glm::vec3 heat_map_color = get_color_map(
                                         ray.bvh_nodes_visited, 1, maxDepth - 1);
                                 cf = _mm_set_ps(heat_map_color.z, heat_map_color.y, heat_map_color.x, 1.0f);
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
@@ -171,7 +180,7 @@ namespace {
     // 8-way SIMD implementation that traces 4x4 'ray bundles'
     void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer)
     {
-        const core::Vec3 rd = { 1.0f / camera.d.x, 1.0f / camera.d.y, 1.0f / camera.d.z };
+        const glm::vec3 rd = { 1.0f / camera.d.x, 1.0f / camera.d.y, 1.0f / camera.d.z };
 
         tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
         {
@@ -192,7 +201,7 @@ namespace {
 
                         core::RGBA * const p = frameBuffer + ((FRAME_HEIGHT - bundle_py - BUNDLE_SIZE) * FRAME_WIDTH) + bundle_px;
 
-                        const core::Vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
+                        const glm::vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
 
                         core::Ray4x4 rays = { camera, bundle_origin, camera.d, rd, DX, DY };
 
