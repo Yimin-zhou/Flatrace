@@ -155,15 +155,15 @@ struct Camera
 {
   Camera(const glm::vec3 &p, const glm::vec3 &d, const glm::vec3 &up, const float zoom)
   :
-  p(p), d(glm::normalize(d)), zoom(zoom) {
+  pos(p), dir(glm::normalize(d)), zoom(zoom) {
       const Plane view_plane = {p, d};
 
       y = (glm::normalize(view_plane.project(up) - p));
       x = glm::cross(view_plane.normal(), y);
   }
 
-  glm::vec3 p;
-  glm::vec3 d;
+  glm::vec3 pos;
+  glm::vec3 dir;
 
   glm::vec3 x;
   glm::vec3 y;

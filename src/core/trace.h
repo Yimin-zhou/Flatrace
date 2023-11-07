@@ -23,14 +23,14 @@
 #include <iostream>
 
 namespace {
-    constexpr auto WINDOW_WIDTH = 1024 * 2;
-    constexpr auto WINDOW_HEIGHT = 728 * 2;
+    constexpr int WINDOW_WIDTH = 1280;
+    constexpr int WINDOW_HEIGHT = 720;
 
-    constexpr auto FRAME_WIDTH = 1024 * 2;
-    constexpr auto FRAME_HEIGHT = 728 * 2;
+    constexpr int FRAME_WIDTH = 1280;
+    constexpr int FRAME_HEIGHT = 720;
 
-    constexpr auto VIEWPORT_WIDTH  = 1.2f;
-    constexpr auto VIEWPORT_HEIGHT = 1.2f;
+    constexpr auto VIEWPORT_WIDTH  = 2.4f;
+    constexpr auto VIEWPORT_HEIGHT = 1.35f;
 
     constexpr auto DX = VIEWPORT_WIDTH / FRAME_WIDTH;
     constexpr auto DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
@@ -46,7 +46,7 @@ namespace {
 
     constexpr auto MAX_INTERSECTIONS = 1;
 
-    constexpr auto SPEED = 0.05f;
+    constexpr auto SPEED = 0.1f;
 
     // Arbitrary color palette for materials
     static const std::array<std::array<float, 4>, 8> COLORS = { {
@@ -118,8 +118,8 @@ namespace {
 
                     for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
                     {
-                        const glm::vec3 ray_origin = camera.p + camera.x*x + camera.y*y;
-                        const glm::vec3 ray_direction = camera.d;
+                        const glm::vec3 ray_origin = camera.pos + camera.x*x + camera.y*y;
+                        const glm::vec3 ray_direction = camera.dir;
 
                         core::Ray ray = { ray_origin, ray_direction };
 
@@ -136,11 +136,11 @@ namespace {
                             {
                                 glm::vec3 heat_map_color = get_color_map(
                                         ray.bvh_nodes_visited, 1, maxDepth - 1);
-                                cf = _mm_set_ps(heat_map_color.z, heat_map_color.y, heat_map_color.x, 1.0f);
+                                cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                                 c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
                             }
-#elif
+#elif NDEBUG
                             float dst_alpha = 1.0f;
 
                             for (int n = 0; n < 3; n++)
@@ -180,7 +180,7 @@ namespace {
     // 8-way SIMD implementation that traces 4x4 'ray bundles'
     void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer)
     {
-        const glm::vec3 rd = { 1.0f / camera.d.x, 1.0f / camera.d.y, 1.0f / camera.d.z };
+        const glm::vec3 rd = { 1.0f / camera.dir.x, 1.0f / camera.dir.y, 1.0f / camera.dir.z };
 
         tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
         {
@@ -201,9 +201,9 @@ namespace {
 
                         core::RGBA * const p = frameBuffer + ((FRAME_HEIGHT - bundle_py - BUNDLE_SIZE) * FRAME_WIDTH) + bundle_px;
 
-                        const glm::vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
+                        const glm::vec3 bundle_origin = camera.pos + camera.x*bundle_x + camera.y*bundle_y;
 
-                        core::Ray4x4 rays = { camera, bundle_origin, camera.d, rd, DX, DY };
+                        core::Ray4x4 rays = { camera, bundle_origin, camera.dir, rd, DX, DY };
 
                         const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
 

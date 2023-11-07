@@ -26,7 +26,6 @@ void renderBVHtree(const core::Node* node, const std::vector<core::Node>& nodes,
         else
         {
             renderBVHtree(&nodes[node->leftFrom], nodes, depth + 1);
-            // Assuming binary tree structure here
             renderBVHtree(&nodes[node->leftFrom + 1], nodes, depth + 1);
         }
         ImGui::TreePop();
@@ -103,7 +102,7 @@ int main(int argc, char **argv)
     "flatrace",
     SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
     WINDOW_WIDTH, WINDOW_HEIGHT,
-    SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 
     SDL_Renderer * const renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
@@ -140,7 +139,7 @@ int main(int argc, char **argv)
 
     // Main render loop
     bool quit = false;
-    float theta = 0.0f;
+    float theta = 2.0f;
 
     float max_rps = -INF;
     float min_rps = INF;
@@ -160,9 +159,20 @@ int main(int argc, char **argv)
 
           switch (e.type)
           {
-            case SDL_QUIT:
-              quit = true;
-              break;
+              case SDL_WINDOWEVENT:
+              {
+                  if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+                  {
+                      // maintain aspect ratio
+                      SDL_RenderSetLogicalSize(renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+                      SDL_RenderSetScale(renderer, (float) e.window.data1 / WINDOW_WIDTH, (float) e.window.data2 / WINDOW_HEIGHT);
+                  }
+                  break;
+              }
+              case SDL_QUIT:
+                  quit = true;
+                  break;
           }
         }
 

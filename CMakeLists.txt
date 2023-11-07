@@ -8,6 +8,8 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG>")
+# add release flags
+add_compile_options("$<$<CONFIG:RELEASE>:-DNDEBUG>")
 
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/site_cmake")
 
