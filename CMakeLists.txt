@@ -72,10 +72,9 @@ add_library (core
         src/core/frame.h
         src/core/intersect.h
         src/core/types.h
-        src/debug/visualization.cpp
-        src/debug/visualization.h
         src/core/trace.h
 )
+
 
 add_library (utils
         src/utils/obj.cpp
@@ -84,14 +83,21 @@ add_library (utils
         src/utils/ppm.h
 )
 
+add_library(debug
+        src/debug/visualization.cpp
+        src/debug/visualization.h
+        src/debug/bvh_debugger.h
+)
+
 add_executable (flatrace main.cpp)
 
 target_link_libraries (flatrace
         core
         utils
-  imgui
-  ${SDL2_LIBRARIES}
-  ${TBB_LIBRARIES}
+#        debug
+        imgui
+        ${SDL2_LIBRARIES}
+        ${TBB_LIBRARIES}
 )
 
 target_include_directories(flatrace PRIVATE ${GLM_INCLUDE_DIRS})

@@ -92,6 +92,8 @@ bool BVH::intersect(Ray &ray, const int maxIntersections) const
       {
 #ifdef DEBUG
           ray.bvh_nodes_visited++;
+#elif NDEBUG
+          ray.bvh_nodes_visited = 0;
 #endif
         for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
         {
@@ -136,9 +138,6 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
 
   const Node *node_stack[2 * _maxDepth];
 
-  // For debugging: New array for SIMD-friendly node visitation tracking.
-//  __m256i bvh_nodes_visited_x8 = _mm256_set1_epi32(0);
-
   bool hit = false;
   bool dead = false;
 
@@ -162,9 +161,6 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
       }
       else
       {
-        // For debugging: Increment the visit count since we're traversing a new node.
-//        bvh_nodes_visited_x8 = _mm256_add_epi32(bvh_nodes_visited_x8, _mm256_set1_epi32(1));
-
         const Node * child_0 = &_nodes[node->leftFrom];
         const Node * child_1 = child_0 + 1;
 
@@ -203,10 +199,6 @@ bool BVH::intersect4x4(Ray4x4 &rays, const int maxIntersections) const
       hit = true;
     }
   }
-
-    // For debugging: At the end of the traversal, store the SIMD counters back into the Ray4x4 structure.
-//    _mm256_store_si256(reinterpret_cast<__m256i*>(rays.bvh_nodes_visited.data()), bvh_nodes_visited_x8);
-
     return hit;
 }
 

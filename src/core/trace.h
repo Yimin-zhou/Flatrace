@@ -207,7 +207,7 @@ namespace {
 
                         const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
 
-                        __m128 src_alpha = _mm_set1_ps(1.0f);
+                        __m128 src_alpha = _mm_set1_ps(0.6f);
 
                         for (int r = 0; r < 16; r++)
                         {
@@ -238,23 +238,6 @@ namespace {
                                     // dst_alpha *= (1.0 - src_alpha);
                                     dst_alpha = _mm_mul_ps(dst_alpha, _mm_sub_ps(_mm_set1_ps(1.0f), src_alpha));
                                 }
-
-//              // For debugging: Retrieve the number of nodes this ray has traversed.
-//              {
-//                    int nodesTraversed = rays.bvh_nodes_visited[r];  // assuming nodes_visited is an array of 16 ints
-//                    // Modify color based on the number of traversed nodes.
-//                    float factor = static_cast<float>(nodesTraversed) / 1.0f;  // Convert to a suitable factor, e.g., [0.0, 1.0]
-//                    factor = (factor > 1.0f) ? 1.0f : factor;  // clamp the value
-//                    __m128 factor_vec = _mm_set1_ps(factor);
-//                    __m128 red_channel = _mm_shuffle_ps(cf, cf, _MM_SHUFFLE(0, 0, 0, 0)); // isolate red channel
-//                    // Apply the factor only to the red channel
-//                    red_channel = _mm_mul_ps(red_channel, factor_vec);
-//
-//                    // Combine back into the original color
-//                    __m128 green_blue_alpha = _mm_shuffle_ps(cf, cf,
-//                                                             _MM_SHUFFLE(3, 2, 1, 1)); // keep green, blue, and alpha
-//                    cf = _mm_move_ss(green_blue_alpha, red_channel); // replace red with modified value
-//              }
                                 // c = min(255 * cf)
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                                 c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
