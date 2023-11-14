@@ -86,46 +86,46 @@ Vec3_x8 cross8(const Vec3_x8 &a, const Vec3_x8 &b)
 
 namespace core {
 
-inline bool intersect(const Triangle &triangle, Ray &ray)
-{
-  const glm::vec3 p = glm::cross(ray.d, triangle.edges[1]);
+    inline bool intersect(const Triangle &triangle, Ray &ray)
+    {
+        const glm::vec3 p = glm::cross(ray.d, triangle.edges[1]);
 
-  const float det = glm::dot(p, triangle.edges[0]);
+        const float det = glm::dot(p, triangle.edges[0]);
 
-  if (det < EPS)
-  {
-    return false;
-  }
+        if (det < EPS)
+        {
+            return false;
+        }
 
-  const float inv_det = 1.0f / det;
+        const float inv_det = 1.0f / det;
 
-  const glm::vec3 tv = ray.o - triangle.vertices[0];
-  const float u = glm::dot(tv, p) * inv_det;
+        const glm::vec3 tv = ray.o - triangle.vertices[0];
+        const float u = glm::dot(tv, p) * inv_det;
 
-  if ((u < 0.0f) || (u > 1.0f))
-  {
-    return false;
-  }
+        if ((u < 0.0f) || (u > 1.0f))
+        {
+            return false;
+        }
 
-  const glm::vec3 qv = glm::cross(tv, triangle.edges[0]);
-  const float v = glm::dot(qv, ray.d);
+        const glm::vec3 qv = glm::cross(tv, triangle.edges[0]);
+        const float v = glm::dot(qv, ray.d) * inv_det;
 
-  if ((v < 0.0f) || ((u + v) > 1.0f))
-  {
-    return false;
-  }
+        if ((v < 0.0f) || ((u + v) > 1.0f))
+        {
+            return false;
+        }
 
-  const float t = glm::dot(qv, triangle.edges[1]);
+        const float t = glm::dot(qv, triangle.edges[1]) * inv_det;
 
-  if ((t < ray.t[ray.n]) && (t > ray.t0))
-  {
-    ray.t[ray.n] = t;
-    ray.dot[ray.n] = glm::dot(triangle.normal, ray.d);
-    ray.triangle[ray.n] = triangle.id;
-  }
+        if ((t < ray.t[ray.n]) && (t > ray.t0))
+        {
+            ray.t[ray.n] = t;
+            ray.dot[ray.n] = glm::dot(triangle.normal, ray.d);
+            ray.triangle[ray.n] = triangle.id;
+        }
 
-  return true;
-}
+        return true;
+    }
 
 inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 {

@@ -56,7 +56,7 @@ public:
 private:
     struct SplitDim
     {
-      glm::dvec3 normal;
+      glm::vec3 normal;
       double min = 0.0f;
       double max = 0.0f;
     };

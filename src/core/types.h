@@ -271,9 +271,6 @@ struct  __attribute__((aligned(16))) Ray4x4
   alignas(32) std::array<float, 16> oy_x8;
   alignas(32) std::array<float, 16> oz_x8;
 
-  // For debugging
-//  alignas(32) std::array<int, 16> bvh_nodes_visited;
-
   glm::vec3 d;
   glm::vec3 rd;
 
