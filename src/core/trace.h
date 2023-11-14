@@ -140,7 +140,7 @@ namespace {
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                                 c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
                             }
-#elif
+#elif NDEBUG
                             float dst_alpha = 1.0f;
 
                             for (int n = 0; n < 3; n++)
