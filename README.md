@@ -1,3 +1,13 @@
+# Intro
+This a thesis project.
+
+# Environment
+Linux.
+
+More info will be added to README later.
+
+Below is the original README.md from the flatrace project from Wouter.
+----------------------------------------------------------------------
 # flatrace
 
 Fast CPU flat-shading ray trace experiment.
