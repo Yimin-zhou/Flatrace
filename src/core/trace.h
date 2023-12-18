@@ -23,14 +23,14 @@
 #include <iostream>
 
 namespace {
-    constexpr auto WINDOW_WIDTH = 1920;
-    constexpr auto WINDOW_HEIGHT = 1080;
+    constexpr int WINDOW_WIDTH = 1280;
+    constexpr int WINDOW_HEIGHT = 720;
 
-    constexpr auto FRAME_WIDTH = 1920;
-    constexpr auto FRAME_HEIGHT = 1080;
+    constexpr int FRAME_WIDTH = 1280;
+    constexpr int FRAME_HEIGHT = 720;
 
-    constexpr auto VIEWPORT_WIDTH  = 1.2f;
-    constexpr auto VIEWPORT_HEIGHT = 1.2f;
+    constexpr auto VIEWPORT_WIDTH  = 2.4f;
+    constexpr auto VIEWPORT_HEIGHT = 1.35f;
 
     constexpr auto DX = VIEWPORT_WIDTH / FRAME_WIDTH;
     constexpr auto DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
@@ -46,7 +46,7 @@ namespace {
 
     constexpr auto MAX_INTERSECTIONS = 3;
 
-    constexpr auto SPEED = 0.05f;
+    constexpr auto SPEED = 0.1f;
 
     // Arbitrary color palette for materials
     static const std::array<std::array<float, 4>, 8> COLORS = { {
@@ -59,19 +59,40 @@ namespace {
                                                                         { { 1.0f, 0.5f, 0.5f, 1.0f } },
                                                                         { { 0.5f, 0.5f, 1.0f, 1.0f } },
                                                                 } };
-
+//    static const std::array<std::array<float, 4>, 8> COLORS = { {
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
+//                                                                } };
     // For debugging
-    core::Vec3 get_color_map(int value, int minVal, int maxVal)
+    glm::vec3 get_color_map(int value, int minVal, int maxVal)
     {
-        float normalized = static_cast<float>(value - minVal) / static_cast<float>(maxVal - minVal);
+        // TODO: the red channel is always +1, maybe remove the transparency?
+        // create a gradient from blue -> green -> red, and use it as a lookup table
+        std::vector<glm::vec3> color_map =
+        {
+                {0.0f, 0.0f, 1.0f}, // blue
+                {0.0f, 1.0f, 1.0f}, // cyan
+                {0.0f, 1.0f, 0.0f}, // green
+                {1.0f, 1.0f, 0.0f}, // yellow
+                {1.0f, 0.0f, 0.0f}, // red
+        };
 
-        //from blue to red.
-        core::Vec3 blue = {0.0f, 0.0f, 1.0f};
-        core::Vec3 red = {1.0f, 0.0f, 0.0f};
+        float factor = static_cast<float>(value - minVal) / static_cast<float>(maxVal - minVal);
+        factor = (factor > 1.0f) ? 1.0f : factor;
+        factor = (factor < 0.0f) ? 0.0f : factor;
 
-        core::Vec3 color;
-        color = blue + (red - blue) * normalized;
+        // linearly interpolate between the two colors
+        float f_index = factor * (color_map.size() - 1);
+        int index = static_cast<int>(f_index);
+        float fraction = f_index - index;
 
+        glm::vec3 color = color_map[index] * (1.0f - fraction) + color_map[index + 1] * fraction;
         return color;
     }
 
@@ -97,8 +118,8 @@ namespace {
 
                     for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
                     {
-                        const core::Vec3 ray_origin = camera.p + camera.x*x + camera.y*y;
-                        const core::Vec3 ray_direction = camera.d;
+                        const glm::vec3 ray_origin = camera.pos + camera.x*x + camera.y*y;
+                        const glm::vec3 ray_direction = camera.dir;
 
                         core::Ray ray = { ray_origin, ray_direction };
 
@@ -113,13 +134,13 @@ namespace {
                             __m128 cf = _mm_set1_ps(0.0f);
 #ifdef DEBUG
                             {
-                                core::Vec3 heat_map_color = get_color_map(
+                                glm::vec3 heat_map_color = get_color_map(
                                         ray.bvh_nodes_visited, 1, maxDepth - 1);
-                                cf = _mm_set_ps(heat_map_color.z, heat_map_color.y, heat_map_color.x, 1.0f);
+                                cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                                 c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
                             }
-#elif
+#elif NDEBUG
                             float dst_alpha = 1.0f;
 
                             for (int n = 0; n < 3; n++)
@@ -159,7 +180,7 @@ namespace {
     // 8-way SIMD implementation that traces 4x4 'ray bundles'
     void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer)
     {
-        const core::Vec3 rd = { 1.0f / camera.d.x, 1.0f / camera.d.y, 1.0f / camera.d.z };
+        const glm::vec3 rd = { 1.0f / camera.dir.x, 1.0f / camera.dir.y, 1.0f / camera.dir.z };
 
         tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
         {
@@ -180,13 +201,13 @@ namespace {
 
                         core::RGBA * const p = frameBuffer + ((FRAME_HEIGHT - bundle_py - BUNDLE_SIZE) * FRAME_WIDTH) + bundle_px;
 
-                        const core::Vec3 bundle_origin = camera.p + camera.x*bundle_x + camera.y*bundle_y;
+                        const glm::vec3 bundle_origin = camera.pos + camera.x*bundle_x + camera.y*bundle_y;
 
-                        core::Ray4x4 rays = { camera, bundle_origin, camera.d, rd, DX, DY };
+                        core::Ray4x4 rays = { camera, bundle_origin, camera.dir, rd, DX, DY };
 
                         const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
 
-                        __m128 src_alpha = _mm_set1_ps(1.0f);
+                        __m128 src_alpha = _mm_set1_ps(0.6f);
 
                         for (int r = 0; r < 16; r++)
                         {
@@ -217,23 +238,6 @@ namespace {
                                     // dst_alpha *= (1.0 - src_alpha);
                                     dst_alpha = _mm_mul_ps(dst_alpha, _mm_sub_ps(_mm_set1_ps(1.0f), src_alpha));
                                 }
-
-//              // For debugging: Retrieve the number of nodes this ray has traversed.
-//              {
-//                    int nodesTraversed = rays.bvh_nodes_visited[r];  // assuming nodes_visited is an array of 16 ints
-//                    // Modify color based on the number of traversed nodes.
-//                    float factor = static_cast<float>(nodesTraversed) / 1.0f;  // Convert to a suitable factor, e.g., [0.0, 1.0]
-//                    factor = (factor > 1.0f) ? 1.0f : factor;  // clamp the value
-//                    __m128 factor_vec = _mm_set1_ps(factor);
-//                    __m128 red_channel = _mm_shuffle_ps(cf, cf, _MM_SHUFFLE(0, 0, 0, 0)); // isolate red channel
-//                    // Apply the factor only to the red channel
-//                    red_channel = _mm_mul_ps(red_channel, factor_vec);
-//
-//                    // Combine back into the original color
-//                    __m128 green_blue_alpha = _mm_shuffle_ps(cf, cf,
-//                                                             _MM_SHUFFLE(3, 2, 1, 1)); // keep green, blue, and alpha
-//                    cf = _mm_move_ss(green_blue_alpha, red_channel); // replace red with modified value
-//              }
                                 // c = min(255 * cf)
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                                 c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));

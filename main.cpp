@@ -1,37 +1,5 @@
 #include "src/core/trace.h"
-
-void renderBVHtree(const core::Node* node, const std::vector<core::Node>& nodes, int depth = 0)
-{
-    if (!node) return;
-
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-    if (node->isLeaf()) flags |= ImGuiTreeNodeFlags_Leaf;
-
-    bool nodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)node, flags, "Node Depth %d", depth);
-
-    if (ImGui::IsItemClicked()) {
-        // Handle node click, if necessary
-    }
-
-    if (nodeOpen)
-    {
-        ImGui::Text("Bounding Box: Min(%f, %f, %f) Max(%f, %f, %f)",
-                    node->bbox.min.x, node->bbox.min.y, node->bbox.min.z,
-                    node->bbox.max.x, node->bbox.max.y, node->bbox.max.z);
-
-        if (node->isLeaf())
-        {
-            ImGui::Text("Leaf Node: Triangles from %d to %d", node->leftFrom, node->leftFrom + node->count);
-        }
-        else
-        {
-            renderBVHtree(&nodes[node->leftFrom], nodes, depth + 1);
-            // Assuming binary tree structure here
-            renderBVHtree(&nodes[node->leftFrom + 1], nodes, depth + 1);
-        }
-        ImGui::TreePop();
-    }
-}
+#include "src/debug/bvh_debugger.h"
 
 int main(int argc, char **argv)
 {
@@ -69,9 +37,9 @@ int main(int argc, char **argv)
     {
         std::transform(triangles.begin(), triangles.end(), triangles.begin(), [](const Triangle &t) -> Triangle
         {
-            const Vec3 &v0f = { t.vertices[0].x, t.vertices[0].z, t.vertices[0].y };
-            const Vec3 &v1f = { t.vertices[1].x, t.vertices[1].z, t.vertices[1].y };
-            const Vec3 &v2f = { t.vertices[2].x, t.vertices[2].z, t.vertices[2].y };
+            const glm::vec3 &v0f = { t.vertices[0].x, t.vertices[0].z, t.vertices[0].y };
+            const glm::vec3 &v1f = { t.vertices[1].x, t.vertices[1].z, t.vertices[1].y };
+            const glm::vec3 &v2f = { t.vertices[2].x, t.vertices[2].z, t.vertices[2].y };
 
             return { t.id, v0f, v2f, v1f, t.material };
         });
@@ -103,7 +71,7 @@ int main(int argc, char **argv)
     "flatrace",
     SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
     WINDOW_WIDTH, WINDOW_HEIGHT,
-    SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 
     SDL_Renderer * const renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
@@ -140,7 +108,7 @@ int main(int argc, char **argv)
 
     // Main render loop
     bool quit = false;
-    float theta = 0.0f;
+    float theta = 2.0f;
 
     float max_rps = -INF;
     float min_rps = INF;
@@ -160,19 +128,32 @@ int main(int argc, char **argv)
 
           switch (e.type)
           {
-            case SDL_QUIT:
-              quit = true;
-              break;
+              case SDL_WINDOWEVENT:
+              {
+                  if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+                  {
+                      // maintain aspect ratio
+                      SDL_RenderSetLogicalSize(renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+                      SDL_RenderSetScale(renderer, (float) e.window.data1 / WINDOW_WIDTH, (float) e.window.data2 / WINDOW_HEIGHT);
+                  }
+                  break;
+              }
+              case SDL_QUIT:
+                  quit = true;
+                  break;
           }
         }
 
+        // Update camera
         const float cx = std::cos(theta) * 2.0f;
         const float cz = std::sin(theta) * 2.0f;
 
-        Camera camera = { { cx, 1.0f, cz }, { -cx, -1.0f, -cz }, { 0.0f, 1.0f, 0.0f }, 5.0f };
+        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
-        theta += (2.0f*M_PI / 120.0f) * SPEED;
+        theta += (2.0f * M_PI / 120.0f) * SPEED;
 
+        // Render frame
         const auto start = steady_clock::now();
 
         #if 1
@@ -186,9 +167,10 @@ int main(int argc, char **argv)
 
         const auto end = steady_clock::now();
 
+        // Compute stats
         const int us = duration_cast<microseconds>(end - start).count();
         const int ms = us / 1000;
-        const float rps = ((float) N_RAYS / us);
+        const float rps = ((float) N_RAYS / us); // current frame rps
         const float fps = 1000 / ms;
 
         max_rps = std::max(max_rps, rps);
@@ -205,25 +187,38 @@ int main(int argc, char **argv)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
+#ifdef DEBUG
         {
             ImGui::Begin("BVH Viewer");
             ImGui::Text("Number of Nodes: %d", nodeCount);
             ImGui::Text("Max Depth: %d", maxDepth);
-            ImGui::Separator();  // Adds a horizontal line for visual separation
+            ImGui::Separator();
             if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                renderBVHtree(bvh.getRoot(), bvh.getNodes());
+                debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
             }
             ImGui::End();
         }
+#endif
 
         {
-            ImGui::Begin("Render time", nullptr);
+            ImGui::Begin("Render properties", nullptr);
 
             if (!ImGui::IsWindowCollapsed()) {
+                ImGui::Text("Frame rate:");
                 ImGui::Text("%s",
-                            fmt::format("{0} ms, {1} fps, {1:.2f}M rps", ms, fps, ((double) N_RAYS / us)).c_str());
-                ImGui::Text("%s", fmt::format("min/max rps: {0:.2f}M/{1:.2f}M", min_rps, max_rps).c_str());
+                            fmt::format("{0} ms, {1} fps", ms, fps).c_str());
+                ImGui::Separator();
+
+                ImGui::Text("Rays:");
+                ImGui::Text("%s", fmt::format("{1:.2f}M rps, min/max rps: {0:.2f}M/{1:.2f}M", ((double) N_RAYS / us), min_rps, max_rps).c_str());
+                ImGui::Separator();
+
+                ImGui::Text("Memory usage:");
+                size_t memoryUsage = debug::getCurrentRSS(); // in bytes
+                ImGui::Text("%s", fmt::format("{0:.5f} MB", ((double) memoryUsage / 1024 / 1024)).c_str());
+                ImGui::Separator();
+
             }
 
             ImGui::End();

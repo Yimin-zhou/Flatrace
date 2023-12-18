@@ -24,7 +24,7 @@ struct Vec3_x4
 
 struct Vec3_x8
 {
-  Vec3_x8(const core::Vec3 &v)
+  Vec3_x8(const glm::vec3 &v)
   :
     x(_mm256_broadcast_ss(&v.x)),
     y(_mm256_broadcast_ss(&v.y)),
@@ -86,46 +86,46 @@ Vec3_x8 cross8(const Vec3_x8 &a, const Vec3_x8 &b)
 
 namespace core {
 
-inline bool intersect(const Triangle &triangle, Ray &ray)
-{
-  const Vec3 p = ray.d.cross(triangle.edges[1]);
+    inline bool intersect(const Triangle &triangle, Ray &ray)
+    {
+        const glm::vec3 p = glm::cross(ray.d, triangle.edges[1]);
 
-  const float det = p.dot(triangle.edges[0]);
+        const float det = glm::dot(p, triangle.edges[0]);
 
-  if (det < EPS)
-  {
-    return false;
-  }
+        if (det < EPS)
+        {
+            return false;
+        }
 
-  const float inv_det = 1.0f / det;
+        const float inv_det = 1.0f / det;
 
-  const Vec3 tv = ray.o - triangle.vertices[0];
-  const float u = tv.dot(p) * inv_det;
+        const glm::vec3 tv = ray.o - triangle.vertices[0];
+        const float u = glm::dot(tv, p) * inv_det;
 
-  if ((u < 0.0f) || (u > 1.0f))
-  {
-    return false;
-  }
+        if ((u < 0.0f) || (u > 1.0f))
+        {
+            return false;
+        }
 
-  const Vec3 qv = tv.cross(triangle.edges[0]);
-  const float v = qv.dot(ray.d) * inv_det;
+        const glm::vec3 qv = glm::cross(tv, triangle.edges[0]);
+        const float v = glm::dot(qv, ray.d) * inv_det;
 
-  if ((v < 0.0f) || ((u + v) > 1.0f))
-  {
-    return false;
-  }
+        if ((v < 0.0f) || ((u + v) > 1.0f))
+        {
+            return false;
+        }
 
-  const float t = qv.dot(triangle.edges[1]) * inv_det;
+        const float t = glm::dot(qv, triangle.edges[1]) * inv_det;
 
-  if ((t < ray.t[ray.n]) && (t > ray.t0))
-  {
-    ray.t[ray.n] = t;
-    ray.dot[ray.n] = triangle.normal.dot(ray.d);
-    ray.triangle[ray.n] = triangle.id;
-  }
+        if ((t < ray.t[ray.n]) && (t > ray.t0))
+        {
+            ray.t[ray.n] = t;
+            ray.dot[ray.n] = glm::dot(triangle.normal, ray.d);
+            ray.triangle[ray.n] = triangle.id;
+        }
 
-  return true;
-}
+        return true;
+    }
 
 inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
 {
@@ -151,7 +151,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
   };
 
   // const Vec3 p = ray.d.cross(triangle.edges[1]);
-  const Vec3 p = rays.d.cross(triangle.edges[1]);
+  const glm::vec3 p = glm::cross(rays.d, triangle.edges[1]);
 
   //  const float det = p.dot(triangle.edges[0]);
   //
@@ -159,7 +159,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
   //  {
   //    return false;
   //  }
-  const float det = p.dot(triangle.edges[0]);
+  const float det = glm::dot(p, triangle.edges[0]);
 
   if (det < EPS)
   {

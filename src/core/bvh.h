@@ -44,7 +44,7 @@ public:
     bool failed() const { return _failed; }
 
     const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
-    const Vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
+    const glm::vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
 
     // return the root node
     const Node *getRoot() const { return _root; }
@@ -56,7 +56,7 @@ public:
 private:
     struct SplitDim
     {
-      Vec3 normal;
+      glm::vec3 normal;
       double min = 0.0f;
       double max = 0.0f;
     };
@@ -86,7 +86,7 @@ private:
     std::vector<Triangle> _triangles;
 
     std::vector<int> _triangleIds;
-    std::vector<Vec3> _triangleCentroids;
+    std::vector<glm::vec3> _triangleCentroids;
 
     Node *_root;
 

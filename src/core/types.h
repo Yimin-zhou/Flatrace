@@ -5,6 +5,11 @@
 #include <cmath>
 #include <iostream>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/vector_relational.hpp>
+
 #include "third_party/fmt/format.h"
 
 #ifdef IS_X86
@@ -18,37 +23,6 @@ namespace core {
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float EPS = 1e-12f;
 
-struct Vec3
-{
-  float x;
-  float y;
-  float z;
-
-  Vec3() : x(0.0f), y(0.0f), z(0.0f) {}
-  Vec3(const float x, const float y, const float z) : x(x), y(y), z(z) {}
-
-  float lengthSquared() const { return x*x + y*y + z*z; }
-  float length() const { return std::sqrt(lengthSquared()); }
-
-  Vec3 normalized() const
-  {
-    const float l = length();
-
-    return (l > 0.0f ? Vec3{ x / l, y / l, z / l } : Vec3());
-  }
-
-  Vec3 operator-(const Vec3 &other) const { return { x - other.x, y - other.y, z - other.z }; }
-  Vec3 operator+(const Vec3 &other) const { return { x + other.x, y + other.y, z + other.z }; }
-  Vec3 operator*(const float s) const { return { x * s, y * s, z * s }; }
-  Vec3 operator/(const float s) const { return { x / s, y / s, z / s }; }
-
-  Vec3 cross(const Vec3 &other) const { return { y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x }; };
-  float dot(const Vec3 &other) const { return x * other.x + y * other.y + z * other.z; };
-
-  static Vec3 min(const Vec3 &lhs, const Vec3 &rhs) { return { std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z) }; }
-  static Vec3 max(const Vec3 &lhs, const Vec3 &rhs) { return { std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z) }; }
-};
-
 struct Plane
 {
   float a;
@@ -56,9 +30,9 @@ struct Plane
   float c;
   float d;
 
-  Plane(const Vec3 &p, const Vec3 &n)
+  Plane(const glm::vec3 &p, const glm::vec3 &n)
   {
-    const Vec3 normal = n.normalized();
+    const glm::vec3 normal = glm::normalize(n);
 
     a = normal.x;
     b = normal.y;
@@ -66,7 +40,7 @@ struct Plane
     d = -(a*p.x + b*p.y + c*p.z);
   }
 
-  Vec3 pointOnPlane() const
+  glm::vec3 pointOnPlane() const
   {
     if (a != 0.0f)
     {
@@ -82,17 +56,17 @@ struct Plane
     }
   }
 
-  Vec3 normal() const
+  glm::vec3 normal() const
   {
     return { a, b, c };
   }
 
-  float distance(const Vec3 &v) const
+  float distance(const glm::vec3 &v) const
   {
     return (a*v.x + b*v.y + c*v.z + d);
   }
 
-  Vec3 project(const Vec3 &v) const
+  glm::vec3 project(const glm::vec3 &v) const
   {
     return v - (normal() * distance(v));
   }
@@ -101,20 +75,20 @@ struct Plane
 struct Triangle
 {
   Triangle() = default;
-  Triangle(const int id, const Vec3 &v0, const Vec3 &v1, const Vec3 &v2, const int material)
+  Triangle(const int id, const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const int material)
   :
     id(id),
     vertices({ v0, v1, v2 }),
     edges({ v1 - v0, v2 - v0 }),
-    normal(edges[0].cross(edges[1]).normalized()),
+    normal(glm::normalize(glm::cross(edges[0], edges[1]))),
     material(material)
   {
   }
 
   int id;
-  std::array<Vec3, 3> vertices;
-  std::array<Vec3, 2> edges;
-  Vec3 normal;
+  std::array<glm::vec3, 3> vertices;
+  std::array<glm::vec3, 2> edges;
+  glm::vec3 normal;
   int material;
 };
 
@@ -127,31 +101,31 @@ struct BoundingBox
   {
   }
 
-  BoundingBox(const Vec3 &min, const Vec3 &max)
+  BoundingBox(const glm::vec3 &min, const glm::vec3 &max)
   :
     min(min), max(max)
   {
   }
 
-  BoundingBox extended(const Vec3 &v) const
+  BoundingBox extended(const glm::vec3 &v) const
   {
-    return { Vec3::min(min, v), Vec3::max(max, v) };
+    return { glm::min(min, v), glm::max(max, v) };
   }
 
   BoundingBox extended(const BoundingBox &b) const
   {
-    return { Vec3::min(min, b.min), Vec3::max(max, b.max) };
+    return { glm::min(min, b.min), glm::max(max, b.max) };
   }
 
   BoundingBox extended(const Triangle &t) const
   {
-    Vec3 min_v = min;
-    Vec3 max_v = max;
+    glm::vec3 min_v = min;
+    glm::vec3 max_v = max;
 
-    for (const Vec3 &v : t.vertices)
+    for (const glm::vec3 &v : t.vertices)
     {
-      min_v = Vec3::min(min_v, v);
-      max_v = Vec3::max(max_v, v);
+      min_v = glm::min(min_v, v);
+      max_v = glm::max(max_v, v);
     }
 
     return { min_v, max_v };
@@ -159,7 +133,7 @@ struct BoundingBox
 
   const float area() const
   {
-    const Vec3 size = (max - min);
+    const glm::vec3 size = (max - min);
 
     const float area = 2.0f * (size.x*size.y + size.y*size.z + size.z*size.x);
 
@@ -169,38 +143,37 @@ struct BoundingBox
     }
     else
     {
-      return (size.dot({ 1.0f, 1.0f, 1.0f }) == -INF ? 0.0f : INF);
+      return (glm::dot(size, { 1.0f, 1.0f, 1.0f }) == -INF ? 0.0f : INF);
     }
   }
 
-  Vec3 min;
-  Vec3 max;
+  glm::vec3 min;
+  glm::vec3 max;
 };
 
 struct Camera
 {
-  Camera(const Vec3 &p, const Vec3 &d, const Vec3 &up, const float zoom)
+  Camera(const glm::vec3 &p, const glm::vec3 &d, const glm::vec3 &up, const float zoom)
   :
-  p(p), d(d.normalized()), zoom(zoom)
-  {
-    const Plane view_plane = { p, d };
+  pos(p), dir(glm::normalize(d)), zoom(zoom) {
+      const Plane view_plane = {p, d};
 
-    y = (view_plane.project(up) - p).normalized();
-    x = view_plane.normal().cross(y);
+      y = (glm::normalize(view_plane.project(up) - p));
+      x = glm::cross(view_plane.normal(), y);
   }
 
-  Vec3 p;
-  Vec3 d;
+  glm::vec3 pos;
+  glm::vec3 dir;
 
-  Vec3 x;
-  Vec3 y;
+  glm::vec3 x;
+  glm::vec3 y;
 
   float zoom;
 };
 
 struct Ray
 {
-  Ray(const Vec3 &origin, const Vec3 &direction)
+  Ray(const glm::vec3 &origin, const glm::vec3 &direction)
   :
     o(origin),  d(direction), rd({ 1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z }),
     bvh_nodes_visited(0)
@@ -213,9 +186,9 @@ struct Ray
     n++;
   }
 
-  Vec3 o;
-  Vec3 d;
-  Vec3 rd;
+  glm::vec3 o;
+  glm::vec3 d;
+  glm::vec3 rd;
 
   int n = 0;
   float t0 = -INF;
@@ -230,7 +203,7 @@ struct Ray
 // 4x4 ray bundle for 8-way SIMD BVH traversal & triangle intersection
 struct  __attribute__((aligned(16))) Ray4x4
 {
-  Ray4x4(const Camera &camera, const Vec3 &o, const Vec3 &d, const Vec3 &rd, const float DX, const float DY)
+  Ray4x4(const Camera &camera, const glm::vec3 &o, const glm::vec3 &d, const glm::vec3 &rd, const float DX, const float DY)
   :
     d(d), rd(rd), n(0)
   {
@@ -248,7 +221,7 @@ struct  __attribute__((aligned(16))) Ray4x4
         const float x = j*DX;
         const float y = i*DY;
 
-        const Vec3 xyz = o + camera.x*x + camera.y*y;
+        const glm::vec3 xyz = o + camera.x*x + camera.y*y;
 
         ox[i*4 + j] = xyz.x;
         oy[i*4 + j] = xyz.y;
@@ -298,11 +271,8 @@ struct  __attribute__((aligned(16))) Ray4x4
   alignas(32) std::array<float, 16> oy_x8;
   alignas(32) std::array<float, 16> oz_x8;
 
-  // For debugging
-//  alignas(32) std::array<int, 16> bvh_nodes_visited;
-
-  Vec3 d;
-  Vec3 rd;
+  glm::vec3 d;
+  glm::vec3 rd;
 
   int n;
   alignas(32) std::array<float, 16> t0;
@@ -314,7 +284,7 @@ struct  __attribute__((aligned(16))) Ray4x4
 
 }
 
-inline std::ostream &operator<<(std::ostream &out, const core::Vec3 &v)
+inline std::ostream &operator<<(std::ostream &out, const glm::vec3 &v)
 {
   out << fmt::format("[{0}, {1}, {2}]", v.x, v.y, v.z);
   return out;

@@ -22,10 +22,10 @@ namespace debug {
     // Line debug object
     class Line : public Visualization{
     public:
-        Line(const core::Vec3& start, const core::Vec3& end) : start(start), end(end) {}
+        Line(const glm::vec3& start, const glm::vec3& end) : start(start), end(end) {}
 
-        core::Vec3 start;
-        core::Vec3 end;
+        glm::vec3 start;
+        glm::vec3 end;
     };
 
     class Box : public Visualization{

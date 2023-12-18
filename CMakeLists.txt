@@ -8,6 +8,8 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG>")
+# add release flags
+add_compile_options("$<$<CONFIG:RELEASE>:-DNDEBUG>")
 
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/site_cmake")
 
@@ -47,6 +49,7 @@ else ()
   add_compile_options (-O0)
 endif ()
 
+find_package(glm REQUIRED)
 find_package (Boost 1.37.0 REQUIRED)
 find_package (TBB REQUIRED)
 find_package (SDL2 2.0.17 REQUIRED)
@@ -69,10 +72,9 @@ add_library (core
         src/core/frame.h
         src/core/intersect.h
         src/core/types.h
-        src/debug/visualization.cpp
-        src/debug/visualization.h
         src/core/trace.h
 )
+
 
 add_library (utils
         src/utils/obj.cpp
@@ -81,16 +83,24 @@ add_library (utils
         src/utils/ppm.h
 )
 
+add_library(debug
+        src/debug/visualization.cpp
+        src/debug/visualization.h
+        src/debug/bvh_debugger.h
+)
+
 add_executable (flatrace main.cpp)
 
 target_link_libraries (flatrace
         core
         utils
-  imgui
-  ${SDL2_LIBRARIES}
-  ${TBB_LIBRARIES}
+#        debug
+        imgui
+        ${SDL2_LIBRARIES}
+        ${TBB_LIBRARIES}
 )
 
+target_include_directories(flatrace PRIVATE ${GLM_INCLUDE_DIRS})
 include (CTest)
 enable_testing ()
 
