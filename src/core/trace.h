@@ -98,7 +98,7 @@ namespace {
 
 
     // Reference implementation that traces 1 ray at a time (no SIMD)
-    void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer, int maxDepth)
+    void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer)
     {
         tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
         {

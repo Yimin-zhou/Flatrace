@@ -14,7 +14,7 @@ int main(int argc, char **argv)
     // const std::string input_file(argv[1]);
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
-    // Set a default model
+    // Set a default model (change this path)
     const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/bunny.obj");
 
     // Load getTriangle data
@@ -47,6 +47,7 @@ int main(int argc, char **argv)
 
     const auto start_bvh = steady_clock::now();
 
+    // Build BVH before rendering
     BVH bvh(triangles);
 
     if (bvh.failed())
@@ -113,9 +114,11 @@ int main(int argc, char **argv)
     float max_rps = -INF;
     float min_rps = INF;
 
+#ifdef DEBUG
     // For debugging BVH nodes
     int maxDepth = bvh.getMaxDepth();
     int nodeCount = bvh.getNodes().size();
+#endif
 
     while (!quit)
     {
@@ -153,11 +156,11 @@ int main(int argc, char **argv)
 
         theta += (2.0f * M_PI / 120.0f) * SPEED;
 
-        // Render frame
         const auto start = steady_clock::now();
 
+        // Render frame (intersection test)
         #if 1
-        render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+        render_frame(camera, bvh, frame.pixels.get());
         #else
         render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
@@ -210,6 +213,7 @@ int main(int argc, char **argv)
                             fmt::format("{0} ms, {1} fps", ms, fps).c_str());
                 ImGui::Separator();
 
+#ifdef DEBUG
                 ImGui::Text("Rays:");
                 ImGui::Text("%s", fmt::format("{1:.2f}M rps, min/max rps: {0:.2f}M/{1:.2f}M", ((double) N_RAYS / us), min_rps, max_rps).c_str());
                 ImGui::Separator();
@@ -218,6 +222,7 @@ int main(int argc, char **argv)
                 size_t memoryUsage = debug::getCurrentRSS(); // in bytes
                 ImGui::Text("%s", fmt::format("{0:.5f} MB", ((double) memoryUsage / 1024 / 1024)).c_str());
                 ImGui::Separator();
+#endif
 
             }
 

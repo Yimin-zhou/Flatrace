@@ -30,7 +30,7 @@ endif ()
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    add_compile_options (-Ofast -ffast-math -fno-finite-math-only -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-g -O2 -Ofast -ffast-math -fno-finite-math-only -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
   endif ()
 
   if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
