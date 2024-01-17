@@ -50,7 +50,7 @@ namespace {
 
     // Arbitrary color palette for materials
     static const std::array<std::array<float, 4>, 8> COLORS = { {
-                                                                        { { 1.0f, 0.0f, 0.0f, 1.0f } },
+                                                                        { { 1.0f, 1.0f, 1.0f, 1.0f } },
                                                                         { { 0.0f, 1.0f, 0.0f, 1.0f } },
                                                                         { { 0.0f, 0.0f, 1.0f, 1.0f } },
                                                                         { { 1.0f, 1.0f, 0.0f, 1.0f } },
@@ -72,7 +72,6 @@ namespace {
     // For debugging
     glm::vec3 get_color_map(int value, int minVal, int maxVal)
     {
-        // TODO: the red channel is always +1, maybe remove the transparency?
         // create a gradient from blue -> green -> red, and use it as a lookup table
         std::vector<glm::vec3> color_map =
         {
@@ -132,7 +131,7 @@ namespace {
                         if (hit)
                         {
                             __m128 cf = _mm_set1_ps(0.0f);
-#ifdef DEBUG
+#ifdef NDEBUG
                             {
                                 glm::vec3 heat_map_color = get_color_map(
                                         ray.bvh_nodes_visited, 1, maxDepth - 1);
@@ -140,7 +139,7 @@ namespace {
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                                 c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
                             }
-#elif NDEBUG
+#elif DEBUG
                             float dst_alpha = 1.0f;
 
                             for (int n = 0; n < 3; n++)

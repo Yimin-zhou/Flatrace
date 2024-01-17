@@ -49,6 +49,12 @@ int main(int argc, char **argv)
 
     BVH bvh(triangles);
 
+#ifdef DEBUG
+    // For debugging and visualizing BVH nodes
+    std::vector<Triangle> boundingBoxTriangles = bvh.visualizeBVH();
+    BVH bvhBoundingBox(boundingBoxTriangles);
+#endif
+
     if (bvh.failed())
     {
         std::cerr << "BVH construction failed" << std::endl;
@@ -157,13 +163,14 @@ int main(int argc, char **argv)
         const auto start = steady_clock::now();
 
         #if 1
+#ifdef DEBUG
+        render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
+#elif NDEBUG
         render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+#endif
         #else
         render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
-
-        // TODO draw bvh visualization
-        // debug::draw_bvh(renderer, bvh);
 
         const auto end = steady_clock::now();
 

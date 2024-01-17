@@ -53,6 +53,14 @@ public:
     // return max depth of the BVH
     int getMaxDepth() const { return _maxDepth; }
 
+public:
+    std::vector<Triangle> visualizeBVH() const;
+
+private:
+    void visualizeNode(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
+
+    std::vector<core::Triangle> visualizeBoundingBox(const glm::vec3& center, const glm::vec3& dimensions, int& triangleId) const;
+
 private:
     struct SplitDim
     {
