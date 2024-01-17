@@ -1,4 +1,6 @@
 // Worlds' stupidest .OBJ parser
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "third_party/parser/tinyobjloader/tiny_obj_loader.h"
 
 #include "obj.h"
 
@@ -101,6 +103,46 @@ class ObjInterpreter
     std::map<std::string, int> _materials;
     int _currentMaterial = 0;
 };
+
+std::vector<core::Triangle> tinyRead(const std::string &filename)
+{
+    // Use tinyobjloader to load the OBJ file
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+
+    std::string warn, err;
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str())) {
+        throw std::runtime_error(warn + err);
+    }
+
+    std::vector<core::Triangle> triangles;
+    int triangleId = 0;
+
+    for (const auto& shape : shapes) {
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+            int fv = shape.mesh.num_face_vertices[f];
+            std::vector<glm::vec3> vertices;
+            float scale = 5.0f;
+            for (size_t v = 0; (int)v < fv; v++) {
+                tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
+                tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0] * scale;
+                tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1] * scale;
+                tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2] * scale;
+                vertices.emplace_back(vx, vy, vz);
+            }
+
+            // Assuming the face is a triangle (fv == 3)
+            if (fv == 3) {
+                triangles.emplace_back(triangleId++, vertices[0], vertices[1], vertices[2], shape.mesh.material_ids[f]);
+            }
+            index_offset += fv;
+        }
+    }
+
+    return triangles;
+}
 
 // Read .OBJ file contents and return its contents as triangle soup, optionally normalizing vertex
 // XYZ coordinates to [0..1] range

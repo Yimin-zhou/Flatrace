@@ -22,7 +22,8 @@ int main(int argc, char **argv)
 
     try
     {
-        triangles = utils::Obj::read(input_file);
+//        triangles = utils::Obj::read(input_file);
+        triangles = utils::Obj::tinyRead(input_file);
     }
     catch (std::runtime_error &e)
     {

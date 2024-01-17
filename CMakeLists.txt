@@ -63,6 +63,7 @@ include_directories (PRIVATE "third_party")
 include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
 include_directories (PRIVATE ${SDL2_INCLUDE_DIRS})
 include_directories (PRIVATE ${TBB_INCLUDE_DIR})
+include_directories (PRIVATE "third_party/parser/tinyobjloader")
 
 add_subdirectory (third_party/imgui)
 
