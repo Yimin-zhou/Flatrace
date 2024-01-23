@@ -44,7 +44,7 @@ namespace {
     constexpr auto N_FRAMES = 1;
     constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
 
-    constexpr auto MAX_INTERSECTIONS = 3;
+    constexpr auto MAX_INTERSECTIONS = 2;
 
     constexpr auto SPEED = 0.1f;
 

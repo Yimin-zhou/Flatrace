@@ -9,6 +9,7 @@
 
 #include "types.h"
 #include "intersect.h"
+#include "dito/dito.h"
 #include "imgui/imgui.h"
 
 #include <vector>
@@ -26,6 +27,7 @@ public:
     }
 
     BoundingBox bbox;
+    DiTO::OBB<float> obb;
 
     int leftFrom;
     int count;
@@ -53,6 +55,11 @@ public:
     // return max depth of the BVH
     int getMaxDepth() const { return _maxDepth; }
 
+    // Generate obb
+    template <typename F>
+    void computeOBB(Node* node);
+
+    // For debugging and visualizing BVH nodes
 public:
     std::vector<Triangle> visualizeBVH() const;
 

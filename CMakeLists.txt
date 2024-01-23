@@ -73,6 +73,8 @@ add_library (core
         src/core/intersect.h
         src/core/types.h
         src/core/trace.h
+        src/core/dito/dito.h
+        src/core/dito/dito.cpp
 )
 
 

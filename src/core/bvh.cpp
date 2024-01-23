@@ -247,6 +247,11 @@ namespace core {
                 }
             }
         }
+        else
+        {
+            // generate obb for leaf node
+            computeOBB<float>(node);
+        }
 
         return node;
     }
@@ -376,6 +381,7 @@ namespace core {
         return ((n_left != 0) && (n_right != 0) ? std::make_optional(left_to) : std::nullopt);
     }
 
+    // The following functions are used for visualizing the BVH in the debug viewer
     std::vector<Triangle> BVH::visualizeBVH() const {
         std::vector<Triangle> triangles;
         int triangleId = 0;
@@ -387,7 +393,6 @@ namespace core {
         if (node == nullptr) {
             return;
         }
-
         // Only visualize the bounding box if it's a leaf node
         if (node->isLeaf()) {
             glm::vec3 center = (node->bbox.min + node->bbox.max) * 0.5f;
@@ -441,5 +446,26 @@ namespace core {
 
         return triangles;
     }
+
+    template <typename F>
+    void BVH::computeOBB(Node* node) {
+        std::vector<DiTO::Vector<F>> vertices;
+
+        for (int i = node->leftFrom; i < (node->leftFrom + node->count); ++i) {
+            const Triangle& triangle = _triangles[i];
+            for (int j = 0; j < 3; ++j) {
+                const glm::vec3& vertex = triangle.vertices[j];
+                vertices.push_back({vertex.x, vertex.y, vertex.z});
+            }
+        }
+
+        // Compute the OBB using the DiTO algorithm, if there are vertices present
+        if (!vertices.empty()) {
+            DiTO::OBB<F> obb;
+            DiTO::DiTO_14(vertices.data(), vertices.size(), obb);
+            node->obb = obb;
+        }
+    }
+
 
 }
