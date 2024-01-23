@@ -1,5 +1,6 @@
 #include "src/core/trace.h"
 #include "src/debug/bvh_debugger.h"
+#include "src/utils/globalState.h"
 
 int main(int argc, char **argv)
 {
@@ -49,11 +50,10 @@ int main(int argc, char **argv)
 
     BVH bvh(triangles);
 
-#ifdef DEBUG
-    // For debugging and visualizing BVH nodes
+
+    // For visualizing BVH nodes
     std::vector<Triangle> boundingBoxTriangles = bvh.visualizeBVH();
     BVH bvhBoundingBox(boundingBoxTriangles);
-#endif
 
     if (bvh.failed())
     {
@@ -162,14 +162,12 @@ int main(int argc, char **argv)
         // Render frame
         const auto start = steady_clock::now();
 
+        // not use SIMD for now
         #if 1
-#ifdef DEBUG
-        render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
-#elif NDEBUG
-        render_frame(camera, bvh, frame.pixels.get(), maxDepth);
-#endif
+            if (GlobalState::bboxView) render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
+            else render_frame(camera, bvh, frame.pixels.get(), maxDepth);
         #else
-        render_frame_4x4(camera, bvh, frame.pixels.get());
+            render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
 
         const auto end = steady_clock::now();
@@ -194,20 +192,6 @@ int main(int argc, char **argv)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-#ifdef DEBUG
-        {
-            ImGui::Begin("BVH Viewer");
-            ImGui::Text("Number of Nodes: %d", nodeCount);
-            ImGui::Text("Max Depth: %d", maxDepth);
-            ImGui::Separator();
-            if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
-            }
-            ImGui::End();
-        }
-#endif
-
         {
             ImGui::Begin("Render properties", nullptr);
 
@@ -226,6 +210,24 @@ int main(int argc, char **argv)
                 ImGui::Text("%s", fmt::format("{0:.5f} MB", ((double) memoryUsage / 1024 / 1024)).c_str());
                 ImGui::Separator();
 
+                ImGui::Text("Number of Nodes: %d", nodeCount);
+                ImGui::Text("Max Depth: %d", maxDepth);
+                ImGui::Separator();
+                if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
+                }
+
+                ImGui::Separator();
+                if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
+                {
+                    GlobalState::bboxView = false;
+                }
+                if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
+                {
+                    GlobalState::heatmapView = false;
+                }
+                
             }
 
             ImGui::End();

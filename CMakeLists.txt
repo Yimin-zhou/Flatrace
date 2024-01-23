@@ -83,6 +83,8 @@ add_library (utils
         src/utils/obj.h
         src/utils/ppm.cpp
         src/utils/ppm.h
+        src/utils/globalState.h
+        src/utils/globalState.cpp
 )
 
 add_library(debug

@@ -6,6 +6,7 @@
 
 #include "src/utils/ppm.h"
 #include "src/utils/obj.h"
+#include "src/utils/globalState.h"
 
 #include "src/debug/visualization.h"
 
@@ -59,16 +60,6 @@ namespace {
                                                                         { { 1.0f, 0.5f, 0.5f, 1.0f } },
                                                                         { { 0.5f, 0.5f, 1.0f, 1.0f } },
                                                                 } };
-//    static const std::array<std::array<float, 4>, 8> COLORS = { {
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                        { { 0.0f, 0.0f, 0.0f, 1.0f } },
-//                                                                } };
     // For debugging
     glm::vec3 get_color_map(int value, int minVal, int maxVal)
     {
@@ -94,7 +85,6 @@ namespace {
         glm::vec3 color = color_map[index] * (1.0f - fraction) + color_map[index + 1] * fraction;
         return color;
     }
-
 
     // Reference implementation that traces 1 ray at a time (no SIMD)
     void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer, int maxDepth)
@@ -131,36 +121,38 @@ namespace {
                         if (hit)
                         {
                             __m128 cf = _mm_set1_ps(0.0f);
-#ifdef NDEBUG
-                            {
+
+                            if (GlobalState::heatmapView) {
                                 glm::vec3 heat_map_color = get_color_map(
                                         ray.bvh_nodes_visited, 1, maxDepth - 1);
                                 cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
                                 cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                                 c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
                             }
-#elif DEBUG
-                            float dst_alpha = 1.0f;
 
-                            for (int n = 0; n < 3; n++)
-                            {
-                                const int triangle = ray.triangle[n];
+                            else {
+                                float dst_alpha = 1.0f;
 
-                                // c += COLORS[bvh.getTriangle(ray.triangle[0]).material & 0x07] * (dst_alpha * src_alpha * std::abs(ray.dot[n]));
-                                const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f), _mm_load1_ps(&ray.dot[n]));
-                                const __m128 tri_color = _mm_load_ps(COLORS[bvh.getTriangle(triangle).material & 0x07].data());
-                                const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
+                                for (int n = 0; n < 3; n++) {
+                                    const int triangle = ray.triangle[n];
 
-                                const float alpha = dst_alpha * src_alpha;
+                                    // c += COLORS[bvh.getTriangle(ray.triangle[0]).material & 0x07] * (dst_alpha * src_alpha * std::abs(ray.dot[n]));
+                                    const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f),
+                                                                            _mm_load1_ps(&ray.dot[n]));
+                                    const __m128 tri_color = _mm_load_ps(
+                                            COLORS[bvh.getTriangle(triangle).material & 0x07].data());
+                                    const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
 
-                                cf = _mm_add_ps(cf, _mm_mul_ps(_mm_load1_ps(&alpha), shaded_color));
+                                    const float alpha = dst_alpha * src_alpha;
 
-                                dst_alpha *= (1.0 - src_alpha);
+                                    cf = _mm_add_ps(cf, _mm_mul_ps(_mm_load1_ps(&alpha), shaded_color));
+
+                                    dst_alpha *= (1.0 - src_alpha);
+                                }
+                                // c = min(255 * cf)
+                                cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
+                                c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
                             }
-                            // c = min(255 * cf)
-                            cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
-                            c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
-#endif
                         }
                         // *p = c;
                         _mm_storeu_si32(p, c);
