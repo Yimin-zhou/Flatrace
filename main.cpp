@@ -50,7 +50,6 @@ int main(int argc, char **argv)
 
     BVH bvh(triangles);
 
-
     // For visualizing BVH nodes
     std::vector<Triangle> boundingBoxTriangles = bvh.visualizeBVH();
     BVH bvhBoundingBox(boundingBoxTriangles);
@@ -227,7 +226,7 @@ int main(int argc, char **argv)
                 {
                     GlobalState::heatmapView = false;
                 }
-                
+
             }
 
             ImGui::End();
