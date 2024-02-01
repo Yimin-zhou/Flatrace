@@ -1,6 +1,7 @@
 #include "src/core/trace.h"
 #include "src/debug/bvh_debugger.h"
 #include "src/utils/globalState.h"
+#include "src/utils/obj.h"
 
 int main(int argc, char **argv)
 {
@@ -51,7 +52,10 @@ int main(int argc, char **argv)
     BVH bvh(triangles);
 
     // For visualizing BVH nodes
-    std::vector<Triangle> boundingBoxTriangles = bvh.visualizeBVH();
+    std::vector<Triangle> boundingBoxTriangles;
+
+    boundingBoxTriangles = bvh.visualizeBVH();
+
     BVH bvhBoundingBox(boundingBoxTriangles);
 
     if (bvh.failed())
@@ -221,8 +225,13 @@ int main(int argc, char **argv)
                 if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
                 {
                     GlobalState::bboxView = false;
+                    GlobalState::enableOBB = false;
                 }
                 if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
+                {
+                    GlobalState::heatmapView = false;
+                }
+                if (ImGui::Checkbox("BVH bounding box OBB view", &GlobalState::enableOBB))
                 {
                     GlobalState::heatmapView = false;
                 }
