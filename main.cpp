@@ -1,5 +1,7 @@
 #include "src/core/trace.h"
 #include "src/debug/bvh_debugger.h"
+#include "src/utils/globalState.h"
+#include "src/utils/obj.h"
 
 int main(int argc, char **argv)
 {
@@ -15,7 +17,7 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/bunny.obj");
+    const std::string input_file("test/input/cube_aligned.obj");
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
@@ -29,6 +31,7 @@ int main(int argc, char **argv)
         std::cerr << fmt::format("Failed to read OBJ file '{0}'\n\t{1}", input_file, e.what()) << std::endl;
         return EXIT_FAILURE;
     }
+
 
     std::cerr << "Triangle count: " << triangles.size() << std::endl;
 
@@ -48,6 +51,13 @@ int main(int argc, char **argv)
     const auto start_bvh = steady_clock::now();
 
     BVH bvh(triangles);
+
+    // For visualizing BVH nodes
+    std::vector<Triangle> boundingBoxTriangles;
+
+    boundingBoxTriangles = bvh.visualizeBVHOBB();
+
+    BVH bvhBoundingBox(boundingBoxTriangles);
 
     if (bvh.failed())
     {
@@ -156,14 +166,13 @@ int main(int argc, char **argv)
         // Render frame
         const auto start = steady_clock::now();
 
+        // not use SIMD for now
         #if 1
-        render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+            if (GlobalState::bboxView) render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
+            else render_frame(camera, bvh, frame.pixels.get(), maxDepth);
         #else
-        render_frame_4x4(camera, bvh, frame.pixels.get());
+            render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
-
-        // TODO draw bvh visualization
-        // debug::draw_bvh(renderer, bvh);
 
         const auto end = steady_clock::now();
 
@@ -187,20 +196,6 @@ int main(int argc, char **argv)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-#ifdef DEBUG
-        {
-            ImGui::Begin("BVH Viewer");
-            ImGui::Text("Number of Nodes: %d", nodeCount);
-            ImGui::Text("Max Depth: %d", maxDepth);
-            ImGui::Separator();
-            if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
-            }
-            ImGui::End();
-        }
-#endif
-
         {
             ImGui::Begin("Render properties", nullptr);
 
@@ -218,6 +213,31 @@ int main(int argc, char **argv)
                 size_t memoryUsage = debug::getCurrentRSS(); // in bytes
                 ImGui::Text("%s", fmt::format("{0:.5f} MB", ((double) memoryUsage / 1024 / 1024)).c_str());
                 ImGui::Separator();
+
+                ImGui::Text("Number of Nodes: %d", nodeCount);
+                ImGui::Text("Max Depth: %d", maxDepth);
+                ImGui::Separator();
+                if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
+                }
+
+                ImGui::Separator();
+                if (ImGui::Checkbox("OBB tracing", &GlobalState::enableOBB))
+                {
+                    GlobalState::heatmapView = false;
+                }
+
+                ImGui::Separator();
+                if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
+                {
+                    GlobalState::bboxView = false;
+                    GlobalState::enableOBB = false;
+                }
+                if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
+                {
+                    GlobalState::heatmapView = false;
+                }
 
             }
 
