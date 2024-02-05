@@ -252,7 +252,7 @@ inline void intersect4x4(const Triangle &triangle, Ray4x4 &rays)
   }
 }
 
-inline float intersect(const BoundingBox &bbox, const Ray &ray)
+inline float intersectAABB(const BoundingBox &bbox, const Ray &ray)
 {
   const float tx1 = (bbox.min.x - ray.o.x) * ray.rd.x;
   const float tx2 = (bbox.max.x - ray.o.x) * ray.rd.x;

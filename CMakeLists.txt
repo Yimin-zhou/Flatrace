@@ -73,6 +73,9 @@ add_library (core
         src/core/intersect.h
         src/core/types.h
         src/core/trace.h
+        src/core/dito/dito.h
+        src/core/dito/dito.cpp
+        src/core/trace.cpp
 )
 
 
@@ -81,6 +84,8 @@ add_library (utils
         src/utils/obj.h
         src/utils/ppm.cpp
         src/utils/ppm.h
+        src/utils/globalState.h
+        src/utils/globalState.cpp
 )
 
 add_library(debug
@@ -115,6 +120,6 @@ target_link_libraries (tests
   GTest::GTest
 )
 
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)
-file(CREATE_LINK ${CMAKE_SOURCE_DIR}/test/input ${CMAKE_BINARY_DIR}/test/input SYMBOLIC)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin/test)
+file(CREATE_LINK ${CMAKE_SOURCE_DIR}/test/input ${CMAKE_BINARY_DIR}/bin/test/input SYMBOLIC)
 

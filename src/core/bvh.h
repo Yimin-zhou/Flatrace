@@ -9,6 +9,7 @@
 
 #include "types.h"
 #include "intersect.h"
+#include "dito/dito.h"
 #include "imgui/imgui.h"
 
 #include <vector>
@@ -26,6 +27,7 @@ public:
     }
 
     BoundingBox bbox;
+    DiTO::OBB<double> obb;
 
     int leftFrom;
     int count;
@@ -41,6 +43,8 @@ public:
     bool intersect(Ray &ray, const int maxIntersections) const;
     bool intersect4x4(Ray4x4 &rays, const int maxIntersections) const;
 
+    bool intersectObbBVH(Ray &ray, const int maxIntersections) const;
+
     bool failed() const { return _failed; }
 
     const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
@@ -52,6 +56,22 @@ public:
     const std::vector<Node> &getNodes() const { return _nodes; }
     // return max depth of the BVH
     int getMaxDepth() const { return _maxDepth; }
+
+    // Generate obb
+    template <typename F>
+    void computeOBB(Node* node);
+
+    // For debugging and visualizing BVH nodes
+public:
+    std::vector<Triangle> visualizeBVH() const;
+    std::vector<Triangle> visualizeBVHOBB() const;
+
+private:
+    void visualizeNode(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
+    std::vector<core::Triangle> visualizeAABB(const glm::vec3& center, const glm::vec3& dimensions, int& triangleId) const;
+
+    void visualizeNodeOBB(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
+    std::vector<core::Triangle> visualizeOBB(const DiTO::OBB<double>& obb, int& triangleId) const;
 
 private:
     struct SplitDim
@@ -91,6 +111,10 @@ private:
     Node *_root;
 
     int _maxDepth;
+
+    // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
+    BoundingBox _unitAABB;
+
 };
 
 
