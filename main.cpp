@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/bunny.obj");
+    const std::string input_file("test/input/cube_aligned.obj");
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
@@ -31,6 +31,7 @@ int main(int argc, char **argv)
         std::cerr << fmt::format("Failed to read OBJ file '{0}'\n\t{1}", input_file, e.what()) << std::endl;
         return EXIT_FAILURE;
     }
+
 
     std::cerr << "Triangle count: " << triangles.size() << std::endl;
 
@@ -54,7 +55,7 @@ int main(int argc, char **argv)
     // For visualizing BVH nodes
     std::vector<Triangle> boundingBoxTriangles;
 
-    boundingBoxTriangles = bvh.visualizeBVH();
+    boundingBoxTriangles = bvh.visualizeBVHOBB();
 
     BVH bvhBoundingBox(boundingBoxTriangles);
 
@@ -222,16 +223,18 @@ int main(int argc, char **argv)
                 }
 
                 ImGui::Separator();
+                if (ImGui::Checkbox("OBB tracing", &GlobalState::enableOBB))
+                {
+                    GlobalState::heatmapView = false;
+                }
+
+                ImGui::Separator();
                 if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
                 {
                     GlobalState::bboxView = false;
                     GlobalState::enableOBB = false;
                 }
                 if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
-                {
-                    GlobalState::heatmapView = false;
-                }
-                if (ImGui::Checkbox("BVH bounding box OBB view", &GlobalState::enableOBB))
                 {
                     GlobalState::heatmapView = false;
                 }

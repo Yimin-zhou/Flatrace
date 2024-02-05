@@ -111,6 +111,10 @@ private:
     Node *_root;
 
     int _maxDepth;
+
+    // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
+    BoundingBox _unitAABB;
+
 };
 
 

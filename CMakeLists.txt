@@ -120,6 +120,6 @@ target_link_libraries (tests
   GTest::GTest
 )
 
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)
-file(CREATE_LINK ${CMAKE_SOURCE_DIR}/test/input ${CMAKE_BINARY_DIR}/test/input SYMBOLIC)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin/test)
+file(CREATE_LINK ${CMAKE_SOURCE_DIR}/test/input ${CMAKE_BINARY_DIR}/bin/test/input SYMBOLIC)
 

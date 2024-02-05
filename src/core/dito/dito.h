@@ -38,6 +38,10 @@ Version: 1.0
 #ifndef DITO_H_INCLUSION_GUARD
 #define DITO_H_INCLUSION_GUARD
 
+#include "glm/glm.hpp"
+#include <glm/gtc/matrix_transform.hpp>
+#include <memory>
+
 namespace DiTO
 {
 
@@ -61,6 +65,7 @@ struct OBB
 {	Vector<F> mid;
 	Vector<F> v0, v1, v2;
 	Vector<F> ext;
+	std::shared_ptr<glm::mat4> invMatrix;
 };
 
 /*
