@@ -45,67 +45,67 @@ namespace DiTO
 Explicit instantiations of the algorithm, to avoid having to put the function definition
 in the header file. One of them can be commented out to save memory if it is not going to be used.
 */
-template void DiTO_14<float>(Vector<float> vertArr[], int nv, OBB<float>& obb);
-template void DiTO_14<double>(Vector<double> vertArr[], int nv, OBB<double>& obb);
+//template void DiTO_14<float>(Vector<float> vertArr[], int nv, OBB<float>& obb);
+//template void DiTO_14<double>(Vector<double> vertArr[], int nv, OBB<double>& obb);
 
-template <typename F>
-inline Vector<F> createVector(F x, F y, F z)
-{	Vector<F> vector = { x, y, z };
+
+inline glm::dvec3 createVector(double x, double y, double z)
+{	glm::dvec3 vector = { x, y, z };
 	return vector;
 }
 
-template <typename F>
-inline Vector<F> add(Vector<F> u, Vector<F> v)
-{	Vector<F> sum = { u.x + v.x, u.y + v.y, u.z + v.z };
+
+inline glm::dvec3 add(glm::dvec3 u, glm::dvec3 v)
+{	glm::dvec3 sum = { u.x + v.x, u.y + v.y, u.z + v.z };
 	return sum;
 }
 
-template <typename F>
-inline Vector<F> sub(Vector<F> u, Vector<F> v)
-{	Vector<F> diff = { u.x - v.x, u.y - v.y, u.z - v.z };
+
+inline glm::dvec3 sub(glm::dvec3 u, glm::dvec3 v)
+{	glm::dvec3 diff = { u.x - v.x, u.y - v.y, u.z - v.z };
 	return diff;
 }
 
-template <typename F>
-inline Vector<F> scalVecProd(F s, Vector<F> u)
-{	Vector<F> prod = { s * u.x, s * u.y, s * u.z };
+
+inline glm::dvec3 scalVecProd(double s, glm::dvec3 u)
+{	glm::dvec3 prod = { s * u.x, s * u.y, s * u.z };
 	return prod;
 }
 
-template <typename F>
-inline F dot(Vector<F> u, Vector<F> v) { return u.x*v.x + u.y*v.y + u.z*v.z; }
 
-template <typename F>
-inline Vector<F> cross(Vector<F> u, Vector<F> v)
-{	Vector<F> prod = { u.y*v.z - u.z*v.y, -(u.x*v.z - u.z*v.x), u.x*v.y - u.y*v.x };
+inline double dot(glm::dvec3 u, glm::dvec3 v) { return u.x*v.x + u.y*v.y + u.z*v.z; }
+
+
+inline glm::dvec3 cross(glm::dvec3 u, glm::dvec3 v)
+{	glm::dvec3 prod = { u.y*v.z - u.z*v.y, -(u.x*v.z - u.z*v.x), u.x*v.y - u.y*v.x };
 	return prod;
 }
 
-template <typename F>
-inline F sqLength(Vector<F> u) { return u.x*u.x + u.y*u.y + u.z*u.z; }
 
-template <typename F>
-inline F length(Vector<F> u) { return (F) sqrt(sqLength(u)); }
+inline double sqLength(glm::dvec3 u) { return u.x*u.x + u.y*u.y + u.z*u.z; }
 
-template <typename F>
-inline F sqPtPtDist(Vector<F> u, Vector<F> v) { return sqLength(sub(v, u)); }
 
-template <typename F>
-inline Vector<F> normalize(Vector<F> u)
-{	F invLength = 1 / length(u);
-	Vector<F> n = { u.x * invLength, u.y * invLength, u.z * invLength };
+inline double length(glm::dvec3 u) { return (double) sqrt(sqLength(u)); }
+
+
+inline double sqPtPtDist(glm::dvec3 u, glm::dvec3 v) { return sqLength(sub(v, u)); }
+
+
+inline glm::dvec3 normalize(glm::dvec3 u)
+{	double invLength = 1 / length(u);
+	glm::dvec3 n = { u.x * invLength, u.y * invLength, u.z * invLength };
 	return n;
 }
 
-template <typename F>
-void findExtremalPoints_7FixedDirs(Vector<F> * vertArr, int nv, F minProj[7], F maxProj[7], 
-	Vector<F> minVert[7], Vector<F> maxVert[7])
+
+void findExtremalPoints_7FixedDirs(glm::dvec3 * vertArr, int nv, double minProj[7], double maxProj[7], 
+	glm::dvec3 minVert[7], glm::dvec3 maxVert[7])
 {	int i;
-	F proj;
+	double proj;
 
 	// We use some local variables to avoid aliasing problems
-	F tMinProj[7], tMaxProj[7];
-	Vector<F> tMinVert[7], tMaxVert[7];
+	double tMinProj[7], tMaxProj[7];
+	glm::dvec3 tMinVert[7], tMaxVert[7];
 	
 	// Slab 0: dir {1, 0, 0}
 	proj = vertArr[0].x;
@@ -185,10 +185,10 @@ void findExtremalPoints_7FixedDirs(Vector<F> * vertArr, int nv, F minProj[7], F 
 	}
 }
 
-template <typename F>
-void findExtremalProjs_OneDir(Vector<F> & normal, Vector<F> * vertArr, int nv, F & minProj, F & maxProj) 
-{	F proj = dot(vertArr[0], normal);
-	F tMinProj = proj, tMaxProj = proj;
+
+void findExtremalProjs_OneDir(glm::dvec3 & normal, glm::dvec3 * vertArr, int nv, double & minProj, double & maxProj) 
+{	double proj = dot(vertArr[0], normal);
+	double tMinProj = proj, tMaxProj = proj;
 	
 	for (int i = 1; i < nv; i++) 
 	{	proj = dot(vertArr[i], normal);
@@ -200,14 +200,14 @@ void findExtremalProjs_OneDir(Vector<F> & normal, Vector<F> * vertArr, int nv, F
 	maxProj = tMaxProj;
 }
 
-template <typename F>
-void findExtremalPoints_OneDir(Vector<F> & normal, Vector<F> * vertArr, int nv,
-	F & minProj, F & maxProj, Vector<F> & minVert, Vector<F> & maxVert)
-{	F proj = dot(vertArr[0], normal);
+
+void findExtremalPoints_OneDir(glm::dvec3 & normal, glm::dvec3 * vertArr, int nv,
+	double & minProj, double & maxProj, glm::dvec3 & minVert, glm::dvec3 & maxVert)
+{	double proj = dot(vertArr[0], normal);
 
 	// Declare som local variables to avoid aliasing problems
-	F tMinProj = proj, tMaxProj = proj;
-	Vector<F> tMinVert = vertArr[0], tMaxVert = vertArr[0];
+	double tMinProj = proj, tMaxProj = proj;
+	glm::dvec3 tMinVert = vertArr[0], tMaxVert = vertArr[0];
 	
 	for (int i = 1; i < nv; i++)
 	{	proj = dot(vertArr[i], normal);
@@ -222,19 +222,19 @@ void findExtremalPoints_OneDir(Vector<F> & normal, Vector<F> * vertArr, int nv,
 	maxVert = tMaxVert;
 }
 
-template <typename F>
-int sqDistPointInfiniteEdge(Vector<F> & q, Vector<F> & p0, Vector<F> & v, F & sqDist) 
-{	Vector<F> u0 = sub(q, p0);
-	F t = dot(v, u0);
-	F sqLen_v = sqLength(v);
+
+int sqDistPointInfiniteEdge(glm::dvec3 & q, glm::dvec3 & p0, glm::dvec3 & v, double & sqDist) 
+{	glm::dvec3 u0 = sub(q, p0);
+	double t = dot(v, u0);
+	double sqLen_v = sqLength(v);
 	sqDist = sqLength(u0) - t*t / sqLen_v;
 	return 0;
 }
 
-template <typename F>
-F findFurthestPointFromInfiniteEdge(Vector<F> & p0, Vector<F> & e0,
-	Vector<F> * vertArr, int nv, Vector<F> & p)
-{	F sqDist, maxSqDist; 
+
+double findFurthestPointFromInfiniteEdge(glm::dvec3 & p0, glm::dvec3 & e0,
+	glm::dvec3 * vertArr, int nv, glm::dvec3 & p)
+{	double sqDist, maxSqDist; 
 	int maxIndex = 0;
 		
 	sqDistPointInfiniteEdge(vertArr[0], p0, e0, maxSqDist);
@@ -250,17 +250,17 @@ F findFurthestPointFromInfiniteEdge(Vector<F> & p0, Vector<F> & e0,
 	return maxSqDist;
 }
 
-template <typename F>
-F getQualityValue(Vector<F> & len)
+
+double getQualityValue(glm::dvec3 & len)
 {	return len.x * len.y + len.x * len.z + len.y * len.z; //half box area
 	//return len.x * len.y * len.z; //box volume
 }
 
-template <typename F>
-void findFurthestPointPair(Vector<F> * minVert, Vector<F> * maxVert, int n, 
-	Vector<F> & p0, Vector<F> & p1)
+
+void findFurthestPointPair(glm::dvec3 * minVert, glm::dvec3 * maxVert, int n, 
+	glm::dvec3 & p0, glm::dvec3 & p1)
 {	int indexFurthestPair = 0;
-	F sqDist, maxSqDist;
+	double sqDist, maxSqDist;
 	maxSqDist = sqPtPtDist(maxVert[0], minVert[0]);
 	for (int k = 1; k < n; k++)
 	{	sqDist = sqPtPtDist(maxVert[k], minVert[k]);
@@ -270,11 +270,11 @@ void findFurthestPointPair(Vector<F> * minVert, Vector<F> * maxVert, int n,
 	p1 = maxVert[indexFurthestPair];
 }
 
-template <typename F>
-void findUpperLowerTetraPoints(Vector<F> & n, Vector<F> * selVertPtr, int np, Vector<F> & p0, 
-	Vector<F> & p1, Vector<F> & p2, Vector<F> & q0, Vector<F> & q1, int & q0Valid, int & q1Valid)
-{	F qMaxProj, qMinProj, triProj;
-	F eps = 0.000001f;
+
+void findUpperLowerTetraPoints(glm::dvec3 & n, glm::dvec3 * selVertPtr, int np, glm::dvec3 & p0, 
+	glm::dvec3 & p1, glm::dvec3 & p2, glm::dvec3 & q0, glm::dvec3 & q1, int & q0Valid, int & q1Valid)
+{	double qMaxProj, qMinProj, triProj;
+	double eps = 0.000001f;
 
 	q0Valid = q1Valid = 0;
 
@@ -285,12 +285,12 @@ void findUpperLowerTetraPoints(Vector<F> & n, Vector<F> * selVertPtr, int np, Ve
 	if (qMinProj + eps < triProj) { q1Valid = 1; }
 }
 
-template <typename F>
-void findBestObbAxesFromTriangleNormalAndEdgeVectors(Vector<F> * vertArr, int nv, Vector<F> & n, 
-	Vector<F> & e0, Vector<F> & e1, Vector<F> & e2, Vector<F> & b0, Vector<F> & b1, Vector<F> & b2, F & bestVal)
-{	Vector<F> m0, m1, m2;
-	Vector<F> dmax, dmin, dlen;
-	F quality;
+
+void findBestObbAxesFromTriangleNormalAndEdgeVectors(glm::dvec3 * vertArr, int nv, glm::dvec3 & n, 
+	glm::dvec3 & e0, glm::dvec3 & e1, glm::dvec3 & e2, glm::dvec3 & b0, glm::dvec3 & b1, glm::dvec3 & b2, double & bestVal)
+{	glm::dvec3 m0, m1, m2;
+	glm::dvec3 dmax, dmin, dlen;
+	double quality;
 
 	m0 = cross(e0, n); 
 	m1 = cross(e1, n);	
@@ -323,12 +323,12 @@ void findBestObbAxesFromTriangleNormalAndEdgeVectors(Vector<F> * vertArr, int nv
 	if (quality < bestVal) {  bestVal = quality; b0 = e2; b1 = n; b2 = m2; }
 }
 
-template <typename F>
-int findBestObbAxesFromBaseTriangle(Vector<F> * minVert, Vector<F> * maxVert, int ns, 
-	Vector<F> * selVertPtr, int np, Vector<F> & n, Vector<F> & p0, Vector<F> & p1, Vector<F> & p2, 
-	Vector<F> & e0, Vector<F> & e1, Vector<F> & e2, Vector<F> & b0, Vector<F> & b1, Vector<F> & b2, F & bestVal, OBB<F> & obb)
-{	F sqDist;
-	F eps = 0.000001f;
+
+int findBestObbAxesFromBaseTriangle(glm::dvec3 * minVert, glm::dvec3 * maxVert, int ns, 
+	glm::dvec3 * selVertPtr, int np, glm::dvec3 & n, glm::dvec3 & p0, glm::dvec3 & p1, glm::dvec3 & p2, 
+	glm::dvec3 & e0, glm::dvec3 & e1, glm::dvec3 & e2, glm::dvec3 & b0, glm::dvec3 & b1, glm::dvec3 & b2, double & bestVal, OBB & obb)
+{	double sqDist;
+	double eps = 0.000001f;
 	
 	// Find the furthest point pair among the selected min and max point pairs
 	findFurthestPointPair(minVert, maxVert, ns, p0, p1);
@@ -358,15 +358,15 @@ int findBestObbAxesFromBaseTriangle(Vector<F> * minVert, Vector<F> * maxVert, in
 	return 0; // success
 }
 
-template <typename F>
-void findImprovedObbAxesFromUpperAndLowerTetrasOfBaseTriangle(Vector<F> * selVertPtr, int np, 
-	Vector<F> & n, Vector<F> & p0, Vector<F> & p1, Vector<F> & p2, Vector<F> & e0, Vector<F> & e1, 
-	Vector<F> & e2, Vector<F> & b0, Vector<F> & b1, Vector<F> & b2, F & bestVal, OBB<F> & obb)
-{	Vector<F> q0, q1;     // Top and bottom vertices for lower and upper tetra constructions
-	Vector<F> f0, f1, f2; // Edge vectors towards q0; 
-	Vector<F> g0, g1, g2; // Edge vectors towards q1; 
-	Vector<F> n0, n1, n2; // Unit normals of top tetra tris
-	Vector<F> m0, m1, m2; // Unit normals of bottom tetra tris		
+
+void findImprovedObbAxesFromUpperAndLowerTetrasOfBaseTriangle(glm::dvec3 * selVertPtr, int np, 
+	glm::dvec3 & n, glm::dvec3 & p0, glm::dvec3 & p1, glm::dvec3 & p2, glm::dvec3 & e0, glm::dvec3 & e1, 
+	glm::dvec3 & e2, glm::dvec3 & b0, glm::dvec3 & b1, glm::dvec3 & b2, double & bestVal, OBB& obb)
+{	glm::dvec3 q0, q1;     // Top and bottom vertices for lower and upper tetra constructions
+	glm::dvec3 f0, f1, f2; // Edge vectors towards q0; 
+	glm::dvec3 g0, g1, g2; // Edge vectors towards q1; 
+	glm::dvec3 n0, n1, n2; // Unit normals of top tetra tris
+	glm::dvec3 m0, m1, m2; // Unit normals of bottom tetra tris		
 	
 	// Find furthest points above and below the plane of the base triangle for tetra constructions 
 	// For each found valid point, search for the best OBB axes based on the 3 arising triangles
@@ -396,43 +396,43 @@ void findImprovedObbAxesFromUpperAndLowerTetrasOfBaseTriangle(Vector<F> * selVer
 	}
 }
 
-template <typename F>
-void computeObbDimensions(Vector<F> * vertArr, int nv, Vector<F> & v0, Vector<F> & v1, Vector<F> & v2,
-	Vector<F> & min, Vector<F> & max)
+
+void computeObbDimensions(glm::dvec3 * vertArr, int nv, glm::dvec3 & v0, glm::dvec3 & v1, glm::dvec3 & v2,
+	glm::dvec3 & min, glm::dvec3 & max)
 {	findExtremalProjs_OneDir(v0, vertArr, nv, min.x, max.x);  
 	findExtremalProjs_OneDir(v1, vertArr, nv, min.y, max.y); 
 	findExtremalProjs_OneDir(v2, vertArr, nv, min.z, max.z);
 }
 
-template <typename F>
-void finalizeOBB(Vector<F> & v0, Vector<F> & v1, Vector<F> & v2, Vector<F> & min, Vector<F> & max, 
-	Vector<F> & len, OBB<F> & obb)
+
+void finalizeOBB(glm::dvec3 & v0, glm::dvec3 & v1, glm::dvec3 & v2, glm::dvec3 & min, glm::dvec3 & max, 
+	glm::dvec3 & len, OBB & obb)
 {	obb.v0 = v0;
 	obb.v1 = v1;
 	obb.v2 = v2;
-	obb.ext = scalVecProd<F>(0.5, len);
-	Vector<F> q = scalVecProd<F>(0.5, add(min, max)); // q is the midpoint expressed in the OBB's own coordinate system 
+	obb.ext = scalVecProd(0.5, len);
+	glm::dvec3 q = scalVecProd(0.5, add(min, max)); // q is the midpoint expressed in the OBB's own coordinate system
 	// Compute midpoint expressed in the standard base
 	obb.mid = scalVecProd(q.x, v0);
 	obb.mid = add(obb.mid, scalVecProd(q.y, v1));
 	obb.mid = add(obb.mid, scalVecProd(q.z, v2));  
 }
 
-template <typename F>
-void finalizeAxisAlignedOBB(Vector<F> & mid, Vector<F> & len, OBB<F> & obb)
+
+void finalizeAxisAlignedOBB(glm::dvec3 & mid, glm::dvec3 & len, OBB & obb)
 {	obb.mid = mid;
-	obb.ext = scalVecProd<F>(0.5, len);
-	obb.v0 = createVector<F>(1, 0, 0);
-	obb.v1 = createVector<F>(0, 1, 0);
-	obb.v2 = createVector<F>(0, 0, 1);
+	obb.ext = scalVecProd(0.5, len);
+	obb.v0 = createVector(1, 0, 0);
+	obb.v1 = createVector(0, 1, 0);
+	obb.v2 = createVector(0, 0, 1);
 }
 
-template <typename F>
-void finalizeLineAlignedOBB(Vector<F> & u, Vector<F> * vertArr, int nv, OBB<F> & obb)
+
+void finalizeLineAlignedOBB(glm::dvec3 & u, glm::dvec3 * vertArr, int nv, OBB & obb)
 {	// This function is only called if the construction of the large base triangle fails
 
 	// Given u, build any orthonormal base u, v, w 
-	Vector<F> r, v, w;
+	glm::dvec3 r, v, w;
 	
 	// Make sure r is not equal to u
 	r = u;
@@ -440,42 +440,42 @@ void finalizeLineAlignedOBB(Vector<F> & u, Vector<F> * vertArr, int nv, OBB<F> &
 	else if (fabs(u.y) > fabs(u.z) ) { r.y = 0; }
 	else { r.z = 0; }
 	
-	F eps = 0.000001f;
-	F sqLen = sqLength(r);
+	double eps = 0.000001f;
+	double sqLen = sqLength(r);
 	if (sqLen < eps) { r.x = r.y = r.z = 1; }
 
 	v = normalize(cross(u, r));
 	w = normalize(cross(u, v));
 
 	// compute the true obb dimensions by iterating over all vertices
-	Vector<F> bMin, bMax, bLen;
+	glm::dvec3 bMin, bMax, bLen;
 	computeObbDimensions(vertArr, nv, u, v, w, bMin, bMax);
 	bLen = sub(bMax, bMin);
 	finalizeOBB(u, v, w, bMin, bMax, bLen, obb); // Assign all OBB params
 }
 
-template <typename F>
-void DiTO_14(Vector<F> vertArr[], int nv, OBB<F>& obb)
+
+void DiTO_14(glm::dvec3 vertArr[], int nv, OBB& obb)
 {	const int ns = 7;		// Number of sample directions
 	int np = ns * 2;		// Number of points selected along the sample directions
-	Vector<F> selVert[ns * 2];	// Array holding selected points 	
-	Vector<F> * selVertPtr;
-	Vector<F> * minVert = selVert;			// Pointer to first half of selVert where the min points are placed
-	Vector<F> * maxVert = selVert + ns;	// Pointer to the second half of selVert where the max points are placed		
-	F minProj[ns];	// Array holding minimum projection values along the sample directions
-	F maxProj[ns];	// Array holding maximum projection values along the sample directions	
-	Vector<F> p0, p1, p2; // Vertices of the large base triangle
-	Vector<F> e0, e1, e2; // Edge vectors of the large base triangle
-	Vector<F> n;          // Unit normal of the large base triangle 
-	Vector<F> alLen; // The axis-aligned dimensions of the vertices 
-	Vector<F> alMid; // The axis-aligned mid point of the vertices 
-	Vector<F> b0, b1, b2; // The currently best found OBB orientation  
-	F alVal;	// Quality measure of the axis-aligned box 
-	F bestVal;	// Estimate of box quality using axes b0, b1, b2
-	Vector<F> bMin, bMax, bLen; // The dimensions of the oriented box
+	glm::dvec3 selVert[ns * 2];	// Array holding selected points 	
+	glm::dvec3 * selVertPtr;
+	glm::dvec3 * minVert = selVert;			// Pointer to first half of selVert where the min points are placed
+	glm::dvec3 * maxVert = selVert + ns;	// Pointer to the second half of selVert where the max points are placed		
+	double minProj[ns];	// Array holding minimum projection values along the sample directions
+	double maxProj[ns];	// Array holding maximum projection values along the sample directions	
+	glm::dvec3 p0, p1, p2; // Vertices of the large base triangle
+	glm::dvec3 e0, e1, e2; // Edge vectors of the large base triangle
+	glm::dvec3 n;          // Unit normal of the large base triangle 
+	glm::dvec3 alLen; // The axis-aligned dimensions of the vertices 
+	glm::dvec3 alMid; // The axis-aligned mid point of the vertices 
+	glm::dvec3 b0, b1, b2; // The currently best found OBB orientation  
+	double alVal;	// Quality measure of the axis-aligned box 
+	double bestVal;	// Estimate of box quality using axes b0, b1, b2
+	glm::dvec3 bMin, bMax, bLen; // The dimensions of the oriented box
 
 	if (nv <= 0)
-	{	Vector<F> zero = createVector<F>(0, 0, 0);
+	{	glm::dvec3 zero = createVector(0, 0, 0);
 		finalizeAxisAlignedOBB(zero, zero, obb);
 		return;
 	}
@@ -490,9 +490,9 @@ void DiTO_14(Vector<F> vertArr[], int nv, OBB<F>& obb)
 	
 	// Initialize the best found orientation so far to be the standard base
 	bestVal = alVal; 
-	b0 = createVector<F>(1, 0, 0);
-	b1 = createVector<F>(0, 1, 0);
-	b2 = createVector<F>(0, 0, 1);
+	b0 = createVector(1, 0, 0);
+	b1 = createVector(0, 1, 0);
+	b2 = createVector(0, 0, 1);
 	
 	// Determine which points to use in the iterations below 
 	if (nv > np) { selVertPtr = selVert; } // Use the selected extremal points 

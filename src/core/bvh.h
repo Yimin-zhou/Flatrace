@@ -27,7 +27,7 @@ public:
     }
 
     BoundingBox bbox;
-    DiTO::OBB<double> obb;
+    DiTO::OBB obb;
 
     int leftFrom;
     int count;
@@ -58,7 +58,6 @@ public:
     int getMaxDepth() const { return _maxDepth; }
 
     // Generate obb
-    template <typename F>
     void computeOBB(Node* node);
 
     // For debugging and visualizing BVH nodes
@@ -71,7 +70,7 @@ private:
     std::vector<core::Triangle> visualizeAABB(const glm::vec3& center, const glm::vec3& dimensions, int& triangleId) const;
 
     void visualizeNodeOBB(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
-    std::vector<core::Triangle> visualizeOBB(const DiTO::OBB<double>& obb, int& triangleId) const;
+    std::vector<core::Triangle> visualizeOBB(const DiTO::OBB& obb, int& triangleId) const;
 
 private:
     struct SplitDim

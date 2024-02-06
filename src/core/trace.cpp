@@ -85,9 +85,9 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 
                     bool hit = false;
                     if (GlobalState::enableOBB) {
-                        hit = bvh.intersectObbBVH(ray, maxDepth);
+                        hit = bvh.intersectObbBVH(ray, 1);
                     } else {
-                        hit = bvh.intersect(ray, maxDepth);
+                        hit = bvh.intersect(ray, 1);
                     }
 
                     const float src_alpha = 0.4f;

@@ -48,10 +48,10 @@ namespace DiTO
 /*
 Representation of a 3-dimensional vector. All vector structures with the same
 memory layout can be used directly as input to the algorithm by
-first casting the array pointer to DiTO::Vector<F>* (where, e.g., F = float or F = double).
+first casting the array pointer to DiTO::glm::dvec3* (where, e.g., F = float or F = double).
 */
-template <typename F>
-struct Vector {	F x, y, z; };
+//template <typename F>
+//struct Vector {	F x, y, z; };
 
 /*
 Representation of an oriented bounding box.
@@ -60,12 +60,11 @@ Members:
 	v0, v1, v2 - Orthogonal vectors defining the orientation
 	ext - Absolute values of the extents along the three vectors, measured from mid
 */
-template <typename F>
 struct OBB
-{	Vector<F> mid;
-	Vector<F> v0, v1, v2;
-	Vector<F> ext;
-	std::shared_ptr<glm::mat4> invMatrix;
+{	glm::dvec3 mid;
+	glm::dvec3 v0, v1, v2;
+	glm::dvec3 ext;
+	glm::mat4 invMatrix;
 };
 
 /*
@@ -78,8 +77,7 @@ Postcondition: vertArr is unchanged, and obb holds the computed OBB
 The function has explicit instantiations with F = float and F = double at the
 top of the .cpp file.
 */
-template <typename F>
-extern void DiTO_14(Vector<F> vertArr[], int nv, OBB<F>& obb);
+extern void DiTO_14(glm::dvec3 vertArr[], int nv, OBB& obb);
 
 }
 

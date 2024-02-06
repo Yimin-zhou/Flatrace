@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("test/input/cube_aligned.obj");
+    const std::string input_file("test/input/bunny.obj");
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
@@ -47,6 +47,20 @@ int main(int argc, char **argv)
             return { t.id, v0f, v2f, v1f, t.material };
         });
     }
+
+    // testing obb with one triangle
+    std::vector<glm::vec3> testTriangleOne = {
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.5f, 0.0f)};
+    std::vector<glm::vec3> testTriangleTwo = {
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.5f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 0.5f, 0.0f)};
+    std::vector<Triangle> testingTriangles;
+    testingTriangles.push_back(Triangle(0, testTriangleOne[0], testTriangleOne[1], testTriangleOne[2], 0));
+    testingTriangles.push_back(Triangle(1, testTriangleTwo[0], testTriangleTwo[1], testTriangleTwo[2], 0));
+    BVH testingBvh(testingTriangles);
 
     const auto start_bvh = steady_clock::now();
 

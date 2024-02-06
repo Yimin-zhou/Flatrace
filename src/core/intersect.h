@@ -274,6 +274,7 @@ inline float intersectAABB(const BoundingBox &bbox, const Ray &ray)
   return (hit ? tmin : INF);
 }
 
+
 inline float intersect4x4(const BoundingBox &bbox, const Ray4x4 &rays)
 {
   const __m256 ZERO_x8 = _mm256_set1_ps(0.0f);

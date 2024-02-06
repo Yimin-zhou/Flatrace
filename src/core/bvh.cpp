@@ -10,6 +10,7 @@
 #include "glm/glm.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
+
 #include <numeric>
 #include <iostream>
 #include <cmath>
@@ -205,7 +206,7 @@ namespace core {
         return hit;
     }
 
-    bool BVH::intersectObbBVH(Ray &ray, const int maxIntersections) const
+        bool BVH::intersectObbBVH(Ray &ray, const int maxIntersections) const
     {
         const Node *node_stack[2 * _maxDepth];
 
@@ -228,6 +229,13 @@ namespace core {
             {
                 const Node * const node = node_stack[--stack_pointer];
 
+//                Ray tempRay = ray;
+//                glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
+//                glm::vec4 rayDirectionLocal = (node->obb.invMatrix) * glm::vec4(tempRay.d, 0.0f);
+//                tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+//                tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
+//                float t = core::intersectAABB(_unitAABB, tempRay);
+
                 if (node->isLeaf())
                 {
 #ifdef DEBUG
@@ -245,16 +253,16 @@ namespace core {
 
                      // transform ray to obb space for both left and right node
                     Ray leftRay = ray;
-                    glm::vec4 rayOriginalLocal = *(left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
-                    glm::vec4 rayDirectionLocal = *(left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
+                    glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
+                    glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
                     leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                    leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f /rayDirectionLocal.z);
+                    leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
 
                     Ray rightRay = ray;
-                    rayOriginalLocal = *(right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
-                    rayDirectionLocal = *(right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
+                    rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
+                    rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
                     rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                    rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f /rayDirectionLocal.z);
+                    rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
 
                     float t_left = core::intersectAABB(_unitAABB, leftRay);
                     float t_right = core::intersectAABB(_unitAABB, rightRay);
@@ -287,7 +295,7 @@ namespace core {
     Node* BVH::splitNode(Node* const node)
     {
         // generate obb
-        computeOBB<double>(node);
+        computeOBB(node);
 
         // Calculate node bounding box, and getCentroid bounding box (for splitting)
         BoundingBox centroid_bbox;
@@ -305,7 +313,7 @@ namespace core {
         }
 
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
-        if (node->count > 3)
+        if (node->count > 1)
         {
             const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
 
@@ -551,15 +559,15 @@ namespace core {
         }
     }
 
-    std::vector<core::Triangle> BVH::visualizeOBB(const DiTO::OBB<double>& obb, int& triangleId) const {
+    std::vector<core::Triangle> BVH::visualizeOBB(const DiTO::OBB& obb, int& triangleId) const {
         std::vector<Triangle> triangles;
 
         // Convert OBB vectors to glm::vec3
-        glm::vec3 mid = glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z);
-        glm::vec3 v0 = glm::vec3(obb.v0.x, obb.v0.y, obb.v0.z);
-        glm::vec3 v1 = glm::vec3(obb.v1.x, obb.v1.y, obb.v1.z);
-        glm::vec3 v2 = glm::vec3(obb.v2.x, obb.v2.y, obb.v2.z);
-        glm::vec3 ext = glm::vec3(obb.ext.x, obb.ext.y, obb.ext.z);
+        glm::vec3 mid = obb.mid;
+        glm::vec3 v0 = obb.v0;
+        glm::vec3 v1 = obb.v1;
+        glm::vec3 v2 = obb.v2;
+        glm::vec3 ext =obb.ext;
 
         // Calculate vertices of the OBB use ext
         std::array<glm::vec3, 8> vertices;
@@ -574,7 +582,6 @@ namespace core {
                            mid + v0 * ext.x - v1 * ext.y - v2 * ext.z
                    }};
 
-        // Indices for OBB faces, calculated using vertices dynamically
         std::array<std::array<int, 6>, 6> faces = {{
                                                            {0, 3, 2, 2, 1, 0}, // Front face
                                                            {1, 2, 6, 6, 5, 1}, // Right face
@@ -583,8 +590,6 @@ namespace core {
                                                            {4, 0, 1, 1, 5, 4}, // Bottom face
                                                            {3, 7, 6, 6, 2, 3}  // Top face
                                                    }};
-
-
 
         // Create triangles from vertices
         for (const auto& face : faces) {
@@ -603,14 +608,12 @@ namespace core {
         return triangles;
     }
 
-    template <typename F>
     void BVH::computeOBB(Node* node) {
-        std::vector<DiTO::Vector<F>> vertices;
+        std::vector<glm::dvec3> vertices;
         for (int i = node->leftFrom; i < (node->leftFrom + node->count); ++i) {
-            const Triangle &triangle = _triangles[i];
-            for (int j = 0; j < 3; ++j) {
-                const glm::vec3 &vertex = triangle.vertices[j];
-                vertices.push_back({vertex.x, vertex.y, vertex.z});
+            for (const glm::vec3 &v : getTriangle(i).vertices)
+            {
+                vertices.push_back(v);
             }
         }
 
@@ -619,25 +622,24 @@ namespace core {
             DiTO::DiTO_14(vertices.data(), vertices.size(), node->obb );
         }
 
-        // create obb matrix, transform unit AABB to obb space
+        node->obb.ext = glm::max(node->obb.ext, glm::dvec3(0.001));
+
+        // create obb matrix, transform unit AABB (-0.5 - 0.5) to obb space
         // Scale matrix
-        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * (0.001f + glm::vec3(node->obb.ext.x, node->obb.ext.y, node->obb.ext.z)));
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * ( glm::vec3(node->obb.ext)));
 
         // Rotation matrix
         glm::mat4 rotationMatrix = glm::mat4(
-                glm::vec4(glm::normalize(glm::vec3(node->obb.v0.x, node->obb.v0.y, node->obb.v0.z)), 0.0f),
-                glm::vec4(glm::normalize(glm::vec3(node->obb.v1.x, node->obb.v1.y, node->obb.v1.z)), 0.0f),
-                glm::vec4(glm::normalize(glm::vec3(node->obb.v2.x, node->obb.v2.y, node->obb.v2.z)), 0.0f),
+                glm::vec4(glm::vec3(node->obb.v0), 0.0f),
+                glm::vec4(glm::vec3(node->obb.v1), 0.0f),
+                glm::vec4(glm::vec3(node->obb.v2), 0.0f),
                 glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
         );
 
         // Translation matrix
-        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z));
-
-        // Combine transformations
-        glm::mat4 transformMatrix =  translationMatrix * rotationMatrix * scaleMatrix;
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(node->obb.mid));
 
         // Calculate the inverse of the transformation matrix
-        node->obb.invMatrix = std::make_shared<glm::mat4>(glm::inverse(transformMatrix));
+        node->obb.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
     }
 }

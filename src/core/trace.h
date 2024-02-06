@@ -37,7 +37,7 @@ constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
 
 constexpr auto MAX_INTERSECTIONS = 1;
 
-constexpr auto SPEED = 0.0f;
+constexpr auto SPEED = 0.1f;
 
 void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer, int maxDepth);
 void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer);
