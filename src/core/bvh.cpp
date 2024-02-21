@@ -419,7 +419,7 @@ namespace core {
                 if (splitCost < bestCost) {
                     bestCost = splitCost;
                     // Calculate plane position and normal based on OBB orientation and split position
-                    glm::dvec3 planePos = obb.mid + axes[axis] * (binWidth * splitIndex - dimExtent);
+                    glm::dvec3 planePos = obb.mid + axes[axis] * (glm::dvec3)(binWidth * splitIndex - dimExtent);
                     glm::dvec3 planeNormal = axes[axis];
                     best_plane = Plane{planePos, planeNormal};
                 }
