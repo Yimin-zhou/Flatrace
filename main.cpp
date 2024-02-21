@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("test/input/bunny.obj");
+    const std::string input_file("test/input/big_stack.obj");
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
@@ -239,14 +239,13 @@ int main(int argc, char **argv)
                 ImGui::Separator();
                 if (ImGui::Checkbox("OBB tracing", &GlobalState::enableOBB))
                 {
-                    GlobalState::heatmapView = false;
+//                    GlobalState::heatmapView = false;
                 }
 
                 ImGui::Separator();
                 if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
                 {
                     GlobalState::bboxView = false;
-                    GlobalState::enableOBB = false;
                 }
                 if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
                 {

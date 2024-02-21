@@ -55,7 +55,8 @@ public:
     // return all nodes
     const std::vector<Node> &getNodes() const { return _nodes; }
     // return max depth of the BVH
-    int getMaxDepth() const { return _maxDepth; }
+    int calculateMaxDepth(int index, int currentDepth = 0);
+    int getMaxDepth() const { return _tempMaxDepth; }
 
     // Generate obb
     void computeOBB(Node* node);
@@ -109,7 +110,7 @@ private:
 
     Node *_root;
 
-    int _maxDepth;
+    int _tempMaxDepth = 0;
 
     // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
     BoundingBox _unitAABB;

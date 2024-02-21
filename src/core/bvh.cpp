@@ -44,11 +44,11 @@ namespace core {
         // construct obb in this function
         splitNode(_root);
 
-        _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
+        _tempMaxDepth = calculateMaxDepth(0);
 
         std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
         std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
-        std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
+        std::cerr << "BVH MAX DEPTH: " << _tempMaxDepth << std::endl;
 
         // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
         // data locality and avoids having to use indirection when iterating triangles for intersection
@@ -73,7 +73,7 @@ namespace core {
 
     bool BVH::intersect(Ray &ray, const int maxIntersections) const
     {
-        const Node *node_stack[2 * _maxDepth];
+        const Node *node_stack[2 * _tempMaxDepth];
 
         if (core::intersectAABB(_root->bbox, ray) == INF)
         {
@@ -96,9 +96,7 @@ namespace core {
 
                 if (node->isLeaf())
                 {
-#ifdef DEBUG
                     ray.bvh_nodes_visited++;
-#endif
                     for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
                     {
                         core::intersect(getTriangle(i), ray);
@@ -140,7 +138,7 @@ namespace core {
     {
         static const __m256 inf_x8 = _mm256_set1_ps(INF);
 
-        const Node *node_stack[2 * _maxDepth];
+        const Node *node_stack[2 * _tempMaxDepth];
 
         bool hit = false;
         bool dead = false;
@@ -208,7 +206,7 @@ namespace core {
 
         bool BVH::intersectObbBVH(Ray &ray, const int maxIntersections) const
     {
-        const Node *node_stack[2 * _maxDepth];
+        const Node *node_stack[2 * _tempMaxDepth];
 
         if (core::intersectAABB(_root->bbox, ray) == INF)
         {
@@ -235,12 +233,9 @@ namespace core {
 //                tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
 //                tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
 //                float t = core::intersectAABB(_unitAABB, tempRay);
-
                 if (node->isLeaf())
                 {
-#ifdef DEBUG
                     ray.bvh_nodes_visited++;
-#endif
                     for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
                     {
                         core::intersect(getTriangle(j), ray);
@@ -606,6 +601,16 @@ namespace core {
         }
 
         return triangles;
+    }
+
+    int BVH::calculateMaxDepth(int index, int currentDepth) {
+        if (index >= _nodes.size() || _nodes[index].isLeaf()) return currentDepth;
+
+        // Assuming right child immediately follows left child in the nodes vector
+        int leftDepth = calculateMaxDepth(_nodes[index].leftFrom, currentDepth + 1);
+        int rightDepth = calculateMaxDepth(_nodes[index].leftFrom + 1, currentDepth + 1);
+
+        return std::max(leftDepth, rightDepth);
     }
 
     void BVH::computeOBB(Node* node) {
