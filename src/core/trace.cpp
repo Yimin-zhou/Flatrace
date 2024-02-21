@@ -100,7 +100,7 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 
                         if (GlobalState::heatmapView) {
                             glm::vec3 heat_map_color = get_color_map(
-                                    ray.bvh_nodes_visited, 1, maxDepth - 1);
+                                    ray.bvh_nodes_visited, 1, 300);
                             cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
                             cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                             c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));

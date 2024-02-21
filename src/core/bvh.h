@@ -40,6 +40,9 @@ class BVH
 public:
     BVH(const std::vector<Triangle> &triangles);
 
+    void initiateAABBBVH(const std::vector<Triangle> &triangles);
+    void initiateOBBBVH(const std::vector<Triangle> &triangles);
+
     bool intersect(Ray &ray, const int maxIntersections) const;
     bool intersect4x4(Ray4x4 &rays, const int maxIntersections) const;
 
@@ -94,9 +97,12 @@ private:
     };
 
     Node *splitNode(Node * const node);
-
     std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
     std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int count, const int maxSplitsPerDimension) const;
+
+    Node *splitNodeOBB(Node * const node);
+    std::optional<int> partitionOBB(const int from, const int count, const Plane &splitPlane);
+    std::optional<Plane> splitPlaneSAHOBB(const Node * const node, const int from, const int count, const int maxSplitsPerDimension) const;
 
     void linearize();
 
