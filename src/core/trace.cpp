@@ -86,7 +86,7 @@ void Trace::render_frame(const core::Camera &camera, const core::BVH &bvh, core:
                     core::Ray ray = { ray_origin, ray_direction };
 
                     bool hit = false;
-                    if (GlobalState::enableOBB) {
+                    if (GlobalState::enableOBB || OBB_BVH) {
                         hit = bvh.intersectObbBVH(ray, MAX_INTERSECTIONS);
                     } else {
                         hit = bvh.intersect(ray, MAX_INTERSECTIONS);

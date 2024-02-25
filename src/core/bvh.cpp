@@ -6,6 +6,7 @@
 // [3] https://jacco.ompf2.com/2022/04/21/how-to-build-a-bvh-part-3-quick-builds/
 
 #include "bvh.h"
+#include "src/utils/globalState.h"
 
 #include "glm/glm.hpp"
 #include <glm/gtc/matrix_transform.hpp>
@@ -46,8 +47,11 @@ namespace core {
         _root = &_nodes.emplace_back(0, triangles.size());
 
         // construct obb in this function
-        splitNode(_root);
-
+        if (OBB_BVH) {
+            splitNodeOBB(_root);
+        } else {
+            splitNode(_root);
+        }
         _tempMaxDepth = calculateMaxDepth(0);
 
         std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
@@ -315,46 +319,23 @@ namespace core {
         // generate obb
         computeOBB(node);
 
-        // Calculate node bounding box, and getCentroid bounding box (for splitting)
-        BoundingBox centroid_bbox;
+        if (node->count > 1) { // Only attempt to split if there are more than 3 triangles
+            auto split_plane = splitPlaneSAHOBB(node, 32);
 
-        for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
-        {
-            for (const glm::vec3 &v : getTriangle(i).vertices)
-            {
-                node->bbox.min = glm::min(node->bbox.min, v);
-                node->bbox.max = glm::max(node->bbox.max, v);
-            }
+            if (split_plane) {
+                auto split_index = partitionOBB(node->leftFrom, node->count, *split_plane);
 
-            centroid_bbox.min = glm::min(centroid_bbox.min, getCentroid(i));
-            centroid_bbox.max = glm::max(centroid_bbox.max, getCentroid(i));
-        }
-
-        // Subdivide if this is not a leaf node (getTriangle count below cutoff)
-        if (node->count > 3)
-        {
-            const std::optional<Plane> split_plane = splitPlaneSAHOBB(node, node->leftFrom, node->count, 32);
-
-            if (split_plane)
-            {
-                const std::optional<int> split_index = partitionOBB(node->leftFrom, node->count, *split_plane);
-
-                if (split_index)
-                {
-                    const int left_index = _nodes.size();
-                    const int right_index = left_index + 1;
-
-                    const int left_count = *split_index - node->leftFrom;
-                    const int right_count = node->count - left_count;
-
-                    _nodes.emplace_back(node->leftFrom, left_count);
-                    _nodes.emplace_back(*split_index, right_count);
+                if (split_index) {
+                    int left_index = _nodes.size();
+                    _nodes.emplace_back(node->leftFrom, *split_index - node->leftFrom);
+                    _nodes.emplace_back(*split_index, node->leftFrom + node->count - *split_index);
 
                     splitNodeOBB(&_nodes[left_index]);
-                    splitNodeOBB(&_nodes[right_index]);
+                    splitNodeOBB(&_nodes[left_index + 1]);
 
+                    // Update the original node to no longer directly contain triangles
                     node->leftFrom = left_index;
-                    node->count = 0;
+                    node->count = 0; // This node is now an internal node
                 }
             }
         }
@@ -362,66 +343,60 @@ namespace core {
         return node;
     }
 
-
-// Calculate split plane using surface area heuristic. This will pick a number of uniformly distributed
-// split plane positions (specified by the splitsPerDimension parameter) for each XYZ dimension, then
-// bin all triangles and sum their area. The split positions for which the surface area heuristic
-// C = (n_left * area_left) + (n_right * area_right) is lowest will be chosen.
-    std::optional<Plane> BVH::splitPlaneSAHOBB(const Node * const node, const int from, const int count, int maxSplitsPerDimension) const
-    {
+    std::optional<Plane> BVH::splitPlaneSAHOBB(const Node* const node, int maxSplitsPerDimension) const {
         const DiTO::OBB& obb = node->obb;
         std::optional<Plane> best_plane;
-        float bestCost = INF;
+        float bestCost = std::numeric_limits<float>::infinity();
 
-        // Directions for OBB's local axes
         std::array<glm::dvec3, 3> axes = {obb.v0, obb.v1, obb.v2};
 
         for (int axis = 0; axis < 3; ++axis) {
             int splitsPerDimension = std::min(node->count, maxSplitsPerDimension);
             std::vector<SplitBin> bins(splitsPerDimension + 1, SplitBin{});
 
-            float dimExtent = obb.ext[axis]; // Extent along the current axis
+            float dimExtent = obb.ext[axis];
             float binWidth = (2 * dimExtent) / splitsPerDimension;
 
-            if (binWidth <= 1e-6) continue; // Skip degenerate dimensions
+            if (binWidth <= 1e-6) continue;
 
             // Bin triangles based on their projection along the current OBB axis
-            for (int i = 0; i < node->count; ++i) {
-                const glm::vec3 centroid = getCentroid(i + from); // Assuming getCentroid computes the centroid of a triangle
-                glm::dvec3 localPos = (glm::dvec3) centroid - obb.mid; // Position relative to OBB center
-                float projection = glm::dot(localPos, axes[axis]); // Project onto the current axis
-                float normalizedDist = projection + dimExtent; // Normalize distance to [0, 2*dimExtent]
-                int binIndex = std::min(static_cast<int>(normalizedDist / binWidth), splitsPerDimension);
+            for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i) {
+                const glm::vec3 centroid = getCentroid(i);
+                glm::dvec3 localPos = glm::dvec3(centroid) - obb.mid;
+                float projection = glm::dot(localPos, axes[axis]);
+                float normalizedDist = projection + dimExtent;
+                int binIndex = std::min(static_cast<int>((normalizedDist + dimExtent) / binWidth), splitsPerDimension - 1);
 
-                // Update bins with triangle info (assuming bins track counts and bounding boxes)
+                bins[binIndex].bbox = bins[binIndex].bbox.extended(getTriangle(i));
                 bins[binIndex].trianglesIn++;
-                // Extend bin's bounding box with the triangle's AABB (requires implementation)
             }
 
-            // Calculate SAH costs for each split position
+            // Initialize areaLeft and areaRight for SAH calculation
+            // These should be calculated based on extending bounding boxes and their surface areas
+
             for (int splitIndex = 1; splitIndex < splitsPerDimension; ++splitIndex) {
-                // Compute the cost of this split using SAH
                 float costLeft = 0.0f, costRight = 0.0f;
                 int countLeft = 0, countRight = 0;
 
-                // Aggregate counts and costs for left and right sides
+                // Calculate costs and counts for left and right of split
+                // This requires correctly calculating areas for OBBs and might involve more detailed geometry calculations
                 for (int i = 0; i < splitIndex; ++i) {
                     countLeft += bins[i].trianglesIn;
-                    // Calculate costLeft (requires implementation)
-                }
-                for (int i = splitIndex; i < splitsPerDimension; ++i) {
-                    countRight += bins[i].trianglesIn;
-                    // Calculate costRight (requires implementation)
+                    costLeft += bins[i].bbox.area();
                 }
 
-                float splitCost = costLeft + costRight; // Simplified; actual SAH formula needed
+                for (int i = splitIndex; i < splitsPerDimension; ++i) {
+                    countRight += bins[i].trianglesIn;
+                    costRight += bins[i].bbox.area();
+                }
+
+                float splitCost = costLeft + costRight;
 
                 if (splitCost < bestCost) {
                     bestCost = splitCost;
-                    // Calculate plane position and normal based on OBB orientation and split position
                     glm::dvec3 planePos = obb.mid + axes[axis] * (glm::dvec3)(binWidth * splitIndex - dimExtent);
                     glm::dvec3 planeNormal = axes[axis];
-                    best_plane = Plane{planePos, planeNormal};
+                    best_plane = Plane(planePos, planeNormal);
                 }
             }
         }
@@ -429,31 +404,28 @@ namespace core {
         return best_plane;
     }
 
-// Partition getTriangle range [leftFrom, leftFrom + count) into a subset behind, and a subset in front of the passed
-// split plane, and return the index of the resulting partition point
-    std::optional<int> BVH::partitionOBB(const int from, const int count, const Plane &splitPlane)
-    {
-        int left_to = from;
-        int right_from = from + count;
+    std::optional<int> BVH::partitionOBB(const int from, const int count, const Plane& splitPlane) {
+        int left = from;
+        int right = from + count - 1;
 
-        while (left_to < right_from)
-        {
-            const glm::dvec3 c = getCentroid(left_to);
+        while (left <= right) {
+            while (left <= right && splitPlane.distance(getCentroid(_triangleIds[left])) < 0) left++;
+            while (left <= right && splitPlane.distance(getCentroid(_triangleIds[right])) >= 0) right--;
 
-            if (splitPlane.distance(c) < 0.0f)
-            {
-                left_to++;
-            }
-            else
-            {
-                std::swap(_triangleIds[left_to], _triangleIds[--right_from]);
+            if (left < right) {
+                std::swap(_triangleIds[left], _triangleIds[right]);
+                left++;
+                right--;
             }
         }
 
-        const int n_left = (left_to - from);
-        const int n_right = count - n_left;
-
-        return ((n_left != 0) && (n_right != 0) ? std::make_optional(left_to) : std::nullopt);
+        // The partition point is now 'left'; all elements to its left are behind the splitPlane, and all to the right are in front
+        int n_left = left - from;
+        if (n_left > 0 && n_left < count) {
+            return std::make_optional(left);
+        } else {
+            return std::nullopt; // Partitioning failed or was unnecessary
+        }
     }
 
     Node* BVH::splitNode(Node* const node)
