@@ -331,7 +331,7 @@ namespace core {
         }
 
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
-        if (node->count > 1)
+        if (node->count > 3)
         {
             const std::optional<Plane> split_plane = splitPlaneSAHOBB(node, node->leftFrom, node->count, 32);
 
@@ -477,7 +477,7 @@ namespace core {
         }
 
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
-        if (node->count > 1)
+        if (node->count > 3)
         {
             const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
 

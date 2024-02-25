@@ -181,9 +181,10 @@ int main(int argc, char **argv)
         const auto start = steady_clock::now();
 
         // not use SIMD for now
+        Trace tracer;
         #if 1
-            if (GlobalState::bboxView) render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
-            else render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+            if (GlobalState::bboxView) tracer.render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
+            else tracer.render_frame(camera, bvh, frame.pixels.get(), maxDepth);
         #else
             render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
@@ -223,6 +224,8 @@ int main(int argc, char **argv)
                 ImGui::Text("%s", fmt::format("{1:.2f}M rps, min/max rps: {0:.2f}M/{1:.2f}M", ((double) N_RAYS / us), min_rps, max_rps).c_str());
                 ImGui::Separator();
 
+                ImGui::PlotHistogram("Processing Times", tracer.rayProcessingTimes, N_RAYS, 0,
+                                     nullptr, 0.0f, 0.1f, ImVec2(0, 80));
                 ImGui::Text("Memory usage:");
                 size_t memoryUsage = debug::getCurrentRSS(); // in bytes
                 ImGui::Text("%s", fmt::format("{0:.5f} MB", ((double) memoryUsage / 1024 / 1024)).c_str());

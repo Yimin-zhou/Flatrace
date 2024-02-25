@@ -2,7 +2,7 @@
 #include "src/utils/globalState.h"
 
 // Arbitrary color palette for materials
-auto getMaterial() {
+auto Trace::getMaterial() {
     std::array<std::array<float, 4>, 8> COLORS;
     if (GlobalState::bboxView) {
         COLORS = {{
@@ -31,7 +31,7 @@ auto getMaterial() {
 }
 
 // For debugging
-glm::vec3 get_color_map(int value, int minVal, int maxVal)
+glm::vec3 Trace::get_color_map(int value, int minVal, int maxVal)
 {
     // create a gradient from blue -> green -> red, and use it as a lookup table
     std::vector<glm::vec3> color_map =
@@ -57,7 +57,7 @@ glm::vec3 get_color_map(int value, int minVal, int maxVal)
 }
 
 // Reference implementation that traces 1 ray at a time (no SIMD)
-void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer, int maxDepth)
+void Trace::render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer, int maxDepth)
 {
     auto COLORS = getMaterial();
     tbb::parallel_for(tbb::blocked_range<int>(0, NX*NY), [&](const tbb::blocked_range<int> &r)
@@ -78,6 +78,8 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 
                 for (int j = tile_j*TILE_SIZE; j < (tile_j*TILE_SIZE) + TILE_SIZE; j++)
                 {
+                    auto start = std::chrono::high_resolution_clock::now();
+
                     const glm::vec3 ray_origin = camera.pos + camera.x*x + camera.y*y;
                     const glm::vec3 ray_direction = camera.dir;
 
@@ -89,6 +91,15 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
                     } else {
                         hit = bvh.intersect(ray, MAX_INTERSECTIONS);
                     }
+
+                    auto end = std::chrono::high_resolution_clock::now();
+                    std::chrono::duration<float, std::milli> processingTime = end - start;
+
+//                    if (_rayCount % _sampleRate == 0) {
+//                    if (_rayCount < NX*NY - 1)
+                        rayProcessingTimes[_rayCount] = processingTime.count();
+//                    }
+                    _rayCount++;
 
                     const float src_alpha = 0.4f;
 
@@ -145,7 +156,7 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 }
 
 // 8-way SIMD implementation that traces 4x4 'ray bundles'
-void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer)
+void Trace::render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer)
 {
     auto COLORS = getMaterial();
     const glm::vec3 rd = { 1.0f / camera.dir.x, 1.0f / camera.dir.y, 1.0f / camera.dir.z };

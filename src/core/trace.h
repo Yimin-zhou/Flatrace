@@ -39,5 +39,19 @@ constexpr auto MAX_INTERSECTIONS = 3;
 
 constexpr auto SPEED = 0.0f;
 
-void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer, int maxDepth);
-void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA * const frameBuffer);
+class Trace {
+public:
+    Trace() = default;
+
+    void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer, int maxDepth);
+    void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer);
+
+    float rayProcessingTimes[N_RAYS];
+
+private:
+    auto getMaterial();
+    glm::vec3 get_color_map(int value, int minVal, int maxVal);
+
+    int _sampleRate = 1000;
+    int _rayCount = 0;
+};
