@@ -97,4 +97,29 @@ namespace debug
         }
     }
 
+    static std::vector<core::Triangle> visualizeOBBDir(const DiTO::OBB& obb, int startID = 0, double width = 0.02) {
+        std::vector<core::Triangle> triangles;
+        std::vector<glm::dvec3> axes = {-obb.v0, obb.v1, obb.v2};
+
+        for (int i = 0; i < 3; ++i) { // For each axis
+            glm::dvec3 axis = glm::normalize(axes[i]) * obb.ext[i] * 0.5;
+            glm::dvec3 up = glm::vec3(0, 1, 0);
+            if (glm::length(glm::cross(axis, up)) < 0.001f) up = glm::vec3(1, 0, 0);
+
+            glm::dvec3 perpendicular = glm::normalize(glm::cross(axis, up)) * width;
+            glm::dvec3 center = obb.mid + axis; // Center of the line
+
+            // Calculate rectangle vertices
+            glm::vec3 v0 = center + perpendicular - axis;
+            glm::vec3 v1 = center - perpendicular - axis;
+            glm::vec3 v2 = center + perpendicular + axis;
+            glm::vec3 v3 = center - perpendicular + axis;
+
+            // Create two triangles for each axis
+            triangles.push_back(core::Triangle(startID++, v0, v2, v1, i + 1));
+            triangles.push_back(core::Triangle(startID++, v3, v1, v2, i + 1));
+        }
+
+        return triangles;
+    }
 }

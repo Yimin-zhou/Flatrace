@@ -32,7 +32,7 @@ public:
     int leftFrom;
     int count;
 
-    bool isLeaf() const { return (count != 0); }
+    bool isLeaf() const { return (count != 0);}
 };
 
 class BVH

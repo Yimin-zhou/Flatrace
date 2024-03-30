@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("test/input/big_stack.obj");
+    const std::string input_file("test/input/box_rotated.obj");
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
@@ -59,19 +59,20 @@ int main(int argc, char **argv)
             glm::vec3(0.0f, 0.5f, 0.0f)};
     std::vector<Triangle> testingTriangles;
     testingTriangles.push_back(Triangle(0, testTriangleOne[0], testTriangleOne[1], testTriangleOne[2], 0));
-    testingTriangles.push_back(Triangle(1, testTriangleTwo[0], testTriangleTwo[1], testTriangleTwo[2], 0));
+//    testingTriangles.push_back(Triangle(1, testTriangleTwo[0], testTriangleTwo[1], testTriangleTwo[2], 0));
     BVH testingBvh(testingTriangles);
 
     const auto start_bvh = steady_clock::now();
-
     BVH bvh(triangles);
 
     // For visualizing BVH nodes
     std::vector<Triangle> boundingBoxTriangles;
-
     boundingBoxTriangles = bvh.visualizeBVHOBB();
-
     BVH bvhBoundingBox(boundingBoxTriangles);
+
+    // Visualizing obb direction
+    std::vector<Triangle> obbDirTriangles = debug::visualizeOBBDir(bvh.getRoot()->obb);
+    BVH obbAxes(obbDirTriangles);
 
     if (bvh.failed())
     {
@@ -184,7 +185,7 @@ int main(int argc, char **argv)
         Trace tracer;
         #if 1
             if (GlobalState::bboxView) tracer.render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
-            else tracer.render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+            else tracer.render_frame(camera, obbAxes, frame.pixels.get(), maxDepth);
         #else
             render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
