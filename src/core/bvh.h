@@ -102,7 +102,7 @@ private:
 
     Node *splitNodeOBB(Node * const node);
     std::optional<int> partitionOBB(const int from, const int count, const Plane &splitPlane);
-    std::optional<Plane> splitPlaneSAHOBB(const Node* const node, int maxSplitsPerDimension) const;
+    std::optional<Plane> splitPlaneSAHOBB(const Node* const node, int maxSplitsPerDimension) ;
 
     void linearize();
 
@@ -122,7 +122,5 @@ private:
     BoundingBox _unitAABB;
 
 };
-
-
 
 }
