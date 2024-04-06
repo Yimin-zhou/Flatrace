@@ -2,6 +2,7 @@
 #include "src/debug/bvh_debugger.h"
 #include "src/utils/globalState.h"
 #include "src/utils/obj.h"
+#include "src/utils/ply.h"
 
 int main(int argc, char **argv)
 {
@@ -17,14 +18,21 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("test/input/big_stack.obj");
+    const std::string input_file("test/input/bunny.obj" );
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
 
+    // Load objects
+    std::vector<std::vector<Triangle>> allTriangles;
+    allTriangles = utils::Obj::loadAllObjFilesInFolder("test/input/big_obj", false);
+
+//    utils::ply::PlyInterpreter plyInterpreter;
+//    std::vector<core::Triangle> plyTriangles = plyInterpreter.read("test/input/49f13a2718723e8fd23b8ff392c9824febd548392944e2e5b6eb1358f97a7e2a.ply");
+
     try
     {
-        triangles = utils::Obj::read(input_file);
+        triangles = utils::Obj::read(input_file, true);
     }
     catch (std::runtime_error &e)
     {
@@ -32,6 +40,12 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+//    triangles = allTriangles[0];
+//    // add all triangles from all objects
+//    for (int i = 1; i < allTriangles.size(); i++)
+//    {
+//        triangles.insert(triangles.end(), allTriangles[i].begin(), allTriangles[i].end());
+//    }
 
     std::cerr << "Triangle count: " << triangles.size() << std::endl;
 
@@ -49,14 +63,14 @@ int main(int argc, char **argv)
     }
 
     // testing obb with one triangle
-    std::vector<glm::vec3> testTriangleOne = {
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 0.5f, 0.0f)};
-    std::vector<glm::vec3> testTriangleTwo = {
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.5f, 0.0f, 1.0f),
-            glm::vec3(0.0f, 0.5f, 0.0f)};
+//    std::vector<glm::vec3> testTriangleOne = {
+//            glm::vec3(0.0f, 0.0f, 0.0f),
+//            glm::vec3(1.0f, 0.0f, 0.0f),
+//            glm::vec3(0.0f, 0.5f, 0.0f)};
+//    std::vector<glm::vec3> testTriangleTwo = {
+//            glm::vec3(0.0f, 0.0f, 0.0f),
+//            glm::vec3(0.5f, 0.0f, 1.0f),
+//            glm::vec3(0.0f, 0.5f, 0.0f)};
 //    std::vector<Triangle> testingTriangles;
 //    testingTriangles.push_back(Triangle(0, testTriangleOne[0], testTriangleOne[1], testTriangleOne[2], 0));
 //    testingTriangles.push_back(Triangle(1, testTriangleTwo[0], testTriangleTwo[1], testTriangleTwo[2], 0));
@@ -65,14 +79,17 @@ int main(int argc, char **argv)
     const auto start_bvh = steady_clock::now();
     BVH bvh(triangles);
 
+    // OBB tree
+    ObbTree obbTree(allTriangles);
+
     // For visualizing BVH nodes
-//    std::vector<Triangle> boundingBoxTriangles;
-//    boundingBoxTriangles = bvh.visualizeBVHOBB();
-//    BVH bvhBoundingBox(boundingBoxTriangles);
+    std::vector<Triangle> boundingBoxTriangles;
+    boundingBoxTriangles = bvh.visualizeBVHOBB();
+    BVH bvhBoundingBox(boundingBoxTriangles);
 
     // Visualizing obb direction
 //    std::vector<Triangle> obbDirTriangles = debug::visualizeOBBDir(bvh.getRoot()->obb);
-//    BVH obbAxes(obbDirTriangles);
+//    BVH obbAxesBVH(obbDirTriangles);
 
     if (bvh.failed())
     {
@@ -184,8 +201,9 @@ int main(int argc, char **argv)
         // not use SIMD for now
         Trace tracer;
         #if 1
-//            if (GlobalState::bboxView) tracer.render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
+            if (GlobalState::bboxView) tracer.render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
             tracer.render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+//            tracer.render_frameOBB(camera, obbTree, frame.pixels.get(), maxDepth);
         #else
             render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif

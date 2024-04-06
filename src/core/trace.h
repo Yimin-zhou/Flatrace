@@ -1,5 +1,6 @@
 #pragma once
 
+#include "src/core/obbTree.h"
 #include "src/core/types.h"
 #include "src/core/frame.h"
 #include "src/core/bvh.h"
@@ -45,6 +46,8 @@ public:
 
     void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer, int maxDepth);
     void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer);
+
+    void render_frameOBB(const core::Camera &camera, const core::ObbTree &obbTree, core::RGBA * const frameBuffer, int maxDepth);
 
     float rayProcessingTimes[N_RAYS];
 

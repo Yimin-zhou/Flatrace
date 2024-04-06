@@ -83,7 +83,7 @@ namespace core {
 
     bool BVH::intersect(Ray &ray, const int maxIntersections) const
     {
-        const Node *node_stack[2 * _tempMaxDepth];
+        const Node *node_stack[_nodes.size()];
 
         if (core::intersectAABB(_root->bbox, ray) == INF)
         {

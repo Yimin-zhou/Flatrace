@@ -1,6 +1,6 @@
 #pragma once
 
-#define OBB_BVH 1
+#define OBB_BVH 0
 
 struct GlobalState {
     static bool heatmapView;

@@ -76,6 +76,8 @@ add_library (core
         src/core/dito/dito.h
         src/core/dito/dito.cpp
         src/core/trace.cpp
+        src/core/obbTree.h
+        src/core/obbTree.cpp
 )
 
 
@@ -86,6 +88,12 @@ add_library (utils
         src/utils/ppm.h
         src/utils/globalState.h
         src/utils/globalState.cpp
+        third_party/tiny_obj/tiny_obj_loader.cc
+        third_party/tiny_obj/tiny_obj_loader.h
+        third_party/tiny_ply/tinyply.cpp
+        third_party/tiny_ply/tinyply.h
+        src/utils/ply.h
+        src/utils/ply.cpp
 )
 
 add_library(debug

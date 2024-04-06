@@ -9,10 +9,14 @@
 #include <variant>
 #include <array>
 #include <map>
+#include <filesystem>
 
 #include "third_party/fmt/format.h"
+#include "third_party/tiny_obj/tiny_obj_loader.h"
 
 namespace qi = boost::spirit::qi;
+
+namespace fs = std::filesystem;
 
 namespace utils::Obj {
 
@@ -26,6 +30,20 @@ struct Vertex
   float y;
   float z;
 };
+
+    void scaleModel(std::vector<core::Triangle>& triangles, const glm::vec3& scaleFactor) {
+        for (auto& triangle : triangles) {
+            // Scale each vertex in the triangle
+            for (auto& vertex : triangle.vertices) {
+                vertex *= scaleFactor;
+            }
+            // If you are storing edges and they are used elsewhere, you should update them as well
+            triangle.edges[0] = triangle.vertices[1] - triangle.vertices[0];
+            triangle.edges[1] = triangle.vertices[2] - triangle.vertices[0];
+            // Update the normal if it's used elsewhere, since scaling can change its magnitude (if non-uniform scaling is used)
+            triangle.normal = glm::normalize(glm::cross(triangle.edges[0], triangle.edges[1]));
+        }
+    }
 
 struct Material { std::string name; };
 
@@ -163,6 +181,7 @@ std::vector<core::Triangle> read(const std::string &filename, const bool normali
         });
       }
 
+//      scaleModel(triangles, glm::vec3(0.00035f));
       return triangles;
     }
     else
@@ -174,6 +193,26 @@ std::vector<core::Triangle> read(const std::string &filename, const bool normali
   {
     throw std::runtime_error(e.what());
   }
+}
+
+std::vector<std::vector<core::Triangle>> loadAllObjFilesInFolder(const std::string& folderPath, const bool normalize) {
+    std::vector<std::vector<core::Triangle>> allTriangles;
+
+    try {
+        // Iterate over all items in the directory specified by folderPath
+        for (const auto& entry : fs::directory_iterator(folderPath)) {
+            // Check if the entry is a file and ends with ".obj"
+            if (entry.is_regular_file() && entry.path().extension() == ".obj") {
+                std::string filename = entry.path().string();
+                std::vector<core::Triangle> triangles = utils::Obj::read(filename, normalize);
+                allTriangles.push_back(triangles);
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error processing OBJ files: " << e.what() << std::endl;
+    }
+
+    return allTriangles;
 }
 
 // Write simple obj file containing a grid of cubes, useful for testing/debugging
