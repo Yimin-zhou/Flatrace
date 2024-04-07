@@ -2,7 +2,8 @@
 
 #include "visualization.h"
 
-namespace debug {
+namespace debug
+{
     // Visualization debug object
 
 

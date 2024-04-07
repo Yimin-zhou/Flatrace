@@ -60,6 +60,7 @@ set (simde_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/simde/simde")
 
 include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")
+include_directories (PRIVATE "src")
 include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
 include_directories (PRIVATE ${SDL2_INCLUDE_DIRS})
 include_directories (PRIVATE ${TBB_INCLUDE_DIR})
@@ -78,6 +79,8 @@ add_library (core
         src/core/trace.cpp
         src/core/obbTree.h
         src/core/obbTree.cpp
+        src/core/application.cpp
+        src/core/application.h
 )
 
 
@@ -94,6 +97,9 @@ add_library (utils
         third_party/tiny_ply/tinyply.h
         src/utils/ply.h
         src/utils/ply.cpp
+        src/utils/window.cpp
+        src/utils/window.h
+        src/utils/settings.h
 )
 
 add_library(debug

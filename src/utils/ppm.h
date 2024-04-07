@@ -4,8 +4,9 @@
 
 #include <string>
 
-namespace utils::Ppm {
+namespace utils::Ppm
+{
 
-void write(const std::string &filename, const core::Frame &frame);
+    void write(const std::string &filename, const core::Frame &frame);
 
 }

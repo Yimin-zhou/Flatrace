@@ -2,7 +2,8 @@
 
 #define OBB_BVH 0
 
-struct GlobalState {
+struct GlobalState
+{
     static bool heatmapView;
     static bool bboxView;
     static bool enableOBB;

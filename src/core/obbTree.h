@@ -9,11 +9,14 @@
 #include <vector>
 #include <optional>
 
-namespace core {
+namespace core
+{
 
-    class ObbTree {
+    class ObbTree
+    {
     public:
-        ObbTree(const std::vector<std::vector<Triangle>>& objects);
+        ObbTree(const std::vector<std::vector<Triangle>> &objects);
+
         bool intersect(Ray &ray, const int maxIntersections) const;
 
     private:
@@ -24,8 +27,9 @@ namespace core {
 
         BoundingBox _unitAABB;
 
-        void init(const std::vector<Triangle>& triangles, unsigned int nodeIndex);
-        void computeOBB(const std::vector<Triangle>& object, Node* node);
+        void init(const std::vector<Triangle> &triangles, unsigned int nodeIndex);
+
+        void computeOBB(const std::vector<Triangle> &object, Node *node);
     };
 
 }

@@ -15,46 +15,51 @@
 #include <chrono>
 #include <iostream>
 
-constexpr int WINDOW_WIDTH = 1280;
-constexpr int WINDOW_HEIGHT = 720;
+//#include "utils/settings.h"
+namespace core
+{
+    class Tracer
+    {
+    public:
+        Tracer(const std::vector<Triangle>& mesh, int width, int height, int maxIterations,
+               float viewWidth, float viewHeight, int tileSize, int bundleSize);
+        Tracer() = default;
 
-constexpr int FRAME_WIDTH = 1280;
-constexpr int FRAME_HEIGHT = 720;
+        void resize(int width, int height);
+        void render(const core::Camera &camera);
 
-constexpr auto VIEWPORT_WIDTH  = 2.4f;
-constexpr auto VIEWPORT_HEIGHT = 1.35f;
+        RGBA* getPixels() { return m_frame.pixels.get(); }
 
-constexpr auto DX = VIEWPORT_WIDTH / FRAME_WIDTH;
-constexpr auto DY = VIEWPORT_HEIGHT / FRAME_HEIGHT;
+    private:
+        std::vector<Triangle> m_mesh;
 
-constexpr auto TILE_SIZE = 16;
-constexpr auto BUNDLE_SIZE = 4;
+        BVH m_bvh;
+        Frame m_frame;
 
-constexpr auto NX = FRAME_WIDTH / TILE_SIZE;
-constexpr auto NY = FRAME_HEIGHT / TILE_SIZE;
+        int m_width;
+        int m_height;
+        float m_viewportWidth;
+        float m_viewportHeight;
+        int m_maxIterations;
+        // rays
+        int m_tileSize;
+        int m_bundleSize;
+        float m_nx, m_ny;
+        float m_dx, m_dy;
 
-constexpr auto N_FRAMES = 1;
-constexpr auto N_RAYS = N_FRAMES * FRAME_WIDTH * FRAME_HEIGHT;
+        int _sampleRate = 1000;
+        int _rayCount = 0;
 
-constexpr auto MAX_INTERSECTIONS = 3;
+        void renderFrame(const core::Camera &camera);
 
-constexpr auto SPEED = 0.0f;
+        void renderFrame4X4(const core::Camera &camera);
 
-class Trace {
-public:
-    Trace() = default;
+        void renderFrameObb(const core::Camera &camera, const core::ObbTree &obbTree,
+                            core::RGBA *const frameBuffer,
+                            int maxDepth);
 
-    void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer, int maxDepth);
-    void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer);
-
-    void render_frameOBB(const core::Camera &camera, const core::ObbTree &obbTree, core::RGBA * const frameBuffer, int maxDepth);
-
-    float rayProcessingTimes[N_RAYS];
-
-private:
-    auto getMaterial();
-    glm::vec3 get_color_map(int value, int minVal, int maxVal);
-
-    int _sampleRate = 1000;
-    int _rayCount = 0;
-};
+//        float rayProcessingTimes[N_RAYS];
+        std::array<std::array<float, 4>, 8> getMaterial();
+        glm::vec3 getColorMap(int value, int minVal, int maxVal);
+    };
+}

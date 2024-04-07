@@ -17,12 +17,15 @@
 #include <cmath>
 
 #ifdef IS_X86
+
 #include <immintrin.h>
+
 #else
 #include <simde/x86/avx2.h>
 #endif
 
-namespace core {
+namespace core
+{
 
     bool intersectTest(const Triangle &triangle, Ray &ray)
     {
@@ -73,9 +76,11 @@ namespace core {
             _triangleCentroids(triangles.size()),
             _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f))
     {
-        if (OBB_BVH) {
+        if (OBB_BVH)
+        {
             initiateOBBBVH(triangles);
-        } else {
+        } else
+        {
             initiateAABBBVH(triangles);
         }
     }
@@ -102,7 +107,7 @@ namespace core {
             // ordered by hit distance, to ensure the closest node gets traversed first.
             while (stack_pointer != 0)
             {
-                const Node * const node = node_stack[--stack_pointer];
+                const Node *const node = node_stack[--stack_pointer];
 
                 ray.bvh_nodes_visited++;
                 if (node->isLeaf())
@@ -111,8 +116,7 @@ namespace core {
                     {
                         intersectTest(getTriangle(i), ray);
                     }
-                }
-                else
+                } else
                 {
                     const Node *left = &_nodes[node->leftFrom];
                     const Node *right = left + 1;
@@ -161,7 +165,7 @@ namespace core {
 
             while (stack_pointer != 0)
             {
-                const Node * const node = node_stack[--stack_pointer];
+                const Node *const node = node_stack[--stack_pointer];
 
 
                 if (node->isLeaf())
@@ -170,11 +174,10 @@ namespace core {
                     {
                         core::intersect4x4(_triangles[i], rays);
                     }
-                }
-                else
+                } else
                 {
-                    const Node * child_0 = &_nodes[node->leftFrom];
-                    const Node * child_1 = child_0 + 1;
+                    const Node *child_0 = &_nodes[node->leftFrom];
+                    const Node *child_1 = child_0 + 1;
 
                     float t_0 = core::intersect4x4(child_0->bbox, rays);
                     float t_1 = core::intersect4x4(child_1->bbox, rays);
@@ -200,8 +203,8 @@ namespace core {
             }
 
             const __m256 h = _mm256_or_ps(
-                    _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16), inf_x8, _CMP_NEQ_OQ),
-                    _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n*16 + 8), inf_x8, _CMP_NEQ_OQ));
+                    _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n * 16), inf_x8, _CMP_NEQ_OQ),
+                    _mm256_cmp_ps(_mm256_load_ps(rays.t.data() + rays.n * 16 + 8), inf_x8, _CMP_NEQ_OQ));
 
             dead = _mm256_testz_ps(h, h);
 
@@ -215,7 +218,8 @@ namespace core {
     }
 
 
-    void BVH::initiateAABBBVH(const std::vector<Triangle> &triangles) {
+    void BVH::initiateAABBBVH(const std::vector<Triangle> &triangles)
+    {
         std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
 
         std::transform(triangles.begin(), triangles.end(), _triangleCentroids.begin(), [](const Triangle &t)
@@ -223,7 +227,7 @@ namespace core {
             return (t.vertices[0] + t.vertices[1] + t.vertices[2]) / 3.0f;
         });
 
-        _nodes.reserve(triangles.size()*2 - 1);
+        _nodes.reserve(triangles.size() * 2 - 1);
         _root = &_nodes.emplace_back(0, triangles.size());
 
         splitNode(_root);
@@ -238,7 +242,7 @@ namespace core {
         linearize();
     }
 
-    Node* BVH::splitNode(Node* const node)
+    Node *BVH::splitNode(Node *const node)
     {
         // generate obb
         computeOBB(node);
@@ -248,7 +252,7 @@ namespace core {
 
         for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
         {
-            for (const glm::vec3 &v : getTriangle(i).vertices)
+            for (const glm::vec3 &v: getTriangle(i).vertices)
             {
                 node->bbox.min = glm::min(node->bbox.min, v);
                 node->bbox.max = glm::max(node->bbox.max, v);
@@ -295,12 +299,13 @@ namespace core {
 // split plane positions (specified by the splitsPerDimension parameter) for each XYZ dimension, then
 // bin all triangles and sum their area. The split positions for which the surface area heuristic
 // C = (n_left * area_left) + (n_right * area_right) is lowest will be chosen.
-    std::optional<Plane> BVH::splitPlaneSAH(const Node * const node, const int from, const int count, int maxSplitsPerDimension) const
+    std::optional<Plane>
+    BVH::splitPlaneSAH(const Node *const node, const int from, const int count, int maxSplitsPerDimension) const
     {
         const std::array<SplitDim, 3> split_dims = {
-                SplitDim{ { 1.0f, 0.0f, 0.0f }, node->bbox.min.x, node->bbox.max.x },
-                SplitDim{ { 0.0f, 1.0f, 0.0f }, node->bbox.min.y, node->bbox.max.y },
-                SplitDim{ { 0.0f, 0.0f, 1.0f }, node->bbox.min.z, node->bbox.max.z },
+                SplitDim{{1.0f, 0.0f, 0.0f}, node->bbox.min.x, node->bbox.max.x},
+                SplitDim{{0.0f, 1.0f, 0.0f}, node->bbox.min.y, node->bbox.max.y},
+                SplitDim{{0.0f, 0.0f, 1.0f}, node->bbox.min.z, node->bbox.max.z},
         };
 
         const int splitsPerDimension = std::min(count, maxSplitsPerDimension);
@@ -308,7 +313,7 @@ namespace core {
         float best = INF;
         std::optional<Plane> best_plane;
 
-        for (const SplitDim &split_dim : split_dims)
+        for (const SplitDim &split_dim: split_dims)
         {
             std::vector<SplitBin> bins(splitsPerDimension + 1);
 
@@ -374,7 +379,9 @@ namespace core {
                 const int n_right = bins[plane_index].trianglesRight + bins[plane_index].trianglesIn;
 
                 const float cost_left = (n_left != 0 ? n_left * bins[plane_index].areaLeft : INF);
-                const float cost_right = (n_right != 0 ? n_right * (bins[plane_index].areaRight + bins[plane_index].bbox.area()) : INF);
+                const float cost_right = (n_right != 0 ? n_right *
+                                                         (bins[plane_index].areaRight + bins[plane_index].bbox.area())
+                                                       : INF);
 
                 const float cost = cost_left + cost_right;
 
@@ -403,8 +410,7 @@ namespace core {
             if (splitPlane.distance(c) < 0.0f)
             {
                 left_to++;
-            }
-            else
+            } else
             {
                 std::swap(_triangleIds[left_to], _triangleIds[--right_from]);
             }
@@ -422,7 +428,7 @@ namespace core {
         std::vector<Triangle> linearized_triangles;
         std::vector<int> linearized_triangle_ids;
 
-        for (const int triangle_id : _triangleIds)
+        for (const int triangle_id: _triangleIds)
         {
             linearized_triangle_ids.push_back(linearized_triangles.size());
             linearized_triangles.push_back(_triangles[triangle_id]);
@@ -432,7 +438,8 @@ namespace core {
         std::swap(_triangles, linearized_triangles);
     }
 
-    void BVH::initiateOBBBVH(const std::vector<Triangle> &triangles) {
+    void BVH::initiateOBBBVH(const std::vector<Triangle> &triangles)
+    {
         std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
 
         std::transform(triangles.begin(), triangles.end(), _triangleCentroids.begin(), [](const Triangle &t)
@@ -440,7 +447,7 @@ namespace core {
             return (t.vertices[0] + t.vertices[1] + t.vertices[2]) / 3.0f;
         });
 
-        _nodes.reserve(triangles.size()*2 - 1);
+        _nodes.reserve(triangles.size() * 2 - 1);
         _root = &_nodes.emplace_back(0, triangles.size());
 
         // construct obb in this function
@@ -457,7 +464,7 @@ namespace core {
         linearize();
     }
 
-    bool BVH::intersectObbBVH(Ray &ray, const int maxIntersections) const
+    bool BVH::m_maxIterations(Ray &ray, const int maxIntersections) const
     {
         const Node *node_stack[2 * _tempMaxDepth];
 
@@ -478,33 +485,34 @@ namespace core {
             // ordered by hit distance, to ensure the closest node gets traversed first.
             while (stack_pointer != 0)
             {
-                const Node * const node = node_stack[--stack_pointer];
+                const Node *const node = node_stack[--stack_pointer];
 
-                    ray.bvh_nodes_visited++;
+                ray.bvh_nodes_visited++;
                 if (node->isLeaf())
                 {
                     for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
                     {
                         intersectTest(getTriangle(j), ray);
                     }
-                }
-                else
+                } else
                 {
                     const Node *left = &_nodes[node->leftFrom];
                     const Node *right = left + 1;
 
-                     // transform ray to obb space for both left and right node
+                    // transform ray to obb space for both left and right node
                     Ray leftRay = ray;
                     glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
                     glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
                     leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                    leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
+                    leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
+                                           1.0f / rayDirectionLocal.z);
 
                     Ray rightRay = ray;
                     rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
                     rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
                     rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                    rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
+                    rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
+                                            1.0f / rayDirectionLocal.z);
 
                     float t_left = core::intersectAABB(_unitAABB, leftRay);
                     float t_right = core::intersectAABB(_unitAABB, rightRay);
@@ -534,18 +542,21 @@ namespace core {
 
     }
 
-    Node* BVH::splitNodeOBB(Node* const node)
+    Node *BVH::splitNodeOBB(Node *const node)
     {
         // generate obb
         computeOBB(node);
 
-        if (node->count > 3) { // Only attempt to split if there are more than 3 triangles
+        if (node->count > 3)
+        { // Only attempt to split if there are more than 3 triangles
             auto split_plane = splitPlaneSAHOBB(node, 32);
 
-            if (split_plane) {
+            if (split_plane)
+            {
                 auto split_index = partitionOBB(node->leftFrom, node->count, *split_plane);
 
-                if (split_index) {
+                if (split_index)
+                {
                     int left_index = _nodes.size();
                     _nodes.emplace_back(node->leftFrom, *split_index - node->leftFrom);
                     _nodes.emplace_back(*split_index, node->leftFrom + node->count - *split_index);
@@ -564,19 +575,22 @@ namespace core {
     }
 
     // midpoint split for now
-    std::optional<Plane> BVH::splitPlaneSAHOBB(const Node* const node, int maxSplitsPerDimension) {
-        const DiTO::OBB& obb = node->obb;
+    std::optional<Plane> BVH::splitPlaneSAHOBB(const Node *const node, int maxSplitsPerDimension)
+    {
+        const DiTO::OBB &obb = node->obb;
         std::optional<Plane> best_plane;
 
         std::array<glm::dvec3, 3> axes = {obb.v0, obb.v1, obb.v2};
 
         // Iterate over each axis of the OBB
-        for (int axis = 0; axis < 3; ++axis) {
+        for (int axis = 0; axis < 3; ++axis)
+        {
             float minExtent = std::numeric_limits<float>::infinity();
             float maxExtent = -std::numeric_limits<float>::infinity();
 
             // Find min and max extents of the triangles along the current axis
-            for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i) {
+            for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i)
+            {
                 const glm::dvec3 centroid = getCentroid(i);
                 float projection = glm::dot(centroid - obb.mid, axes[axis]);
 
@@ -597,7 +611,8 @@ namespace core {
         return best_plane;
     }
 
-    std::optional<int> BVH::partitionOBB(const int from, const int count, const Plane& splitPlane) {
+    std::optional<int> BVH::partitionOBB(const int from, const int count, const Plane &splitPlane)
+    {
         int left_to = from;
         int right_from = from + count;
 
@@ -608,8 +623,7 @@ namespace core {
             if (splitPlane.distance(c) < 0.0f)
             {
                 left_to++;
-            }
-            else
+            } else
             {
                 std::swap(_triangleIds[left_to], _triangleIds[--right_from]);
             }
@@ -622,31 +636,38 @@ namespace core {
     }
 
     // The following functions are used for visualizing the BVH in the debug viewer
-    std::vector<Triangle> BVH::visualizeBVH() const {
+    std::vector<Triangle> BVH::visualizeBVH() const
+    {
         std::vector<Triangle> triangles;
         int triangleId = 0;
         visualizeNode(_root, triangles, triangleId);
         return triangles;
     }
 
-    void BVH::visualizeNode(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const {
-        if (node == nullptr) {
+    void BVH::visualizeNode(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const
+    {
+        if (node == nullptr)
+        {
             return;
         }
-    //     Only visualize the bounding box if it's a leaf node
-       if (node->isLeaf()) {
+        //     Only visualize the bounding box if it's a leaf node
+        if (node->isLeaf())
+        {
             glm::vec3 center = (node->bbox.min + node->bbox.max) * 0.5f;
             glm::vec3 dimensions = node->bbox.max - node->bbox.min;
             std::vector<Triangle> nodeTriangles = visualizeAABB(center, dimensions, triangleId);
             triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-       } else {
+        } else
+        {
             // Recurse for children
-           visualizeNode(&_nodes[node->leftFrom], triangles, triangleId);
-           visualizeNode(&_nodes[node->leftFrom + 1], triangles, triangleId);
-       }
+            visualizeNode(&_nodes[node->leftFrom], triangles, triangleId);
+            visualizeNode(&_nodes[node->leftFrom + 1], triangles, triangleId);
+        }
     }
 
-    std::vector<core::Triangle> BVH::visualizeAABB(const glm::vec3& center, const glm::vec3& dimensions, int& triangleId) const{
+    std::vector<core::Triangle>
+    BVH::visualizeAABB(const glm::vec3 &center, const glm::vec3 &dimensions, int &triangleId) const
+    {
         std::vector<Triangle> triangles;
         glm::vec3 halfDimensions = dimensions * 0.5f;
 
@@ -671,7 +692,8 @@ namespace core {
                                                            {3, 7, 6, 6, 2, 3}  // Top face
                                                    }};
 
-        for (const auto& face : faces) {
+        for (const auto &face: faces)
+        {
             glm::vec3 v0 = vertices[face[0]];
             glm::vec3 v1 = vertices[face[1]];
             glm::vec3 v2 = vertices[face[2]];
@@ -687,7 +709,8 @@ namespace core {
         return triangles;
     }
 
-    std::vector<Triangle> BVH::visualizeBVHOBB() const {
+    std::vector<Triangle> BVH::visualizeBVHOBB() const
+    {
         std::vector<Triangle> triangles;
         int triangleId = 0;
         visualizeNodeOBB(_root, triangles, triangleId);
@@ -696,21 +719,25 @@ namespace core {
 
     void BVH::visualizeNodeOBB(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const
     {
-        if (node == nullptr) {
+        if (node == nullptr)
+        {
             return;
         }
         // Only visualize the bounding box if it's a leaf node
-        if (node->isLeaf()) {
+        if (node->isLeaf())
+        {
             std::vector<Triangle> nodeTriangles = visualizeOBB(node->obb, triangleId);
             triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-        } else {
+        } else
+        {
             // Recurse for children
             visualizeNodeOBB(&_nodes[node->leftFrom], triangles, triangleId);
             visualizeNodeOBB(&_nodes[node->leftFrom + 1], triangles, triangleId);
         }
     }
 
-    std::vector<core::Triangle> BVH::visualizeOBB(const DiTO::OBB& obb, int& triangleId) const {
+    std::vector<core::Triangle> BVH::visualizeOBB(const DiTO::OBB &obb, int &triangleId) const
+    {
         std::vector<Triangle> triangles;
 
         // Convert OBB vectors to glm::vec3
@@ -718,20 +745,20 @@ namespace core {
         glm::vec3 v0 = obb.v0;
         glm::vec3 v1 = obb.v1;
         glm::vec3 v2 = obb.v2;
-        glm::vec3 ext =obb.ext;
+        glm::vec3 ext = obb.ext;
 
         // Calculate vertices of the OBB use ext
         std::array<glm::vec3, 8> vertices;
         vertices = {{
-                           mid + v0 * ext.x + v1 * ext.y + v2 * ext.z,
-                           mid - v0 * ext.x + v1 * ext.y + v2 * ext.z,
-                           mid - v0 * ext.x - v1 * ext.y + v2 * ext.z,
-                           mid + v0 * ext.x - v1 * ext.y + v2 * ext.z,
-                           mid + v0 * ext.x + v1 * ext.y - v2 * ext.z,
-                           mid - v0 * ext.x + v1 * ext.y - v2 * ext.z,
-                           mid - v0 * ext.x - v1 * ext.y - v2 * ext.z,
-                           mid + v0 * ext.x - v1 * ext.y - v2 * ext.z
-                   }};
+                            mid + v0 * ext.x + v1 * ext.y + v2 * ext.z,
+                            mid - v0 * ext.x + v1 * ext.y + v2 * ext.z,
+                            mid - v0 * ext.x - v1 * ext.y + v2 * ext.z,
+                            mid + v0 * ext.x - v1 * ext.y + v2 * ext.z,
+                            mid + v0 * ext.x + v1 * ext.y - v2 * ext.z,
+                            mid - v0 * ext.x + v1 * ext.y - v2 * ext.z,
+                            mid - v0 * ext.x - v1 * ext.y - v2 * ext.z,
+                            mid + v0 * ext.x - v1 * ext.y - v2 * ext.z
+                    }};
 
         std::array<std::array<int, 6>, 6> faces = {{
                                                            {0, 3, 2, 2, 1, 0}, // Front face
@@ -743,7 +770,8 @@ namespace core {
                                                    }};
 
         // Create triangles from vertices
-        for (const auto& face : faces) {
+        for (const auto &face: faces)
+        {
             glm::vec3 v0 = vertices[face[0]];
             glm::vec3 v1 = vertices[face[1]];
             glm::vec3 v2 = vertices[face[2]];
@@ -759,7 +787,8 @@ namespace core {
         return triangles;
     }
 
-    int BVH::calculateMaxDepth(int index, int currentDepth) {
+    int BVH::calculateMaxDepth(int index, int currentDepth)
+    {
         if (index >= _nodes.size() || _nodes[index].isLeaf()) return currentDepth;
 
         // Assuming right child immediately follows left child in the nodes vector
@@ -769,25 +798,28 @@ namespace core {
         return std::max(leftDepth, rightDepth);
     }
 
-    void BVH::computeOBB(Node* node) {
+    void BVH::computeOBB(Node *node)
+    {
         std::vector<glm::dvec3> vertices;
-        for (int i = node->leftFrom; i < (node->leftFrom + node->count); ++i) {
-            for (const glm::vec3 &v : getTriangle(i).vertices)
+        for (int i = node->leftFrom; i < (node->leftFrom + node->count); ++i)
+        {
+            for (const glm::vec3 &v: getTriangle(i).vertices)
             {
                 vertices.push_back(v);
             }
         }
 
         // Compute the OBB using the DiTO algorithm, if there are vertices present
-        if (!vertices.empty()) {
-            DiTO::DiTO_14(vertices.data(), vertices.size(), node->obb );
+        if (!vertices.empty())
+        {
+            DiTO::DiTO_14(vertices.data(), vertices.size(), node->obb);
         }
 
         node->obb.ext = glm::max(node->obb.ext, glm::dvec3(0.001));
 
         // create obb matrix, transform unit AABB (-0.5 - 0.5) to obb space
         // Scale matrix
-        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * ( glm::vec3(node->obb.ext)));
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * (glm::vec3(node->obb.ext)));
 
         // Rotation matrix
         glm::mat4 rotationMatrix = glm::mat4(

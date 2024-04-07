@@ -60,12 +60,13 @@ Members:
 	v0, v1, v2 - Orthogonal vectors defining the orientation
 	ext - Absolute values of the extents along the three vectors, measured from mid
 */
-struct OBB
-{	glm::dvec3 mid;
-	glm::dvec3 v0, v1, v2;
-	glm::dvec3 ext;
-	glm::mat4 invMatrix;
-};
+    struct OBB
+    {
+        glm::dvec3 mid;
+        glm::dvec3 v0, v1, v2;
+        glm::dvec3 ext;
+        glm::mat4 invMatrix;
+    };
 
 /*
 Compute an oriented bounding box using the DiTO-14 algorithm.
@@ -77,8 +78,8 @@ Postcondition: vertArr is unchanged, and obb holds the computed OBB
 The function has explicit instantiations with F = float and F = double at the
 top of the .cpp file.
 */
-extern void DiTO_14(glm::dvec3 vertArr[], int nv, OBB& obb);
+    extern void DiTO_14(glm::dvec3 vertArr[], int nv, OBB &obb);
 
 }
 
-#endif	// ifndef DITO_H_INCLUSION_GUARD
+#endif    // ifndef DITO_H_INCLUSION_GUARD
