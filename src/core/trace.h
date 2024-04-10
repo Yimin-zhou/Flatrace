@@ -5,8 +5,9 @@
 #include "src/core/frame.h"
 #include "src/core/bvh.h"
 #include <tbb/parallel_for.h>
-#include "src/utils/globalState.h"
-#include "src/debug/visualization.h"
+#include "utils/globalState.h"
+#include "debug/visualization.h"
+
 #include <SDL2/SDL.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl.h>
@@ -47,14 +48,18 @@ namespace core
         float m_nx, m_ny;
         float m_dx, m_dy;
 
+        // debugs
+        debug::Visualization m_visualization;
+        BVH m_bboxBVH;
+
         int _sampleRate = 1000;
         int _rayCount = 0;
 
-        void renderFrame(const core::Camera &camera);
+        void renderFrame(const BVH& bvh, const core::Camera &camera);
 
-        void renderFrame4X4(const core::Camera &camera);
+        void renderFrame4X4(const BVH& bvh, const core::Camera &camera);
 
-        void renderFrameObb(const core::Camera &camera, const core::ObbTree &obbTree,
+        void renderFrameObb(const BVH& bvh, const core::Camera &camera, const core::ObbTree &obbTree,
                             core::RGBA *const frameBuffer,
                             int maxDepth);
 

@@ -14,6 +14,7 @@
 #include <chrono>
 #include <iostream>
 #include "core/frame.h"
+#include "imguiManager.h"
 
 namespace utils
 {
@@ -24,12 +25,13 @@ namespace utils
         ~Window();
 
         void resize();
-        bool update();
         void display(core::RGBA* pixels);
 
         int getWidth() const { return m_windowWidth; }
         int getHeight() const { return m_windowHeight; }
 
+        SDL_Renderer* getRenderer() const { return m_renderer; }
+        SDL_Window* getWindow() const { return m_window; }
 
     private:
         // render texture
@@ -39,5 +41,8 @@ namespace utils
         SDL_Renderer* m_renderer = nullptr;
         int m_windowWidth;
         int m_windowHeight;
+
+        // imgui
+        ImGuiManager m_imguiManager;
     };
 }

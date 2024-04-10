@@ -14,7 +14,9 @@ namespace core
     {
         // Load objects from folder
         std::vector<Model> models;
-        models = utils::Obj::loadAllObjFilesInFolder("test/input/big_obj", false);
+        models = utils::Obj::loadAllObjFilesInFolder(m_modelPath, false);
+//        Model test_model = utils::Obj::read("test/input/test/bunny.obj", true);
+//        models[0] = test_model;
 
         // add all triangles from all objects
         for (int i = 0; i < models.size(); i++)
@@ -36,6 +38,7 @@ namespace core
 
         m_tracer = Tracer(m_mesh, m_width, m_height, MAX_INTERSECTIONS,
                           VIEWPORT_WIDTH, VIEWPORT_HEIGHT, m_tileSize, m_bundleSize);
+
     }
 
     void Application::run()
@@ -47,11 +50,13 @@ namespace core
             SDL_Event e;
             while (SDL_PollEvent(&e))
             {
-//        ImGui_ImplSDL2_ProcessEvent(&e);
+//                ImGui_ImplSDL2_ProcessEvent(&e);
                 if (e.type == SDL_QUIT)
                 {
                     quit = true;
-                } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
+                }
+                else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
+                {
                     m_window.resize();
                     m_tracer.resize(m_window.getWidth(), m_window.getHeight());
                 }
@@ -70,6 +75,7 @@ namespace core
 
             // Display frame
             m_window.display(m_tracer.getPixels());
+
         }
     }
 }

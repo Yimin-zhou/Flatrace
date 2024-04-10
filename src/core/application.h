@@ -19,7 +19,6 @@ namespace core
         Application();
 
         void init();
-
         void run();
 
     private:

@@ -5,21 +5,25 @@
 
 core::Tracer::Tracer(const std::vector<Triangle> &mesh, int width, int height, int maxIterations,
                      float viewWidth, float viewHeight, int tileSize, int bundleSize) :
-    m_mesh(mesh),
-    m_width(width),
-    m_height(height),
-    m_viewportWidth(viewWidth),
-    m_viewportHeight(viewHeight),
-    m_maxIterations(maxIterations),
-    m_tileSize(tileSize),
-    m_bundleSize(bundleSize),
-    m_frame(width, height),
-    m_bvh(mesh)
+        m_mesh(mesh),
+        m_width(width),
+        m_height(height),
+        m_viewportWidth(viewWidth),
+        m_viewportHeight(viewHeight),
+        m_maxIterations(maxIterations),
+        m_tileSize(tileSize),
+        m_bundleSize(bundleSize),
+        m_frame(width, height),
+        m_bvh(mesh)
 {
     m_dx = m_viewportWidth / m_width;
     m_dy = m_viewportHeight / m_height;
     m_nx = m_width / m_tileSize;
     m_ny = m_height / m_tileSize;
+
+    // for debugging
+    m_visualization = debug::Visualization(m_bvh);
+    m_bboxBVH = m_visualization.generateBbox();
 }
 
 void core::Tracer::resize(int width, int height)
@@ -46,11 +50,18 @@ void core::Tracer::resize(int width, int height)
 
 void core::Tracer::render(const core::Camera &camera)
 {
-    renderFrame(camera);
+    if (GlobalState::bboxView)
+    {
+        renderFrame(m_bboxBVH, camera);
+    }
+    else
+    {
+        renderFrame(m_bvh, camera);
+    }
 }
 
 // Reference implementation that traces 1 ray at a time (no SIMD)
-void core::Tracer::renderFrame(const core::Camera &camera)
+void core::Tracer::renderFrame(const BVH& bvh, const core::Camera &camera)
 {
     auto COLORS = getMaterial();
 
@@ -80,12 +91,12 @@ void core::Tracer::renderFrame(const core::Camera &camera)
                     core::Ray ray = {ray_origin, ray_direction};
 
                     bool hit = false;
-                    if (GlobalState::enableOBB || OBB_BVH)
+                    if (GlobalState::enableOBB || GEN_OBB_BVH)
                     {
-                        hit = m_bvh.m_maxIterations(ray, m_maxIterations);
+                        hit = bvh.intersectOBB(ray, m_maxIterations);
                     } else
                     {
-                        hit = m_bvh.intersect(ray, m_maxIterations);
+                        hit = bvh.intersect(ray, m_maxIterations);
                     }
 
                     auto end = std::chrono::high_resolution_clock::now();
@@ -124,7 +135,7 @@ void core::Tracer::renderFrame(const core::Camera &camera)
                                 const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f),
                                                                         _mm_load1_ps(&ray.dot[n]));
                                 const __m128 tri_color = _mm_load_ps(
-                                        COLORS[m_bvh.getTriangle(triangle).material & 0x07].data());
+                                        COLORS[bvh.getTriangle(triangle).material & 0x07].data());
                                 const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
 
                                 const float alpha = dst_alpha * src_alpha;
@@ -152,7 +163,7 @@ void core::Tracer::renderFrame(const core::Camera &camera)
     });
 }
 
-void core::Tracer::renderFrameObb(const core::Camera &camera, const core::ObbTree &obbTree,
+void core::Tracer::renderFrameObb(const BVH& bvh, const core::Camera &camera, const core::ObbTree &obbTree,
                                   core::RGBA *const frameBuffer,
                                   int maxDepth)
 {
@@ -251,7 +262,7 @@ void core::Tracer::renderFrameObb(const core::Camera &camera, const core::ObbTre
 }
 
 // 8-way SIMD implementation that traces 4x4 'ray bundles'
-void core::Tracer::renderFrame4X4(const core::Camera &camera)
+void core::Tracer::renderFrame4X4(const BVH& bvh, const core::Camera &camera)
 {
     auto COLORS = getMaterial();
     const glm::vec3 rd = {1.0f / camera.dir.x, 1.0f / camera.dir.y, 1.0f / camera.dir.z};
@@ -280,7 +291,7 @@ void core::Tracer::renderFrame4X4(const core::Camera &camera)
 
                     core::Ray4x4 rays = {camera, bundle_origin, camera.dir, rd, m_dx, m_dy};
 
-                    const bool hit = m_bvh.intersect4x4(rays, m_maxIterations);
+                    const bool hit = bvh.intersect4x4(rays, m_maxIterations);
 
                     __m128 src_alpha = _mm_set1_ps(0.6f);
 
@@ -305,7 +316,7 @@ void core::Tracer::renderFrame4X4(const core::Camera &camera)
                                 const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f),
                                                                         _mm_load1_ps(rays.dot.data() + n * 16 + r));
                                 const __m128 tri_color = _mm_load_ps(
-                                        COLORS[m_bvh.getTriangle(triangle).material & 0x07].data());
+                                        COLORS[bvh.getTriangle(triangle).material & 0x07].data());
                                 const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
 
                                 const __m128 alpha = _mm_mul_ps(dst_alpha, src_alpha);

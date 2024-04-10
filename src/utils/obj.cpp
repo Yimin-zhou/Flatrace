@@ -1,6 +1,7 @@
 // Worlds' stupidest .OBJ parser
 
 #include "obj.h"
+#include "globalState.h"
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
@@ -192,7 +193,7 @@ namespace utils::Obj
                                    });
                 }
 
-      scaleModel(triangles, glm::vec3(0.00035f));
+      scaleModel(triangles, glm::vec3(MODEL_SCALE));
                 return triangles;
             } else
             {

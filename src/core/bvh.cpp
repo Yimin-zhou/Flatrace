@@ -76,7 +76,7 @@ namespace core
             _triangleCentroids(triangles.size()),
             _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f))
     {
-        if (OBB_BVH)
+        if (GEN_OBB_BVH)
         {
             initiateOBBBVH(triangles);
         } else
@@ -263,7 +263,7 @@ namespace core
         }
 
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
-        if (node->count > 3)
+        if (node->count > 15)
         {
             const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
 
@@ -464,7 +464,7 @@ namespace core
         linearize();
     }
 
-    bool BVH::m_maxIterations(Ray &ray, const int maxIntersections) const
+    bool BVH::intersectOBB(Ray &ray, const int maxIntersections) const
     {
         const Node *node_stack[2 * _tempMaxDepth];
 
@@ -547,7 +547,7 @@ namespace core
         // generate obb
         computeOBB(node);
 
-        if (node->count > 3)
+        if (node->count > 15)
         { // Only attempt to split if there are more than 3 triangles
             auto split_plane = splitPlaneSAHOBB(node, 32);
 
@@ -633,158 +633,6 @@ namespace core
         const int n_right = count - n_left;
 
         return ((n_left != 0) && (n_right != 0) ? std::make_optional(left_to) : std::nullopt);
-    }
-
-    // The following functions are used for visualizing the BVH in the debug viewer
-    std::vector<Triangle> BVH::visualizeBVH() const
-    {
-        std::vector<Triangle> triangles;
-        int triangleId = 0;
-        visualizeNode(_root, triangles, triangleId);
-        return triangles;
-    }
-
-    void BVH::visualizeNode(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const
-    {
-        if (node == nullptr)
-        {
-            return;
-        }
-        //     Only visualize the bounding box if it's a leaf node
-        if (node->isLeaf())
-        {
-            glm::vec3 center = (node->bbox.min + node->bbox.max) * 0.5f;
-            glm::vec3 dimensions = node->bbox.max - node->bbox.min;
-            std::vector<Triangle> nodeTriangles = visualizeAABB(center, dimensions, triangleId);
-            triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-        } else
-        {
-            // Recurse for children
-            visualizeNode(&_nodes[node->leftFrom], triangles, triangleId);
-            visualizeNode(&_nodes[node->leftFrom + 1], triangles, triangleId);
-        }
-    }
-
-    std::vector<core::Triangle>
-    BVH::visualizeAABB(const glm::vec3 &center, const glm::vec3 &dimensions, int &triangleId) const
-    {
-        std::vector<Triangle> triangles;
-        glm::vec3 halfDimensions = dimensions * 0.5f;
-
-        // Calculate vertices based on center and dimensions
-        std::array<glm::vec3, 8> vertices = {
-                center + glm::vec3(-halfDimensions.x, -halfDimensions.y, -halfDimensions.z),
-                center + glm::vec3(halfDimensions.x, -halfDimensions.y, -halfDimensions.z),
-                center + glm::vec3(halfDimensions.x, halfDimensions.y, -halfDimensions.z),
-                center + glm::vec3(-halfDimensions.x, halfDimensions.y, -halfDimensions.z),
-                center + glm::vec3(-halfDimensions.x, -halfDimensions.y, halfDimensions.z),
-                center + glm::vec3(halfDimensions.x, -halfDimensions.y, halfDimensions.z),
-                center + glm::vec3(halfDimensions.x, halfDimensions.y, halfDimensions.z),
-                center + glm::vec3(-halfDimensions.x, halfDimensions.y, halfDimensions.z)
-        };
-
-        std::array<std::array<int, 6>, 6> faces = {{
-                                                           {0, 3, 2, 2, 1, 0}, // Front face
-                                                           {1, 2, 6, 6, 5, 1}, // Right face
-                                                           {5, 6, 7, 7, 4, 5}, // Back face
-                                                           {4, 7, 3, 3, 0, 4}, // Left face
-                                                           {4, 0, 1, 1, 5, 4}, // Bottom face
-                                                           {3, 7, 6, 6, 2, 3}  // Top face
-                                                   }};
-
-        for (const auto &face: faces)
-        {
-            glm::vec3 v0 = vertices[face[0]];
-            glm::vec3 v1 = vertices[face[1]];
-            glm::vec3 v2 = vertices[face[2]];
-            glm::vec3 v3 = vertices[face[3]];
-            glm::vec3 v4 = vertices[face[4]];
-            glm::vec3 v5 = vertices[face[5]];
-
-            // Adjust the order of vertices to ensure normals are pointing outward
-            triangles.emplace_back(triangleId++, v0, v1, v2, 0);
-            triangles.emplace_back(triangleId++, v3, v4, v5, 0);
-        }
-
-        return triangles;
-    }
-
-    std::vector<Triangle> BVH::visualizeBVHOBB() const
-    {
-        std::vector<Triangle> triangles;
-        int triangleId = 0;
-        visualizeNodeOBB(_root, triangles, triangleId);
-        return triangles;
-    }
-
-    void BVH::visualizeNodeOBB(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const
-    {
-        if (node == nullptr)
-        {
-            return;
-        }
-        // Only visualize the bounding box if it's a leaf node
-        if (node->isLeaf())
-        {
-            std::vector<Triangle> nodeTriangles = visualizeOBB(node->obb, triangleId);
-            triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-        } else
-        {
-            // Recurse for children
-            visualizeNodeOBB(&_nodes[node->leftFrom], triangles, triangleId);
-            visualizeNodeOBB(&_nodes[node->leftFrom + 1], triangles, triangleId);
-        }
-    }
-
-    std::vector<core::Triangle> BVH::visualizeOBB(const DiTO::OBB &obb, int &triangleId) const
-    {
-        std::vector<Triangle> triangles;
-
-        // Convert OBB vectors to glm::vec3
-        glm::vec3 mid = obb.mid;
-        glm::vec3 v0 = obb.v0;
-        glm::vec3 v1 = obb.v1;
-        glm::vec3 v2 = obb.v2;
-        glm::vec3 ext = obb.ext;
-
-        // Calculate vertices of the OBB use ext
-        std::array<glm::vec3, 8> vertices;
-        vertices = {{
-                            mid + v0 * ext.x + v1 * ext.y + v2 * ext.z,
-                            mid - v0 * ext.x + v1 * ext.y + v2 * ext.z,
-                            mid - v0 * ext.x - v1 * ext.y + v2 * ext.z,
-                            mid + v0 * ext.x - v1 * ext.y + v2 * ext.z,
-                            mid + v0 * ext.x + v1 * ext.y - v2 * ext.z,
-                            mid - v0 * ext.x + v1 * ext.y - v2 * ext.z,
-                            mid - v0 * ext.x - v1 * ext.y - v2 * ext.z,
-                            mid + v0 * ext.x - v1 * ext.y - v2 * ext.z
-                    }};
-
-        std::array<std::array<int, 6>, 6> faces = {{
-                                                           {0, 3, 2, 2, 1, 0}, // Front face
-                                                           {1, 2, 6, 6, 5, 1}, // Right face
-                                                           {5, 6, 7, 7, 4, 5}, // Back face
-                                                           {4, 7, 3, 3, 0, 4}, // Left face
-                                                           {4, 0, 1, 1, 5, 4}, // Bottom face
-                                                           {3, 7, 6, 6, 2, 3}  // Top face
-                                                   }};
-
-        // Create triangles from vertices
-        for (const auto &face: faces)
-        {
-            glm::vec3 v0 = vertices[face[0]];
-            glm::vec3 v1 = vertices[face[1]];
-            glm::vec3 v2 = vertices[face[2]];
-            glm::vec3 v3 = vertices[face[3]];
-            glm::vec3 v4 = vertices[face[4]];
-            glm::vec3 v5 = vertices[face[5]];
-
-            // Adjust the order of vertices to ensure normals are pointing inwards
-            triangles.emplace_back(triangleId++, v2, v1, v0, 0);
-            triangles.emplace_back(triangleId++, v5, v4, v3, 0);
-        }
-
-        return triangles;
     }
 
     int BVH::calculateMaxDepth(int index, int currentDepth)

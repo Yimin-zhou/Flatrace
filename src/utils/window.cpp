@@ -29,13 +29,8 @@ utils::Window::Window(const std::string &title, int width, int height) : m_windo
     SDL_RenderSetVSync(m_renderer, 1);
     resize();
 
-    // Init ImGui
-    ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    (void) io;
-    io.IniFilename = nullptr;
-    ImGui_ImplSDL2_InitForSDLRenderer(m_window);
-    ImGui_ImplSDLRenderer_Init(m_renderer);
+    // imgui
+    m_imguiManager = ImGuiManager(m_window, m_renderer);
 }
 
 utils::Window::~Window()
@@ -73,26 +68,13 @@ void utils::Window::resize()
     m_windowHeight = windowHeight;
 }
 
-bool utils::Window::update()
-{
-    SDL_Event e;
-    while (SDL_PollEvent(&e))
-    {
-//        ImGui_ImplSDL2_ProcessEvent(&e);
-        if (e.type == SDL_QUIT)
-        {
-            return false;
-        } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED) {
-            resize();
-        }
-    }
-    return true;
-}
-
 void utils::Window::display(core::RGBA* pixels)
 {
     SDL_UpdateTexture(m_texture, NULL, pixels, m_windowWidth * sizeof(core::RGBA));
     SDL_RenderCopy(m_renderer, m_texture, NULL, NULL);
+
+    // imgui
+    m_imguiManager.draw();
 
     SDL_RenderPresent(m_renderer);
 }

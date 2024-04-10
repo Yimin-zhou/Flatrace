@@ -100,12 +100,15 @@ add_library (utils
         src/utils/window.cpp
         src/utils/window.h
         src/utils/settings.h
+        src/utils/imguiManager.cpp
+        src/utils/imguiManager.h
 )
 
-add_library(debug
+add_library(ddebug
         src/debug/visualization.cpp
         src/debug/visualization.h
         src/debug/bvh_debugger.h
+        src/debug/debugTypes.h
 )
 
 add_executable (flatrace main.cpp)
@@ -113,7 +116,7 @@ add_executable (flatrace main.cpp)
 target_link_libraries (flatrace
         core
         utils
-#        debug
+        ddebug
         imgui
         ${SDL2_LIBRARIES}
         ${TBB_LIBRARIES}

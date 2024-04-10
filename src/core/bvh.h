@@ -51,7 +51,7 @@ namespace core
 
         bool intersect4x4(Ray4x4 &rays, const int maxIntersections) const;
 
-        bool m_maxIterations(Ray &ray, const int maxIntersections) const;
+        bool intersectOBB(Ray &ray, const int maxIntersections) const;
 
         bool failed() const { return _failed; }
 
@@ -72,22 +72,6 @@ namespace core
 
         // Generate obb
         void computeOBB(Node *node);
-
-        // For debugging and visualizing BVH nodes
-    public:
-        std::vector<Triangle> visualizeBVH() const;
-
-        std::vector<Triangle> visualizeBVHOBB() const;
-
-    private:
-        void visualizeNode(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const;
-
-        std::vector<core::Triangle>
-        visualizeAABB(const glm::vec3 &center, const glm::vec3 &dimensions, int &triangleId) const;
-
-        void visualizeNodeOBB(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const;
-
-        std::vector<core::Triangle> visualizeOBB(const DiTO::OBB &obb, int &triangleId) const;
 
     private:
         struct SplitDim

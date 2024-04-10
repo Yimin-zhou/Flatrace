@@ -70,7 +70,8 @@ namespace debug
     }
 
     // Show the BVH tree in the ImGui window
-    void renderBVHtree(const core::Node *node, const std::vector<core::Node> &nodes, int depth = 0) {
+    void renderBVHtree(const core::Node *node, const std::vector<core::Node> &nodes, int depth = 0)
+    {
         if (!node) return;
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -97,7 +98,8 @@ namespace debug
         }
     }
 
-    static std::vector<core::Triangle> visualizeOBBDir(const DiTO::OBB& obb, int startID = 0, double width = 0.02) {
+    static std::vector<core::Triangle> visualizeOBBDir(const DiTO::OBB& obb, int startID = 0, double width = 0.02)
+    {
         std::vector<core::Triangle> triangles;
         std::vector<glm::dvec3> axes = {-obb.v0, obb.v1, obb.v2};
 
