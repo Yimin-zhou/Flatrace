@@ -2,10 +2,14 @@
 #include "src/utils/globalState.h"
 
 #include <chrono>
+#include <string>
+#include <vector>
 
-core::Tracer::Tracer(const std::vector<Triangle> &mesh, int width, int height, int maxIterations,
-                     float viewWidth, float viewHeight, int tileSize, int bundleSize) :
-        m_mesh(mesh),
+
+core::Tracer::Tracer(const std::vector<std::vector<Triangle>> &meshes, int width,
+                     int height, int maxIterations, float viewWidth,
+                     float viewHeight, int tileSize, int bundleSize) :
+        m_meshes(meshes),
         m_width(width),
         m_height(height),
         m_viewportWidth(viewWidth),
@@ -13,15 +17,39 @@ core::Tracer::Tracer(const std::vector<Triangle> &mesh, int width, int height, i
         m_maxIterations(maxIterations),
         m_tileSize(tileSize),
         m_bundleSize(bundleSize),
-        m_frame(width, height),
-        m_bvh(mesh)
+        m_frame(width, height)
 {
     m_dx = m_viewportWidth / m_width;
     m_dy = m_viewportHeight / m_height;
     m_nx = m_width / m_tileSize;
     m_ny = m_height / m_tileSize;
 
-    // for debugging
+    // add all triangles from all objects
+    std::vector<Triangle> model;
+    for (int i = 0; i < m_meshes.size(); i++)
+    {
+        model.insert(model.end(), m_meshes[i].begin(), m_meshes[i].end());
+    }
+
+#if MODEL_FLIP
+    std::transform(model.begin(), model.end(), model.begin(), [](const Triangle &t) -> Triangle
+    {
+        const glm::vec3 &v0f = {t.vertices[0].x, t.vertices[0].z, t.vertices[0].y};
+        const glm::vec3 &v1f = {t.vertices[1].x, t.vertices[1].z, t.vertices[1].y};
+        const glm::vec3 &v2f = {t.vertices[2].x, t.vertices[2].z, t.vertices[2].y};
+
+        return {t.id, v0f, v2f, v1f, t.material};
+    });
+#endif
+
+#if OBB_METHOD_1 && GEN_OBB_BVH
+    m_bvh = core::ObbTree(m_meshes);
+#elif GEN_OBB_BVH
+    m_bvh = core::ObbTree(model);
+#else
+    m_bvh = BVH(model);
+#endif
+
     m_visualization = debug::Visualization(m_bvh);
     m_bboxBVH = m_visualization.generateBbox();
 }
@@ -46,6 +74,7 @@ void core::Tracer::resize(int width, int height)
 
     m_nx = m_width / m_tileSize;
     m_ny = m_height / m_tileSize;
+
 }
 
 void core::Tracer::render(const core::Camera &camera)
@@ -91,12 +120,13 @@ void core::Tracer::renderFrame(const BVH& bvh, const core::Camera &camera)
                     core::Ray ray = {ray_origin, ray_direction};
 
                     bool hit = false;
-                    if (GlobalState::enableOBB || GEN_OBB_BVH)
+
+                    if (GlobalState::enableOBB && !GEN_OBB_BVH)
                     {
-                        hit = bvh.intersectOBB(ray, m_maxIterations);
+                        hit = bvh.traversalOBB(ray, m_maxIterations);
                     } else
                     {
-                        hit = bvh.intersect(ray, m_maxIterations);
+                        hit = bvh.traversal(ray, m_maxIterations);
                     }
 
                     auto end = std::chrono::high_resolution_clock::now();
@@ -195,7 +225,7 @@ void core::Tracer::renderFrameObb(const BVH& bvh, const core::Camera &camera, co
                     core::Ray ray = {ray_origin, ray_direction};
 
                     bool hit = false;
-                    hit = obbTree.intersect(ray, m_maxIterations);
+                    hit = obbTree.traversal(ray, m_maxIterations);
 
                     auto end = std::chrono::high_resolution_clock::now();
                     std::chrono::duration<float, std::milli> processingTime = end - start;
@@ -291,7 +321,7 @@ void core::Tracer::renderFrame4X4(const BVH& bvh, const core::Camera &camera)
 
                     core::Ray4x4 rays = {camera, bundle_origin, camera.dir, rd, m_dx, m_dy};
 
-                    const bool hit = bvh.intersect4x4(rays, m_maxIterations);
+                    const bool hit = bvh.traversal4x4(rays, m_maxIterations);
 
                     __m128 src_alpha = _mm_set1_ps(0.6f);
 

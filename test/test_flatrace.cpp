@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "core/types.h"
-#include "core/bvh.h"
+#include "src/core/bvh/bvh.h"
 
 #include "utils/obj.h"
 

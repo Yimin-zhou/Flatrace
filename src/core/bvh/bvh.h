@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "types.h"
-#include "intersect.h"
-#include "dito/dito.h"
+#include "src/core/types.h"
+#include "src/core/intersect.h"
+#include "src/core/dito/dito.h"
 #include "imgui/imgui.h"
 
 #include <vector>
@@ -36,6 +36,26 @@ namespace core
         bool isLeaf() const { return (count != 0); }
     };
 
+    struct SplitDim
+    {
+        glm::vec3 normal;
+        double min = 0.0f;
+        double max = 0.0f;
+    };
+
+    struct SplitBin
+    {
+        BoundingBox bbox;
+
+        float areaLeft = 0.0f;
+        float areaRight = 0.0f;
+
+        int trianglesIn = 0;
+        int trianglesLeft = 0;
+        int trianglesRight = 0;
+    };
+
+
     class BVH
     {
     public:
@@ -43,15 +63,12 @@ namespace core
 
         BVH() = default;
 
-        void initiateAABBBVH(const std::vector<Triangle> &triangles);
+        virtual void construtBVH(const std::vector<Triangle> &triangles);
 
-        void initiateOBBBVH(const std::vector<Triangle> &triangles);
+        virtual bool traversal(Ray &ray, const int maxIntersections) const;
+        bool traversalOBB(Ray &ray, const int maxIntersections) const;
 
-        bool intersect(Ray &ray, const int maxIntersections) const;
-
-        bool intersect4x4(Ray4x4 &rays, const int maxIntersections) const;
-
-        bool intersectOBB(Ray &ray, const int maxIntersections) const;
+        virtual bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
         bool failed() const { return _failed; }
 
@@ -70,43 +87,18 @@ namespace core
 
         int getMaxDepth() const { return _tempMaxDepth; }
 
-        // Generate obb
-        void computeOBB(Node *node);
 
-    private:
-        struct SplitDim
-        {
-            glm::vec3 normal;
-            double min = 0.0f;
-            double max = 0.0f;
-        };
+    protected:
+        virtual Node *splitNode(Node *const node);
 
-        struct SplitBin
-        {
-            BoundingBox bbox;
+        virtual std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
 
-            float areaLeft = 0.0f;
-            float areaRight = 0.0f;
-
-            int trianglesIn = 0;
-            int trianglesLeft = 0;
-            int trianglesRight = 0;
-        };
-
-        Node *splitNode(Node *const node);
-
-        std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
-
-        std::optional<Plane>
+        virtual std::optional<Plane>
         splitPlaneSAH(const Node *const node, const int from, const int count, const int maxSplitsPerDimension) const;
 
-        Node *splitNodeOBB(Node *const node);
-
-        std::optional<int> partitionOBB(const int from, const int count, const Plane &splitPlane);
-
-        std::optional<Plane> splitPlaneSAHOBB(const Node *const node, int maxSplitsPerDimension);
-
-        void linearize();
+        virtual void linearize();
+        // Generate obb
+        virtual void computeOBB(Node *node);
 
         bool _failed;
 
@@ -119,10 +111,8 @@ namespace core
         Node *_root;
 
         int _tempMaxDepth = 0;
-
         // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
         BoundingBox _unitAABB;
-
     };
 
 }

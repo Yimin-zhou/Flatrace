@@ -19,20 +19,18 @@ void debug::Visualization::traversalNodes(const core::Node* node,
     //     Only visualize the bounding box if it's a leaf node
     if (node->isLeaf())
     {
-        if (VIS_OBB)
-        {
-            // Visualize OBB
-            std::vector<core::Triangle> nodeTriangles = visualizeOBB(node->obb, triangleId);
-            triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-        }
-        else
-        {
-            // Visualize AABB
-            glm::vec3 center = (node->bbox.min + node->bbox.max) * 0.5f;
-            glm::vec3 dimensions = node->bbox.max - node->bbox.min;
-            std::vector<core::Triangle> nodeTriangles = visualizeAABB(center, dimensions, triangleId);
-            triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-        }
+#if GEN_OBB_BVH || VIS_AABB_OBB
+        // Visualize OBB
+        std::vector<core::Triangle> nodeTriangles = visualizeOBB(node->obb, triangleId);
+        triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
+#else
+        // Visualize AABB
+        glm::vec3 center = (node->bbox.min + node->bbox.max) * 0.5f;
+        glm::vec3 dimensions = node->bbox.max - node->bbox.min;
+        std::vector<core::Triangle> nodeTriangles = visualizeAABB(center, dimensions, triangleId);
+        triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
+
+#endif
     }
     else
     {

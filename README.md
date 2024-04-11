@@ -58,7 +58,7 @@ After that, things get more complicated, but the following thigs could all yield
 
 ### Optimization round 2
 
-  * Traverse BVH and intersect triangles in 2x2 ray packets, and use 4-way SIMD for ray-bbox and ray-triange
+  * Traverse BVH and traversal triangles in 2x2 ray packets, and use 4-way SIMD for ray-bbox and ray-triange
     intersection logic: ~70% render time reduction
 
 #### Results so far:

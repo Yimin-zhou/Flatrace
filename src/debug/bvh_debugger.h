@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/core/bvh.h"
+#include "src/core/bvh/bvh.h"
 
 namespace debug
 {

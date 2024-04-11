@@ -68,8 +68,8 @@ include_directories (PRIVATE ${TBB_INCLUDE_DIR})
 add_subdirectory (third_party/imgui)
 
 add_library (core
-        src/core/bvh.h
-        src/core/bvh.cpp
+        src/core/bvh/bvh.h
+        src/core/bvh/bvh.cpp
         src/core/frame.h
         src/core/intersect.h
         src/core/types.h
@@ -77,8 +77,8 @@ add_library (core
         src/core/dito/dito.h
         src/core/dito/dito.cpp
         src/core/trace.cpp
-        src/core/obbTree.h
-        src/core/obbTree.cpp
+        src/core/bvh/obbTree.h
+        src/core/bvh/obbTree.cpp
         src/core/application.cpp
         src/core/application.h
 )

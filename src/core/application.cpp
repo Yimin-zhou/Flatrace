@@ -4,7 +4,7 @@ namespace core
 {
     Application::Application() :
             m_window("Flatrace", m_width, m_height),
-            m_modelPath("test/input/big_obj"),
+            m_modelPath("test/input/test"),
             m_flip(false)
     {
         init();
@@ -14,29 +14,11 @@ namespace core
     {
         // Load objects from folder
         std::vector<Model> models;
-        models = utils::Obj::loadAllObjFilesInFolder(m_modelPath, false);
+        models = utils::Obj::loadAllObjFilesInFolder(m_modelPath, MODEL_NORMALIZE);
 //        Model test_model = utils::Obj::read("test/input/test/bunny.obj", true);
 //        models[0] = test_model;
 
-        // add all triangles from all objects
-        for (int i = 0; i < models.size(); i++)
-        {
-            m_mesh.insert(m_mesh.end(), models[i].begin(), models[i].end());
-        }
-
-        if (m_flip)
-        {
-            std::transform(m_mesh.begin(), m_mesh.end(), m_mesh.begin(), [](const Triangle &t) -> Triangle
-            {
-                const glm::vec3 &v0f = {t.vertices[0].x, t.vertices[0].z, t.vertices[0].y};
-                const glm::vec3 &v1f = {t.vertices[1].x, t.vertices[1].z, t.vertices[1].y};
-                const glm::vec3 &v2f = {t.vertices[2].x, t.vertices[2].z, t.vertices[2].y};
-
-                return {t.id, v0f, v2f, v1f, t.material};
-            });
-        }
-
-        m_tracer = Tracer(m_mesh, m_width, m_height, MAX_INTERSECTIONS,
+        m_tracer = Tracer(models, m_width, m_height, MAX_INTERSECTIONS,
                           VIEWPORT_WIDTH, VIEWPORT_HEIGHT, m_tileSize, m_bundleSize);
 
     }

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/obbTree.h"
+#include "src/core/bvh/obbTree.h"
 #include "core/types.h"
-#include "core/bvh.h"
+#include "src/core/bvh/bvh.h"
 #include <tbb/parallel_for.h>
 #include "utils/globalState.h"
 #include "debug/visualization.h"

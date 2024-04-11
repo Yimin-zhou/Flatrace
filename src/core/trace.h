@@ -1,9 +1,8 @@
 #pragma once
 
-#include "src/core/obbTree.h"
+#include "src/core/bvh/obbTree.h"
 #include "src/core/types.h"
 #include "src/core/frame.h"
-#include "src/core/bvh.h"
 #include <tbb/parallel_for.h>
 #include "utils/globalState.h"
 #include "debug/visualization.h"
@@ -22,9 +21,11 @@ namespace core
     class Tracer
     {
     public:
-        Tracer(const std::vector<Triangle>& mesh, int width, int height, int maxIterations,
-               float viewWidth, float viewHeight, int tileSize, int bundleSize);
         Tracer() = default;
+
+        Tracer(const std::vector<std::vector<Triangle>> &meshes,
+               int width, int height, int maxIterations, float viewWidth,
+               float viewHeight, int tileSize, int bundleSize);
 
         void resize(int width, int height);
         void render(const core::Camera &camera);
@@ -32,9 +33,12 @@ namespace core
         RGBA* getPixels() { return m_frame.pixels.get(); }
 
     private:
-        std::vector<Triangle> m_mesh;
-
+        std::vector<std::vector<Triangle>> m_meshes;
+#if GEN_OBB_BVH
+        core::ObbTree m_bvh;
+#else
         BVH m_bvh;
+#endif
         Frame m_frame;
 
         int m_width;
@@ -50,7 +54,7 @@ namespace core
 
         // debugs
         debug::Visualization m_visualization;
-        BVH m_bboxBVH;
+        core::BVH m_bboxBVH;
 
         int _sampleRate = 1000;
         int _rayCount = 0;
