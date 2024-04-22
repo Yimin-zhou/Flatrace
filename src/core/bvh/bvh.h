@@ -63,56 +63,23 @@ namespace core
 
         BVH() = default;
 
-        virtual void construtBVH(const std::vector<Triangle> &triangles);
+        virtual void construtBVH(const std::vector<Triangle> &triangles) = 0;
+        virtual bool traversal(Ray &ray, const int maxIntersections) const = 0;
+        virtual bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const = 0;
 
-        virtual bool traversal(Ray &ray, const int maxIntersections) const;
-        bool traversalOBB(Ray &ray, const int maxIntersections) const;
-
-        virtual bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
-
-        bool failed() const { return _failed; }
-
-        const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
-
-        const glm::vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
-
-        // return the root node
-        const Node *getRoot() const { return _root; }
-
-        // return all nodes
-        const std::vector<Node> &getNodes() const { return _nodes; }
-
-        // return max depth of the BVH
-        int calculateMaxDepth(int index, int currentDepth = 0);
-
-        int getMaxDepth() const { return _tempMaxDepth; }
-
-
-    protected:
-        virtual Node *splitNode(Node *const node);
-
-        virtual std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
-
-        virtual std::optional<Plane>
-        splitPlaneSAH(const Node *const node, const int from, const int count, const int maxSplitsPerDimension) const;
-
-        virtual void linearize();
+        virtual Node *splitNode(Node *const node) = 0;
+        virtual std::optional<int> partition(const int from, const int count, const Plane &splitPlane) = 0;
+        virtual void linearize() = 0;
         // Generate obb
-        virtual void computeOBB(Node *node);
+        virtual void computeOBB(Node *node) = 0;
 
-        bool _failed;
-
-        std::vector<Node> _nodes;
-        std::vector<Triangle> _triangles;
-
-        std::vector<int> _triangleIds;
-        std::vector<glm::vec3> _triangleCentroids;
-
-        Node *_root;
-
-        int _tempMaxDepth = 0;
-        // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
-        BoundingBox _unitAABB;
+        virtual bool failed() const = 0;
+        virtual const Triangle &getTriangle(const int i) const  = 0;
+        virtual const glm::vec3 &getCentroid(const int i) const  = 0;
+        virtual const Node *getRoot() const  = 0;
+        virtual const std::vector<Node> &getNodes() const  = 0;
+        virtual int calculateMaxDepth(int index, int currentDepth = 0)  = 0;
+        virtual int getMaxDepth() const = 0;
     };
 
 }

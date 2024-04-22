@@ -4,6 +4,7 @@
 
 #include "src/core/types.h"
 #include "src/core/bvh/bvh.h"
+#include "src/core/bvh/aabbTree.h"
 #include "src/core/bvh/obbTree.h"
 
 
@@ -13,23 +14,17 @@ namespace debug
     {
     public:
         Visualization() = default;
+        Visualization(const std::shared_ptr<core::BVH> &bvh);
 
-#if GEN_OBB_BVH
-        Visualization(const core::ObbTree &bvh) : m_bvh(bvh) {}
-#else
-        Visualization(const core::BVH &bvh) : m_bvh(bvh) {}
-#endif
-
-        // use BVH bounding boxes to construct the triangle objects
-        core::BVH generateBbox();
+        std::vector<core::Triangle> getTriangles() const { return m_triangles; }
 
     private:
-#if GEN_OBB_BVH
-        core::ObbTree m_bvh;
-#else
-        core::BVH m_bvh;
-#endif
-        void traversalNodes(const core::Node* node, std::vector<core::Triangle> &triangles, int &triangleId);
+        std::shared_ptr<core::BVH> m_inputBVH;
+
+        std::vector<core::Triangle> m_triangles;
+
+        void traversalNodes(const core::Node* node,
+                            std::vector<core::Triangle> &triangles, int &triangleId);
 
         std::vector<core::Triangle> visualizeAABB(const glm::vec3 &center,
                                                   const glm::vec3 &dimensions, int &triangleId) const;

@@ -69,7 +69,6 @@ add_subdirectory (third_party/imgui)
 
 add_library (core
         src/core/bvh/bvh.h
-        src/core/bvh/bvh.cpp
         src/core/frame.h
         src/core/intersect.h
         src/core/types.h
@@ -81,6 +80,8 @@ add_library (core
         src/core/bvh/obbTree.cpp
         src/core/application.cpp
         src/core/application.h
+        src/core/bvh/aabbTree.cpp
+        src/core/bvh/aabbTree.h
 )
 
 
@@ -126,17 +127,25 @@ target_include_directories(flatrace PRIVATE ${GLM_INCLUDE_DIRS})
 include (CTest)
 enable_testing ()
 
+# Add the test executable
 add_executable(tests
-  test/main.cpp
-  test/test_flatrace.cpp
+        test/main.cpp
+        test/test_flatrace.cpp
 )
 
+# Link the necessary libraries to the test executable
 target_link_libraries (tests
         core
         utils
-  GTest::GTest
+        GTest::GTest
+        ddebug
+        imgui
+        ${SDL2_LIBRARIES}
+        ${TBB_LIBRARIES}
 )
-
+target_include_directories(tests PRIVATE ${GLM_INCLUDE_DIRS})
+# Create a symbolic link for test input directory
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin/test)
 file(CREATE_LINK ${CMAKE_SOURCE_DIR}/test/input ${CMAKE_BINARY_DIR}/bin/test/input SYMBOLIC)
+file(CREATE_LINK ${CMAKE_SOURCE_DIR}/test/output ${CMAKE_BINARY_DIR}/bin/test/output SYMBOLIC)
 

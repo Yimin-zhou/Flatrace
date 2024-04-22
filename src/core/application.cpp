@@ -3,8 +3,8 @@
 namespace core
 {
     Application::Application() :
-            m_window("Flatrace", m_width, m_height),
-            m_modelPath("test/input/test"),
+            m_window("Flatrace", WINDOW_WIDTH, WINDOW_HEIGHT),
+            m_modelPath("test/input/big_obj"),
             m_flip(false)
     {
         init();
@@ -18,8 +18,8 @@ namespace core
 //        Model test_model = utils::Obj::read("test/input/test/bunny.obj", true);
 //        models[0] = test_model;
 
-        m_tracer = Tracer(models, m_width, m_height, MAX_INTERSECTIONS,
-                          VIEWPORT_WIDTH, VIEWPORT_HEIGHT, m_tileSize, m_bundleSize);
+        m_tracer = Tracer(models, WINDOW_WIDTH, WINDOW_HEIGHT, MAX_INTERSECTIONS,
+                          VIEWPORT_WIDTH, VIEWPORT_HEIGHT, m_tileSize, m_bundleSize, ENABLE_OBB_BVH);
 
     }
 
@@ -49,11 +49,11 @@ namespace core
             const float cx = std::cos(theta) * 2.0f;
             const float cz = std::sin(theta) * 2.0f;
 
-            Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz},
+            Camera camera = {{cx, 1.0f, cz}, {0.0f, 0.0f, 0.0f},
                              {0.0f, 1.0f, 0.0f}, 5.0f};
 
             // Render frame
-            m_tracer.render(camera);
+            m_tracer.render(camera, ENABLE_OBB_BVH);
 
             // Display frame
             m_window.display(m_tracer.getPixels());

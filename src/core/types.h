@@ -9,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/vector_relational.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 #include "third_party/fmt/format.h"
 
@@ -154,15 +155,24 @@ namespace core
 
     struct Camera
     {
-        Camera(const glm::vec3 &p, const glm::vec3 &d, const glm::vec3 &up, const float zoom)
+        Camera(const glm::vec3 &p, const glm::vec3 &target, const glm::vec3 &up, const float zoom)
                 :
-                pos(p), dir(glm::normalize(d)), zoom(zoom)
+                pos(p), dir(glm::normalize(target - p)), zoom(zoom)
         {
-            const Plane view_plane = {p, d};
+            const Plane view_plane = {pos, dir * zoom};
 
-            y = (glm::normalize(view_plane.project(up) - p));
+            // For top and bottom views, adjust the camera's up direction
+            if (glm::abs(glm::dot(dir, up)) < 0.01f) {
+                // If the direction and up vector are nearly parallel, choose a new up vector
+                y = glm::vec3(0.0f, 1.0f, 0.0f);
+            } else {
+                y = glm::normalize(view_plane.project(up) - pos);
+            }
+
+            // Compute the camera's x-axis based on the direction and up vector
             x = glm::cross(view_plane.normal(), y);
         }
+
 
         glm::vec3 pos;
         glm::vec3 dir;

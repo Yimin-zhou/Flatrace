@@ -1,7 +1,7 @@
 #pragma once
 
-constexpr int m_width = 1280;
-constexpr int m_height = 720;
+constexpr int WINDOW_WIDTH = 1280;
+constexpr int WINDOW_HEIGHT = 720;
 
 constexpr auto VIEWPORT_WIDTH = 2.4f;
 constexpr auto VIEWPORT_HEIGHT = 1.35f;

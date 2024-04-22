@@ -1,12 +1,10 @@
 #include "visualization.h"
 #include "utils/globalState.h"
 
-core::BVH debug::Visualization::generateBbox()
+debug::Visualization::Visualization(const std::shared_ptr<core::BVH> &bvh) : m_inputBVH(bvh)
 {
-    std::vector<core::Triangle> triangles;
     int triangleId = 0;
-    traversalNodes(m_bvh.getRoot(), triangles, triangleId);
-    return core::BVH(triangles);
+    traversalNodes(m_inputBVH->getRoot(), m_triangles, triangleId);
 }
 
 void debug::Visualization::traversalNodes(const core::Node* node,
@@ -19,7 +17,7 @@ void debug::Visualization::traversalNodes(const core::Node* node,
     //     Only visualize the bounding box if it's a leaf node
     if (node->isLeaf())
     {
-#if GEN_OBB_BVH || VIS_AABB_OBB
+#if ENABLE_OBB_BVH || VIS_AABB_OBB
         // Visualize OBB
         std::vector<core::Triangle> nodeTriangles = visualizeOBB(node->obb, triangleId);
         triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
@@ -35,8 +33,8 @@ void debug::Visualization::traversalNodes(const core::Node* node,
     else
     {
         // Recurse for children
-        traversalNodes(&m_bvh.getNodes()[node->leftFrom], triangles, triangleId);
-        traversalNodes(&m_bvh.getNodes()[node->leftFrom + 1], triangles, triangleId);
+        traversalNodes(&m_inputBVH->getNodes()[node->leftFrom], triangles, triangleId);
+        traversalNodes(&m_inputBVH->getNodes()[node->leftFrom + 1], triangles, triangleId);
     }
 }
 
@@ -134,4 +132,6 @@ std::vector<core::Triangle> debug::Visualization::visualizeOBB(const DiTO::OBB &
 
     return triangles;
 }
+
+
 

@@ -1,25 +1,17 @@
 #pragma once
 
-#include "src/core/types.h"
-#include "src/core/intersect.h"
-#include "src/core/dito/dito.h"
-#include "imgui/imgui.h"
-#include "bvh.h"
-
-#include <vector>
-#include <optional>
+#include "core/bvh/bvh.h"
 
 namespace core
 {
-
-    class ObbTree : public BVH
+    class AABBTree : public BVH
     {
     public:
-        ObbTree(const std::vector<std::vector<Triangle>> &objects);
-        ObbTree() = default;
+        AABBTree() = default;
+        AABBTree(const std::vector<Triangle> &triangles);
 
-        std::optional<Plane> splitPlaneOBB(const Node *const node, int maxSplitsPerDimension) const;
-        void computeOBBPerObj(const std::vector<Triangle> &object, Node *node);
+        std::optional<Plane>
+        splitPlaneSAH(const Node *const node, const int from, const int count, const int maxSplitsPerDimension) const;
 
         // override functions
         void construtBVH(const std::vector<Triangle> &triangles) override;
@@ -50,12 +42,7 @@ namespace core
         Node *_root;
 
         int _tempMaxDepth = 0;
-
-        unsigned int _nodeCount;
+        // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
         BoundingBox _unitAABB;
-
-        void init(const std::vector<Triangle> &triangles, unsigned int nodeIndex);
     };
-
 }
-

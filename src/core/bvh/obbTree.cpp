@@ -20,7 +20,6 @@
 
 namespace core
 {
-
     ObbTree::ObbTree(const std::vector<std::vector<Triangle>> &objects) :
             _nodeCount(0),
             _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f))
@@ -49,44 +48,6 @@ namespace core
     void ObbTree::init(const std::vector<Triangle> &triangles, unsigned int nodeIndex)
     {
         _nodes.emplace_back(nodeIndex, triangles.size());
-    }
-
-    void ObbTree::computeOBBPerObj(const std::vector<Triangle> &object, Node *node)
-    {
-        std::vector<glm::dvec3> vertices;
-        for (const auto &triangle: object)
-        {
-            for (const glm::vec3 &v: triangle.vertices)
-            {
-                vertices.push_back(v);
-            }
-        }
-
-        // Compute the OBB using the DiTO algorithm, if there are vertices present
-        if (!vertices.empty())
-        {
-            DiTO::DiTO_14(vertices.data(), vertices.size(), node->obb);
-        }
-
-        node->obb.ext = glm::max(node->obb.ext, glm::dvec3(0.001));
-
-        // create obb matrix, transform unit AABB (-0.5 - 0.5) to obb space
-        // Scale matrix
-        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * (glm::vec3(node->obb.ext)));
-
-        // Rotation matrix
-        glm::mat4 rotationMatrix = glm::mat4(
-                glm::vec4(glm::vec3(node->obb.v0), 0.0f),
-                glm::vec4(glm::vec3(node->obb.v1), 0.0f),
-                glm::vec4(glm::vec3(node->obb.v2), 0.0f),
-                glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-        );
-
-        // Translation matrix
-        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(node->obb.mid));
-
-        // Calculate the inverse of the transformation matrix
-        node->obb.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
     }
 
     bool ObbTree::traversal(Ray &ray, const int maxIntersections) const
@@ -161,16 +122,9 @@ namespace core
         return (ray.t[0] != core::INF);
     }
 
-    // method 2
-    ObbTree::ObbTree(const std::vector<Triangle> &object)
-            :
-            _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f))
+    bool ObbTree::traversal4x4(Ray4x4 &rays, const int maxIntersections) const
     {
-        _failed = false;
-        _triangles = object;
-        _triangleIds.resize(_triangles.size());
-        _triangleCentroids.resize(_triangles.size());
-        construtBVH(_triangles);
+        return false;
     }
 
     void ObbTree::construtBVH(const std::vector<Triangle> &triangles)
@@ -294,7 +248,105 @@ namespace core
 
     void ObbTree::linearize()
     {
-        BVH::linearize();
+        std::vector<Triangle> linearized_triangles;
+        std::vector<int> linearized_triangle_ids;
+
+        for (const int triangle_id: _triangleIds)
+        {
+            linearized_triangle_ids.push_back(linearized_triangles.size());
+            linearized_triangles.push_back(_triangles[triangle_id]);
+        }
+
+        std::swap(_triangleIds, linearized_triangle_ids);
+        std::swap(_triangles, linearized_triangles);
     }
+
+    void ObbTree::computeOBBPerObj(const std::vector<Triangle> &object, Node *node)
+    {
+        std::vector<glm::dvec3> vertices;
+        for (const auto &triangle: object)
+        {
+            for (const glm::vec3 &v: triangle.vertices)
+            {
+                vertices.push_back(v);
+            }
+        }
+
+        // Compute the OBB using the DiTO algorithm, if there are vertices present
+        if (!vertices.empty())
+        {
+            DiTO::DiTO_14(vertices.data(), vertices.size(), node->obb);
+        }
+
+        node->obb.ext = glm::max(node->obb.ext, glm::dvec3(0.001));
+
+        // create obb matrix, transform unit AABB (-0.5 - 0.5) to obb space
+        // Scale matrix
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * (glm::vec3(node->obb.ext)));
+
+        // Rotation matrix
+        glm::mat4 rotationMatrix = glm::mat4(
+                glm::vec4(glm::vec3(node->obb.v0), 0.0f),
+                glm::vec4(glm::vec3(node->obb.v1), 0.0f),
+                glm::vec4(glm::vec3(node->obb.v2), 0.0f),
+                glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
+        );
+
+        // Translation matrix
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(node->obb.mid));
+
+        // Calculate the inverse of the transformation matrix
+        node->obb.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
+    }
+
+    void ObbTree::computeOBB(Node *node)
+    {
+        std::vector<glm::dvec3> vertices;
+        for (int i = node->leftFrom; i < (node->leftFrom + node->count); ++i)
+        {
+            for (const glm::vec3 &v: getTriangle(i).vertices)
+            {
+                vertices.push_back(v);
+            }
+        }
+
+        // Compute the OBB using the DiTO algorithm, if there are vertices present
+        if (!vertices.empty())
+        {
+            DiTO::DiTO_14(vertices.data(), vertices.size(), node->obb);
+        }
+
+        node->obb.ext = glm::max(node->obb.ext, glm::dvec3(0.001));
+
+        // create obb matrix, transform unit AABB (-0.5 - 0.5) to obb space
+        // Scale matrix
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * (glm::vec3(node->obb.ext)));
+
+        // Rotation matrix
+        glm::mat4 rotationMatrix = glm::mat4(
+                glm::vec4(glm::vec3(node->obb.v0), 0.0f),
+                glm::vec4(glm::vec3(node->obb.v1), 0.0f),
+                glm::vec4(glm::vec3(node->obb.v2), 0.0f),
+                glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
+        );
+
+        // Translation matrix
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(node->obb.mid));
+
+        // Calculate the inverse of the transformation matrix
+        node->obb.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
+    }
+
+    int ObbTree::calculateMaxDepth(int index, int currentDepth)
+    {
+        if (index >= _nodes.size() || _nodes[index].isLeaf()) return currentDepth;
+
+        // Assuming right child immediately follows left child in the nodes vector
+        int leftDepth = calculateMaxDepth(_nodes[index].leftFrom, currentDepth + 1);
+        int rightDepth = calculateMaxDepth(_nodes[index].leftFrom + 1, currentDepth + 1);
+
+        return std::max(leftDepth, rightDepth);
+    }
+
 
 }

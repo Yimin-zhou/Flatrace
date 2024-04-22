@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/core/bvh/obbTree.h"
+#include "src/core/bvh/aabbTree.h"
 #include "src/core/types.h"
 #include "src/core/frame.h"
 #include <tbb/parallel_for.h>
@@ -25,20 +26,18 @@ namespace core
 
         Tracer(const std::vector<std::vector<Triangle>> &meshes,
                int width, int height, int maxIterations, float viewWidth,
-               float viewHeight, int tileSize, int bundleSize);
+               float viewHeight, int tileSize, int bundleSize, bool genObbBvh);
 
         void resize(int width, int height);
-        void render(const core::Camera &camera);
+        void render(const core::Camera &camera, bool traverseObbInAabb);
 
+        Frame &getFrame() { return m_frame; }
         RGBA* getPixels() { return m_frame.pixels.get(); }
 
     private:
+        std::shared_ptr<BVH> m_bvh;
         std::vector<std::vector<Triangle>> m_meshes;
-#if GEN_OBB_BVH
-        core::ObbTree m_bvh;
-#else
-        BVH m_bvh;
-#endif
+
         Frame m_frame;
 
         int m_width;
@@ -54,18 +53,15 @@ namespace core
 
         // debugs
         debug::Visualization m_visualization;
-        core::BVH m_bboxBVH;
+        std::shared_ptr<BVH> m_bboxBVH;
 
         int _sampleRate = 1000;
         int _rayCount = 0;
 
-        void renderFrame(const BVH& bvh, const core::Camera &camera);
+        void renderFrame(const core::Camera &camera, bool traverseObb = false);
+        void renderBboxFrame(const core::Camera &camera, bool traverseObb = false);
 
-        void renderFrame4X4(const BVH& bvh, const core::Camera &camera);
-
-        void renderFrameObb(const BVH& bvh, const core::Camera &camera, const core::ObbTree &obbTree,
-                            core::RGBA *const frameBuffer,
-                            int maxDepth);
+        void renderFrame4X4(const std::unique_ptr<BVH> bvh, const core::Camera &camera);
 
 //        float rayProcessingTimes[N_RAYS];
         std::array<std::array<float, 4>, 8> getMaterial();
