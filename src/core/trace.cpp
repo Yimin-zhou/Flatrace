@@ -128,7 +128,13 @@ void core::Tracer::renderFrame(const core::Camera &camera, bool traverseObbInAab
 
                     bool hit = false;
 
-                    hit = m_bvh->traversal(ray, m_maxIterations);
+                    if (traverseObbInAabb || (GlobalState::enableOBB && !ENABLE_OBB_BVH))
+                    {
+                        hit = m_bvh->traversalOBB(ray, m_maxIterations);
+                    } else
+                    {
+                        hit = m_bvh->traversal(ray, m_maxIterations);
+                    }
 
                     auto end = std::chrono::high_resolution_clock::now();
                     std::chrono::duration<float, std::milli> processingTime = end - start;

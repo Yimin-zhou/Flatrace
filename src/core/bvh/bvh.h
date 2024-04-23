@@ -65,6 +65,7 @@ namespace core
 
         virtual void construtBVH(const std::vector<Triangle> &triangles) = 0;
         virtual bool traversal(Ray &ray, const int maxIntersections) const = 0;
+        virtual bool traversalOBB(Ray &ray, const int maxIntersections) const = 0;
         virtual bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const = 0;
 
         virtual Node *splitNode(Node *const node) = 0;

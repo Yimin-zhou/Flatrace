@@ -24,6 +24,7 @@ namespace core
         // override functions
         void construtBVH(const std::vector<Triangle> &triangles) override;
         bool traversal(Ray &ray, const int maxIntersections) const override;
+        bool traversalOBB(Ray &ray, const int maxIntersections) const override { traversal(ray, maxIntersections); };
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const override;
         Node *splitNode(Node *const node) override;
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane) override;

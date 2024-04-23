@@ -192,7 +192,7 @@ bool core::AABBTree::traversal4x4(core::Ray4x4 &rays, const int maxIntersections
 core::Node *core::AABBTree::splitNode(core::Node *const node)
 {
     // generate obb
-//        computeOBB(node);
+    computeOBB(node);
 
     // Calculate node bounding box, and getCentroid bounding box (for splitting)
     BoundingBox centroid_bbox;
@@ -424,4 +424,76 @@ int core::AABBTree::calculateMaxDepth(int index, int currentDepth)
     int rightDepth = calculateMaxDepth(_nodes[index].leftFrom + 1, currentDepth + 1);
 
     return std::max(leftDepth, rightDepth);
+}
+
+bool core::AABBTree::traversalOBB(core::Ray &ray, const int maxIntersections) const
+{
+    const Node *node_stack[_nodes.size()];
+
+    for (int i = 0; i < maxIntersections; i++)
+    {
+        int stack_pointer = 0;
+
+        node_stack[stack_pointer++] = _root;
+
+        // Traversal works like this: while there are nodes left on the stack, pop the topmost one. If it is a leaf,
+        // traversal & shorten the ray against the triangles in the leaf node. If the node is an internal node,
+        // traversal the ray against its left & right child node bboxes, and push those child nodes that were hit,
+        // ordered by hit distance, to ensure the closest node gets traversed first.
+        while (stack_pointer != 0)
+        {
+            const Node *const node = node_stack[--stack_pointer];
+
+            ray.bvh_nodes_visited++;
+            if (node->isLeaf())
+            {
+                for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
+                {
+                    core::intersect(_triangles[j], ray);
+                }
+            } else
+            {
+                const Node *left = &_nodes[node->leftFrom];
+                const Node *right = left + 1;
+
+                // transform ray to obb space for both left and right node
+                Ray leftRay = ray;
+                glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
+                glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
+                leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+                leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
+                                       1.0f / rayDirectionLocal.z);
+
+                Ray rightRay = ray;
+                rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
+                rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
+                rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+                rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
+                                        1.0f / rayDirectionLocal.z);
+
+                float t_left = core::intersectAABB(_unitAABB, leftRay);
+                float t_right = core::intersectAABB(_unitAABB, rightRay);
+
+                if (t_left > t_right)
+                {
+                    std::swap(t_left, t_right);
+                    std::swap(left, right);
+                }
+
+                if (t_left != INF)
+                {
+                    if (t_right != INF)
+                    {
+                        node_stack[stack_pointer++] = right;
+                    }
+
+                    node_stack[stack_pointer++] = left;
+                }
+            }
+        }
+
+        ray.nextIntersection();
+    }
+
+    return (ray.t[0] != core::INF);
 }

@@ -53,7 +53,7 @@ namespace core
                              {0.0f, 1.0f, 0.0f}, 5.0f};
 
             // Render frame
-            m_tracer.render(camera, ENABLE_OBB_BVH);
+            m_tracer.render(camera, ENABLE_OBB_TRACING);
 
             // Display frame
             m_window.display(m_tracer.getPixels());

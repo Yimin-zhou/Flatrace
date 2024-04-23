@@ -185,7 +185,7 @@ namespace test
         Camera camera = {position, target, up, zoom};
 
         tracer_aabb.render(camera, false);
-        tracer_obb.render(camera, true);
+        tracer_obb.render(camera, false);
 
         // compare the results
         const core::Frame &frame_aabb = tracer_aabb.getFrame();
@@ -216,7 +216,7 @@ namespace test
             const float cz = std::sin(i) * 2.0f;
             Camera camera = {{cx, 1.0f, cz}, target, up, zoom};
             tracer_aabb.render(camera, false);
-            tracer_obb.render(camera, true);
+            tracer_obb.render(camera, false);
             // compare the results
             const core::Frame &frame_aabb = tracer_aabb.getFrame();
             const core::Frame &frame_obb = tracer_obb.getFrame();
@@ -229,7 +229,7 @@ namespace test
             const float cz = std::sin(i) * 2.0f;
             Camera camera = {{cx, -1.0f, cz}, target, up, zoom};
             tracer_aabb.render(camera, false);
-            tracer_obb.render(camera, true);
+            tracer_obb.render(camera, false);
             // compare the results
             const core::Frame &frame_aabb = tracer_aabb.getFrame();
             const core::Frame &frame_obb = tracer_obb.getFrame();
@@ -272,7 +272,7 @@ namespace test
             aabb_times.push_back(diff.count());
 
             start = std::chrono::high_resolution_clock::now();
-            tracer_obb.render(camera, true);
+            tracer_obb.render(camera, false);
             end = std::chrono::high_resolution_clock::now();
             diff = end - start;
             obb_times.push_back(diff.count());
