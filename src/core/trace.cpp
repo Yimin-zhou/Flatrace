@@ -1,5 +1,6 @@
 #include "trace.h"
 #include "src/utils/globalState.h"
+#include "src/utils/globalState.h"
 
 // Arbitrary color palette for materials
 auto getMaterial()
@@ -86,7 +87,15 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 
                     core::Ray ray = {ray_origin, ray_direction};
 
-                    const bool hit = bvh.intersect(ray, MAX_INTERSECTIONS);
+                    bool hit = false;
+
+                    if (GlobalState::enableOBB)
+                    {
+                        hit = bvh.traversalOBB(ray, MAX_INTERSECTIONS);
+                    } else
+                    {
+                        hit = bvh.traversal(ray, MAX_INTERSECTIONS);
+                    }
 
                     const float src_alpha = 0.4f;
 
@@ -98,8 +107,7 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 
                         if (GlobalState::heatmapView)
                         {
-                            glm::vec3 heat_map_color = getColorMap(
-                                    ray.bvh_nodes_visited, 1, maxDepth-1);
+                            glm::vec3 heat_map_color = getColorMap(ray.bvh_nodes_visited, 1, 200);
                             cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
                             cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
                             c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
@@ -173,7 +181,7 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
 
                     core::Ray4x4 rays = {camera, bundle_origin, camera.dir, rd, DX, DY};
 
-                    const bool hit = bvh.intersect4x4(rays, MAX_INTERSECTIONS);
+                    const bool hit = bvh.traversal4x4(rays, MAX_INTERSECTIONS);
 
                     __m128 src_alpha = _mm_set1_ps(0.6f);
 
@@ -216,6 +224,89 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
                         _mm_storeu_si32(p + ((BUNDLE_SIZE - ray_i - 1) * FRAME_WIDTH) + ray_j, c);
                     }
                 }
+            }
+        }
+    });
+}
+
+// OBB tree traversal
+void render_frameOBB(const core::Camera &camera, const core::obb::ObbTree &obb, core::RGBA *const frameBuffer, int maxDepth)
+{
+    auto COLORS = getMaterial();
+    tbb::parallel_for(tbb::blocked_range<int>(0, NX * NY), [&](const tbb::blocked_range<int> &r)
+    {
+        for (int tile_idx = r.begin(); tile_idx != r.end(); tile_idx++)
+        {
+            const int tile_i = (tile_idx / NX);
+            const int tile_j = (tile_idx % NX);
+
+            const float tile_y = -(VIEWPORT_HEIGHT / 2.0f) + (tile_i * TILE_SIZE * DY);
+            const float tile_x = -(VIEWPORT_WIDTH / 2.0f) + (tile_j * TILE_SIZE * DX);
+
+            float y = tile_y;
+            core::RGBA *p = frameBuffer + (FRAME_HEIGHT - tile_i * TILE_SIZE - 1) * FRAME_WIDTH + (tile_j * TILE_SIZE);
+            for (int i = tile_i * TILE_SIZE; i < (tile_i * TILE_SIZE) + TILE_SIZE; i++)
+            {
+                float x = tile_x;
+
+                for (int j = tile_j * TILE_SIZE; j < (tile_j * TILE_SIZE) + TILE_SIZE; j++)
+                {
+                    const glm::vec3 ray_origin = camera.pos + camera.x * x + camera.y * y;
+                    const glm::vec3 ray_direction = camera.dir;
+
+                    core::Ray ray = {ray_origin, ray_direction};
+
+                    bool hit = obb.traversal(ray, MAX_INTERSECTIONS);
+
+                    const float src_alpha = 0.4f;
+
+                    __m128i c = _mm_set1_epi32(0);
+
+                    if (hit)
+                    {
+                        __m128 cf = _mm_set1_ps(0.0f);
+
+                        if (GlobalState::heatmapView)
+                        {
+                            glm::vec3 heat_map_color = getColorMap(ray.bvh_nodes_visited, 1, 200);
+                            cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
+                            cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
+                            c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
+                        } else
+                        {
+                            float dst_alpha = 1.0f;
+
+                            for (int n = 0; n < 3; n++)
+                            {
+                                const int triangle = ray.triangle[n];
+
+                                // c += COLORS[bvh.getTriangle(ray.triangle[0]).material & 0x07] * (dst_alpha * src_alpha * std::abs(ray.dot[n]));
+                                const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f),
+                                                                        _mm_load1_ps(&ray.dot[n]));
+                                const __m128 tri_color = _mm_load_ps(
+                                        COLORS[obb.getTriangle(triangle).material & 0x07].data());
+                                const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
+
+                                const float alpha = dst_alpha * src_alpha;
+
+                                cf = _mm_add_ps(cf, _mm_mul_ps(_mm_load1_ps(&alpha), shaded_color));
+
+                                dst_alpha *= (1.0 - src_alpha);
+                            }
+                            // c = min(255 * cf)
+                            cf = _mm_min_ps(_mm_mul_ps(cf, _mm_set1_ps(255.0f)), _mm_set1_ps(255.0f));
+                            c = _mm_shuffle_epi8(_mm_cvtps_epi32(cf), _mm_set1_epi32(0x0C080400));
+                        }
+                    }
+                    // *p = c;
+                    _mm_storeu_si32(p, c);
+
+                    x += DX;
+                    p += 1;
+                }
+
+                y += DY;
+                p -= (FRAME_WIDTH + TILE_SIZE);
             }
         }
     });

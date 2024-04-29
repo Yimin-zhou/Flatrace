@@ -8,17 +8,15 @@ int main()
     using namespace std::chrono;
     using namespace core;
 
-    const bool flip = 0;
-
     // Set a default model
-    const std::string input_folder("test/input/test");
+    const std::string input_folder("test/input/big_obj");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
 
     try
     {
-        models = utils::Obj::loadAllObjFilesInFolder(input_folder, true);
+        models = utils::Obj::loadAllObjFilesInFolder(input_folder, MODEL_NORMALIZE);
     }
     catch (std::runtime_error &e)
     {
@@ -35,7 +33,7 @@ int main()
     std::cerr << "Triangle count: " << triangles.size() << std::endl;
 
     // Flip y/z coordinates if '1' was passed on the command line, after the input file name
-    if (flip)
+    if (MODEL_FLIP)
     {
         std::transform(triangles.begin(), triangles.end(), triangles.begin(), [](const Triangle &t) -> Triangle
         {
@@ -49,16 +47,21 @@ int main()
 
     const auto start_bvh = steady_clock::now();
 
+#if ENABLE_OBB_BVH
+    core::obb::ObbTree obbTree(triangles);
+    if (obbTree.failed())
+    {
+        std::cerr << "ObbTree construction failed" << std::endl;
+        return EXIT_FAILURE;
+    }
+#else
     BVH bvh(triangles);
-
-    // For visualizing BVH nodes
-
-
     if (bvh.failed())
     {
         std::cerr << "BVH construction failed" << std::endl;
         return EXIT_FAILURE;
     }
+#endif
 
     const auto end_bvh = steady_clock::now();
 
@@ -119,8 +122,13 @@ int main()
     float min_rps = INF;
 
     // For debugging BVH nodes
+#if ENABLE_OBB_BVH
+    int maxDepth = obbTree.getMaxDepth();
+    int nodeCount = obbTree.getNodes().size();
+#else
     int maxDepth = bvh.getMaxDepth();
     int nodeCount = bvh.getNodes().size();
+#endif
 
     while (!quit)
     {
@@ -163,7 +171,11 @@ int main()
 
         // not use SIMD for now
         #if 1
-            render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+            #if ENABLE_OBB_BVH
+                render_frameOBB(camera, obbTree, frame.pixels.get(), maxDepth);
+            #else
+                render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+            #endif
         #else
             render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
@@ -213,24 +225,28 @@ int main()
                 ImGui::Separator();
                 if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
                 {
+#if ENABLE_OBB_BVH
+
+#else
                     debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
+#endif
                 }
 
                 ImGui::Separator();
+                if (ImGui::Checkbox("Use OBB Tracing", &GlobalState::enableOBB))
+                {
+                }
+
+                ImGui::Separator();
+
                 if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
                 {
                     GlobalState::bboxView = false;
-                    GlobalState::enableOBB = false;
                 }
                 if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
                 {
                     GlobalState::heatmapView = false;
                 }
-                if (ImGui::Checkbox("BVH bounding box OBB view", &GlobalState::enableOBB))
-                {
-                    GlobalState::heatmapView = false;
-                }
-
             }
 
             ImGui::End();

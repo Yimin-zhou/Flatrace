@@ -1,6 +1,7 @@
 // Worlds' stupidest .OBJ parser
 
 #include "obj.h"
+#include "globalState.h"
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
@@ -13,8 +14,9 @@
 
 #include "third_party/fmt/format.h"
 
-namespace fs = std::filesystem;
 namespace qi = boost::spirit::qi;
+
+namespace fs = std::filesystem;
 
 namespace utils::Obj
 {
@@ -29,14 +31,6 @@ namespace utils::Obj
         float y;
         float z;
     };
-
-    struct Material
-    {
-        std::string name;
-    };
-
-    using Face = std::vector<int>;
-    using Statement = std::variant<std::string, Vertex, Face, Material>;
 
     void scaleModel(std::vector<core::Triangle> &triangles, const glm::vec3 &scaleFactor)
     {
@@ -54,6 +48,14 @@ namespace utils::Obj
             triangle.normal = glm::normalize(glm::cross(triangle.edges[0], triangle.edges[1]));
         }
     }
+
+    struct Material
+    {
+        std::string name;
+    };
+
+    using Face = std::vector<int>;
+    using Statement = std::variant<std::string, Vertex, Face, Material>;
 
     struct ObjLineParser : public qi::grammar<std::string::const_iterator, std::vector<Statement>(), qi::blank_type>
     {
@@ -189,7 +191,8 @@ namespace utils::Obj
                                        return core::Triangle{triangle.id, v0, v1, v2, triangle.material};
                                    });
                 }
-//                scaleModel(triangles, glm::vec3(MODEL_SCALE));
+
+                scaleModel(triangles, glm::vec3(MODEL_SCALE));
                 return triangles;
             } else
             {
@@ -228,7 +231,7 @@ namespace utils::Obj
         return allTriangles;
     }
 
-    // Write simple obj file containing a grid of cubes, useful for testing/debugging
+// Write simple obj file containing a grid of cubes, useful for testing/debugging
     void write_test_cubes(const std::string &filename)
     {
         static const std::array<glm::vec3, 8> UNIT_CUBE_VERTICES = {

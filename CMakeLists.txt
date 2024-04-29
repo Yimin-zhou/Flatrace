@@ -76,6 +76,8 @@ add_library (core
         src/core/dito/dito.h
         src/core/dito/dito.cpp
         src/core/trace.cpp
+        src/core/obbTree.cpp
+        src/core/obbTree.h
 )
 
 
