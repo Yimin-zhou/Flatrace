@@ -38,7 +38,8 @@ if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
   endif ()
 elseif (${CMAKE_BUILD_TYPE} STREQUAL "Profile")
   if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    add_compile_options (-O2 -ffast-math -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
+    add_compile_options (-Ofast -ffast-math -fno-finite-math-only -march=native -fno-tree-vectorize -fno-tree-slp-vectorize)
+    add_definitions(-DTRACY_ENABLE)
   endif ()
 
   if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
@@ -57,6 +58,14 @@ find_package (GTest REQUIRED)
 
 # find_path (simde_INCLUDE_DIR simde/check.h REQUIRED)
 set (simde_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/simde/simde")
+# Tracy integration
+set(TRACY_DIR "${PROJECT_SOURCE_DIR}/third_party/tracy/public")
+include_directories ("${TRACY_DIR}/tracy")
+
+# Adding TracyClient.cpp only in Profile build
+if (CMAKE_BUILD_TYPE STREQUAL "Profile")
+  set(TRACY_SOURCES "${TRACY_DIR}/TracyClient.cpp")
+endif()
 
 include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")
@@ -112,7 +121,7 @@ add_library(ddebug
         src/debug/debugTypes.h
 )
 
-add_executable (flatrace main.cpp)
+add_executable (flatrace main.cpp ${TRACY_SOURCES})
 
 target_link_libraries (flatrace
         core

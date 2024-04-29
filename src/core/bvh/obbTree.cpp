@@ -1,3 +1,4 @@
+#include <Tracy.hpp>
 #include "obbTree.h"
 
 #include "src/utils/globalState.h"
@@ -52,6 +53,7 @@ namespace core
 
     bool ObbTree::traversal(Ray &ray, const int maxIntersections) const
     {
+        ZoneScopedN("OBB Traversal");
         const Node *node_stack[_nodes.size()];
 
         for (int i = 0; i < maxIntersections; i++)

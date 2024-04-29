@@ -45,12 +45,12 @@ void core::AABBTree::construtBVH(const std::vector<Triangle> &triangles)
     _root = &_nodes.emplace_back(0, triangles.size());
 
     splitNode(_root);
-    _tempMaxDepth = calculateMaxDepth(0);
+    _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
 
     std::cerr << "Constructing Model BVH... " << std::endl;
     std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
     std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
-    std::cerr << "BVH MAX DEPTH: " << _tempMaxDepth << std::endl;
+    std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
     std::cerr << "TRIANGLE SIZE: " << _triangles.size() << std::endl;
 
     // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
@@ -60,7 +60,7 @@ void core::AABBTree::construtBVH(const std::vector<Triangle> &triangles)
 
 bool core::AABBTree::traversal(core::Ray &ray, const int maxIntersections) const
 {
-    const Node *node_stack[_nodes.size()];
+    const Node *node_stack[2 * _maxDepth];
 
     if (core::intersectAABB(_root->bbox, ray) == INF)
     {
@@ -124,7 +124,7 @@ bool core::AABBTree::traversal4x4(core::Ray4x4 &rays, const int maxIntersections
 {
     static const __m256 inf_x8 = _mm256_set1_ps(INF);
 
-    const Node *node_stack[2 * _tempMaxDepth];
+    const Node *node_stack[2 * _maxDepth];
 
     bool hit = false;
     bool dead = false;
@@ -192,7 +192,7 @@ bool core::AABBTree::traversal4x4(core::Ray4x4 &rays, const int maxIntersections
 core::Node *core::AABBTree::splitNode(core::Node *const node)
 {
     // generate obb
-    computeOBB(node);
+//    computeOBB(node);
 
     // Calculate node bounding box, and getCentroid bounding box (for splitting)
     BoundingBox centroid_bbox;

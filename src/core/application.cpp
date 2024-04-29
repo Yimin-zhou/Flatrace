@@ -1,10 +1,11 @@
 #include "application.h"
+#include <Tracy.hpp>
 
 namespace core
 {
     Application::Application() :
             m_window("Flatrace", WINDOW_WIDTH, WINDOW_HEIGHT),
-            m_modelPath("test/input/big_obj"),
+            m_modelPath("test/input/test"),
             m_flip(false)
     {
         init();
@@ -57,7 +58,7 @@ namespace core
 
             // Display frame
             m_window.display(m_tracer.getPixels());
-
+            FrameMark;
         }
     }
 }

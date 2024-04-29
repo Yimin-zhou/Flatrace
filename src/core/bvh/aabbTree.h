@@ -29,7 +29,7 @@ namespace core
         const Node *getRoot() const override { return _root; }
         const std::vector<Node> &getNodes() const override { return _nodes; }
         int calculateMaxDepth(int index, int currentDepth = 0) override;
-        int getMaxDepth() const override{ return _tempMaxDepth; }
+        int getMaxDepth() const override{ return _maxDepth; }
 
     private:
         bool _failed;
@@ -42,7 +42,7 @@ namespace core
 
         Node *_root;
 
-        int _tempMaxDepth = 0;
+        int _maxDepth;
         // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
         BoundingBox _unitAABB;
     };

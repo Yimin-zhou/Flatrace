@@ -1,6 +1,7 @@
 #include "trace.h"
 #include "src/utils/globalState.h"
 
+#include <Tracy.hpp>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -86,6 +87,7 @@ void core::Tracer::resize(int width, int height)
 
 void core::Tracer::render(const core::Camera &camera, bool traverseObb)
 {
+    ZoneScoped;
     if (GlobalState::bboxView)
     {
         renderBboxFrame(camera, traverseObb);
@@ -135,7 +137,6 @@ void core::Tracer::renderFrame(const core::Camera &camera, bool traverseObbInAab
                     {
                         hit = m_bvh->traversal(ray, m_maxIterations);
                     }
-
                     auto end = std::chrono::high_resolution_clock::now();
                     std::chrono::duration<float, std::milli> processingTime = end - start;
 
@@ -201,7 +202,7 @@ void core::Tracer::renderFrame(const core::Camera &camera, bool traverseObbInAab
 }
 
 // 8-way SIMD implementation that traces 4x4 'ray bundles'
-void core::Tracer::renderFrame4X4(const std::unique_ptr<BVH> bvh, const core::Camera &camera)
+void core::Tracer::renderFrame4X4(const core::Camera &camera, bool traverseObbInAabb)
 {
     auto COLORS = getMaterial();
     const glm::vec3 rd = {1.0f / camera.dir.x, 1.0f / camera.dir.y, 1.0f / camera.dir.z};
@@ -230,7 +231,8 @@ void core::Tracer::renderFrame4X4(const std::unique_ptr<BVH> bvh, const core::Ca
 
                     core::Ray4x4 rays = {camera, bundle_origin, camera.dir, rd, m_dx, m_dy};
 
-                    const bool hit = bvh->traversal4x4(rays, m_maxIterations);
+                    // TODO: add OBB
+                    const bool hit = m_bvh->traversal4x4(rays, m_maxIterations);
 
                     __m128 src_alpha = _mm_set1_ps(0.6f);
 
@@ -255,7 +257,7 @@ void core::Tracer::renderFrame4X4(const std::unique_ptr<BVH> bvh, const core::Ca
                                 const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f),
                                                                         _mm_load1_ps(rays.dot.data() + n * 16 + r));
                                 const __m128 tri_color = _mm_load_ps(
-                                        COLORS[bvh->getTriangle(triangle).material & 0x07].data());
+                                        COLORS[m_bvh->getTriangle(triangle).material & 0x07].data());
                                 const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
 
                                 const __m128 alpha = _mm_mul_ps(dst_alpha, src_alpha);

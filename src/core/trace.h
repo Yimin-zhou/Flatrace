@@ -61,7 +61,7 @@ namespace core
         void renderFrame(const core::Camera &camera, bool traverseObb = false);
         void renderBboxFrame(const core::Camera &camera, bool traverseObb = false);
 
-        void renderFrame4X4(const std::unique_ptr<BVH> bvh, const core::Camera &camera);
+        void renderFrame4X4(const core::Camera &camera, bool traverseObb = false);
 
 //        float rayProcessingTimes[N_RAYS];
         std::array<std::array<float, 4>, 8> getMaterial();
