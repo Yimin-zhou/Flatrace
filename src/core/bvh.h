@@ -39,6 +39,7 @@ namespace core
     class BVH
     {
     public:
+        BVH() = default;
         BVH(const std::vector<Triangle> &triangles);
 
         bool traversal(Ray &ray, const int maxIntersections) const;

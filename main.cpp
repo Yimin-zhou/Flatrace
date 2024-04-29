@@ -63,6 +63,15 @@ int main()
     }
 #endif
 
+    // Bounding box visualization
+#if ENABLE_OBB_BVH
+    debug::Visualization visualization(obbTree);
+    BVH boundingBoxBVH(visualization.getTriangles());
+#else
+    debug::Visualization visualization(bvh);
+    BVH boundingBoxBVH(visualization.getTriangles());
+#endif
+
     const auto end_bvh = steady_clock::now();
 
     std::cerr << fmt::format("BVH construction took {0} ms\n", duration_cast<milliseconds>(end_bvh - start_bvh).count());
@@ -172,9 +181,23 @@ int main()
         // not use SIMD for now
         #if 1
             #if ENABLE_OBB_BVH
-                render_frameOBB(camera, obbTree, frame.pixels.get(), maxDepth);
+                if (GlobalState::bboxView)
+                {
+                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
+                }
+                else
+                {
+                    render_frameOBB(camera, obbTree, frame.pixels.get(), maxDepth);
+                }
             #else
-                render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+                if (GlobalState::bboxView)
+                {
+                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
+                }
+                else
+                {
+                    render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+                }
             #endif
         #else
             render_frame_4x4(camera, bvh, frame.pixels.get());

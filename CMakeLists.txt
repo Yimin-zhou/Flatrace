@@ -90,7 +90,7 @@ add_library (utils
         src/utils/globalState.cpp
 )
 
-add_library(debug
+add_library(ddebug
         src/debug/visualization.cpp
         src/debug/visualization.h
         src/debug/bvh_debugger.h
@@ -101,7 +101,7 @@ add_executable (flatrace main.cpp)
 target_link_libraries (flatrace
         core
         utils
-#        debug
+        ddebug
         imgui
         ${SDL2_LIBRARIES}
         ${TBB_LIBRARIES}
@@ -120,6 +120,10 @@ target_link_libraries (tests
         core
         utils
   GTest::GTest
+        ddebug
+        imgui
+        ${SDL2_LIBRARIES}
+        ${TBB_LIBRARIES}
 )
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)

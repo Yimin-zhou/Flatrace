@@ -31,10 +31,10 @@ namespace core::obb
     class ObbTree
     {
     public:
+        ObbTree() = default;
         ObbTree(const std::vector<Triangle> &triangles);
 
         bool traversal(Ray &ray, const int maxIntersections) const;
-
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
         bool failed() const { return _failed; }
