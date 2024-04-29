@@ -27,7 +27,7 @@ public:
     }
 
     BoundingBox bbox;
-    DiTO::OBB obb;
+    DiTO::OBB<float> obb;
 
     int leftFrom;
     int count;
@@ -43,7 +43,7 @@ public:
     bool intersect(Ray &ray, const int maxIntersections) const;
     bool intersect4x4(Ray4x4 &rays, const int maxIntersections) const;
 
-    bool intersectObbBVH(Ray &ray, const int maxIntersections) const;
+    bool intersectOBB(Ray &ray, const int maxIntersections) const;
 
     bool failed() const { return _failed; }
 
@@ -58,19 +58,17 @@ public:
     int getMaxDepth() const { return _maxDepth; }
 
     // Generate obb
+    template <typename F>
     void computeOBB(Node* node);
 
     // For debugging and visualizing BVH nodes
 public:
     std::vector<Triangle> visualizeBVH() const;
-    std::vector<Triangle> visualizeBVHOBB() const;
 
 private:
     void visualizeNode(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
-    std::vector<core::Triangle> visualizeAABB(const glm::vec3& center, const glm::vec3& dimensions, int& triangleId) const;
 
-    void visualizeNodeOBB(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
-    std::vector<core::Triangle> visualizeOBB(const DiTO::OBB& obb, int& triangleId) const;
+    std::vector<core::Triangle> visualizeBoundingBox(const glm::vec3& center, const glm::vec3& dimensions, int& triangleId) const;
 
 private:
     struct SplitDim
@@ -110,10 +108,6 @@ private:
     Node *_root;
 
     int _maxDepth;
-
-    // We define this standard AABB space as a unit cube centered at the origin: Pmin = [–0.5, –0.5, –0.5], Pmax = [0.5, 0.5, 0.5]
-    BoundingBox _unitAABB;
-
 };
 
 

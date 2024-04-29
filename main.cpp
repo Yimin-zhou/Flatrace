@@ -1,7 +1,6 @@
 #include "src/core/trace.h"
 #include "src/debug/bvh_debugger.h"
 #include "src/utils/globalState.h"
-#include "src/utils/obj.h"
 
 int main(int argc, char **argv)
 {
@@ -17,7 +16,7 @@ int main(int argc, char **argv)
     const bool flip = (argc == 3) && (argv[2][0] == '1');
 
     // Set a default model
-    const std::string input_file("test/input/bunny.obj");
+    const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/bunny.obj");
 
     // Load getTriangle data
     std::vector<Triangle> triangles;
@@ -31,7 +30,6 @@ int main(int argc, char **argv)
         std::cerr << fmt::format("Failed to read OBJ file '{0}'\n\t{1}", input_file, e.what()) << std::endl;
         return EXIT_FAILURE;
     }
-
 
     std::cerr << "Triangle count: " << triangles.size() << std::endl;
 
@@ -48,29 +46,12 @@ int main(int argc, char **argv)
         });
     }
 
-    // testing obb with one triangle
-    std::vector<glm::vec3> testTriangleOne = {
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 0.5f, 0.0f)};
-    std::vector<glm::vec3> testTriangleTwo = {
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.5f, 0.0f, 1.0f),
-            glm::vec3(0.0f, 0.5f, 0.0f)};
-    std::vector<Triangle> testingTriangles;
-    testingTriangles.push_back(Triangle(0, testTriangleOne[0], testTriangleOne[1], testTriangleOne[2], 0));
-    testingTriangles.push_back(Triangle(1, testTriangleTwo[0], testTriangleTwo[1], testTriangleTwo[2], 0));
-    BVH testingBvh(testingTriangles);
-
     const auto start_bvh = steady_clock::now();
 
     BVH bvh(triangles);
 
     // For visualizing BVH nodes
-    std::vector<Triangle> boundingBoxTriangles;
-
-    boundingBoxTriangles = bvh.visualizeBVHOBB();
-
+    std::vector<Triangle> boundingBoxTriangles = bvh.visualizeBVH();
     BVH bvhBoundingBox(boundingBoxTriangles);
 
     if (bvh.failed())
@@ -237,16 +218,9 @@ int main(int argc, char **argv)
                 }
 
                 ImGui::Separator();
-                if (ImGui::Checkbox("OBB tracing", &GlobalState::enableOBB))
-                {
-                    GlobalState::heatmapView = false;
-                }
-
-                ImGui::Separator();
                 if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
                 {
                     GlobalState::bboxView = false;
-                    GlobalState::enableOBB = false;
                 }
                 if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
                 {

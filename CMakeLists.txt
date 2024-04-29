@@ -75,7 +75,6 @@ add_library (core
         src/core/trace.h
         src/core/dito/dito.h
         src/core/dito/dito.cpp
-        src/core/trace.cpp
 )
 
 
