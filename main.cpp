@@ -3,33 +3,33 @@
 #include "src/utils/globalState.h"
 #include "src/utils/obj.h"
 
-int main(int argc, char **argv)
+int main()
 {
     using namespace std::chrono;
     using namespace core;
 
-    // if (argc < 2)
-    // {
-    //   std::cerr << "\nUsage: ./flatrace <mesh_file.obj>\n\n";
-    //   return EXIT_FAILURE;
-    // }
-    // const std::string input_file(argv[1]);
-    const bool flip = (argc == 3) && (argv[2][0] == '1');
+    const bool flip = 0;
 
     // Set a default model
-    const std::string input_file("/home/fries/thesis/code/Flatrace/test/input/bunny.obj");
+    const std::string input_folder("test/input/test");
 
     // Load getTriangle data
-    std::vector<Triangle> triangles;
+    std::vector<std::vector<Triangle>> models;
 
     try
     {
-        triangles = utils::Obj::read(input_file);
+        models = utils::Obj::loadAllObjFilesInFolder(input_folder, true);
     }
     catch (std::runtime_error &e)
     {
-        std::cerr << fmt::format("Failed to read OBJ file '{0}'\n\t{1}", input_file, e.what()) << std::endl;
+        std::cerr << fmt::format("Failed to read OBJ file '{0}'\n\t{1}", input_folder, e.what()) << std::endl;
         return EXIT_FAILURE;
+    }
+
+    std::vector<Triangle> triangles;
+    for (const auto &model : models)
+    {
+        triangles.insert(triangles.end(), model.begin(), model.end());
     }
 
     std::cerr << "Triangle count: " << triangles.size() << std::endl;
@@ -52,11 +52,7 @@ int main(int argc, char **argv)
     BVH bvh(triangles);
 
     // For visualizing BVH nodes
-    std::vector<Triangle> boundingBoxTriangles;
 
-    boundingBoxTriangles = bvh.visualizeBVH();
-
-    BVH bvhBoundingBox(boundingBoxTriangles);
 
     if (bvh.failed())
     {
@@ -167,8 +163,7 @@ int main(int argc, char **argv)
 
         // not use SIMD for now
         #if 1
-            if (GlobalState::bboxView) render_frame(camera, bvhBoundingBox, frame.pixels.get(), maxDepth);
-            else render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+            render_frame(camera, bvh, frame.pixels.get(), maxDepth);
         #else
             render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif

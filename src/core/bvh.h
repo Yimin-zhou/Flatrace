@@ -15,104 +15,114 @@
 #include <vector>
 #include <optional>
 
-namespace core {
-
-struct Node
+namespace core
 {
-public:
-    Node(const int from, const int count)
-            :
-            leftFrom(from), count(count)
+
+    struct Node
     {
-    }
+    public:
+        Node(const int from, const int count)
+                :
+                leftFrom(from), count(count)
+        {
+        }
 
-    BoundingBox bbox;
-    DiTO::OBB<double> obb;
+        BoundingBox bbox;
+        DiTO::OBB<double> obb;
 
-    int leftFrom;
-    int count;
+        int leftFrom;
+        int count;
 
-    bool isLeaf() const { return (count != 0); }
-};
-
-class BVH
-{
-public:
-    BVH(const std::vector<Triangle> &triangles);
-
-    bool intersect(Ray &ray, const int maxIntersections) const;
-    bool intersect4x4(Ray4x4 &rays, const int maxIntersections) const;
-
-    bool intersectObbBVH(Ray &ray, const int maxIntersections) const;
-
-    bool failed() const { return _failed; }
-
-    const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
-    const glm::vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
-
-    // return the root node
-    const Node *getRoot() const { return _root; }
-    // return all nodes
-    const std::vector<Node> &getNodes() const { return _nodes; }
-    // return max depth of the BVH
-    int getMaxDepth() const { return _maxDepth; }
-
-    // Generate obb
-    template <typename F>
-    void computeOBB(Node* node);
-
-    // For debugging and visualizing BVH nodes
-public:
-    std::vector<Triangle> visualizeBVH() const;
-    std::vector<Triangle> visualizeBVHOBB() const;
-
-private:
-    void visualizeNode(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
-    std::vector<core::Triangle> visualizeAABB(const glm::vec3& center, const glm::vec3& dimensions, int& triangleId) const;
-
-    void visualizeNodeOBB(const Node* node, std::vector<Triangle>& triangles, int& triangleId) const;
-    std::vector<core::Triangle> visualizeOBB(const DiTO::OBB<double>& obb, int& triangleId) const;
-
-private:
-    struct SplitDim
-    {
-      glm::vec3 normal;
-      double min = 0.0f;
-      double max = 0.0f;
+        bool isLeaf() const { return (count != 0); }
     };
 
-    struct SplitBin
+    class BVH
     {
-      BoundingBox bbox;
+    public:
+        BVH(const std::vector<Triangle> &triangles);
 
-      float areaLeft = 0.0f;
-      float areaRight = 0.0f;
+        bool intersect(Ray &ray, const int maxIntersections) const;
 
-      int trianglesIn = 0;
-      int trianglesLeft = 0;
-      int trianglesRight = 0;
+        bool intersect4x4(Ray4x4 &rays, const int maxIntersections) const;
+
+        bool intersectObbBVH(Ray &ray, const int maxIntersections) const;
+
+        bool failed() const { return _failed; }
+
+        const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
+
+        const glm::vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
+
+        // return the root node
+        const Node *getRoot() const { return _root; }
+
+        // return all nodes
+        const std::vector<Node> &getNodes() const { return _nodes; }
+
+        // return max depth of the BVH
+        int getMaxDepth() const { return _maxDepth; }
+
+        // Generate obb
+        template<typename F>
+        void computeOBB(Node *node);
+
+        // For debugging and visualizing BVH nodes
+    public:
+        std::vector<Triangle> visualizeBVH() const;
+
+        std::vector<Triangle> visualizeBVHOBB() const;
+
+    private:
+        void visualizeNode(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const;
+
+        std::vector<core::Triangle>
+        visualizeAABB(const glm::vec3 &center, const glm::vec3 &dimensions, int &triangleId) const;
+
+        void visualizeNodeOBB(const Node *node, std::vector<Triangle> &triangles, int &triangleId) const;
+
+        std::vector<core::Triangle> visualizeOBB(const DiTO::OBB<double> &obb, int &triangleId) const;
+
+    private:
+        struct SplitDim
+        {
+            glm::vec3 normal;
+            double min = 0.0f;
+            double max = 0.0f;
+        };
+
+        struct SplitBin
+        {
+            BoundingBox bbox;
+
+            float areaLeft = 0.0f;
+            float areaRight = 0.0f;
+
+            int trianglesIn = 0;
+            int trianglesLeft = 0;
+            int trianglesRight = 0;
+        };
+
+        Node *splitNode(Node *const node);
+
+        std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
+
+        std::optional<Plane>
+        splitPlaneSAH(const Node *const node, const int from, const int count, const int maxSplitsPerDimension) const;
+
+        void linearize();
+
+        bool _failed;
+
+        std::vector<Node> _nodes;
+        std::vector<Triangle> _triangles;
+
+        std::vector<int> _triangleIds;
+        std::vector<glm::vec3> _triangleCentroids;
+
+        Node *_root;
+
+        int _maxDepth;
     };
-
-    Node *splitNode(Node * const node);
-
-    std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
-    std::optional<Plane> splitPlaneSAH(const Node * const node, const int from, const int count, const int maxSplitsPerDimension) const;
-
-    void linearize();
-
-    bool _failed;
-
-    std::vector<Node> _nodes;
-    std::vector<Triangle> _triangles;
-
-    std::vector<int> _triangleIds;
-    std::vector<glm::vec3> _triangleCentroids;
-
-    Node *_root;
-
-    int _maxDepth;
-};
-
 
 
 }

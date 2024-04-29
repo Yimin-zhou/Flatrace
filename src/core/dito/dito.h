@@ -38,6 +38,8 @@ Version: 1.0
 #ifndef DITO_H_INCLUSION_GUARD
 #define DITO_H_INCLUSION_GUARD
 
+#include <glm/glm.hpp>
+
 namespace DiTO
 {
 
@@ -46,8 +48,13 @@ Representation of a 3-dimensional vector. All vector structures with the same
 memory layout can be used directly as input to the algorithm by
 first casting the array pointer to DiTO::Vector<F>* (where, e.g., F = float or F = double).
 */
-template <typename F>
-struct Vector {	F x, y, z; };
+    template<typename F>
+    struct Vector
+    {
+        Vector(F x, F y, F z) : x(x), y(y), z(z) {}
+        Vector() {}
+        F x, y, z;
+    };
 
 /*
 Representation of an oriented bounding box.
@@ -56,12 +63,14 @@ Members:
 	v0, v1, v2 - Orthogonal vectors defining the orientation
 	ext - Absolute values of the extents along the three vectors, measured from mid
 */
-template <typename F>
-struct OBB
-{	Vector<F> mid;
-	Vector<F> v0, v1, v2;
-	Vector<F> ext;
-};
+    template<typename F>
+    struct OBB
+    {
+        Vector<F> mid;
+        Vector<F> v0, v1, v2;
+        Vector<F> ext;
+        glm::mat4 invMatrix;
+    };
 
 /*
 Compute an oriented bounding box using the DiTO-14 algorithm.
@@ -73,9 +82,9 @@ Postcondition: vertArr is unchanged, and obb holds the computed OBB
 The function has explicit instantiations with F = float and F = double at the
 top of the .cpp file.
 */
-template <typename F>
-extern void DiTO_14(Vector<F> vertArr[], int nv, OBB<F>& obb);
+    template<typename F>
+    extern void DiTO_14(Vector<F> vertArr[], int nv, OBB<F> &obb);
 
 }
 
-#endif	// ifndef DITO_H_INCLUSION_GUARD
+#endif    // ifndef DITO_H_INCLUSION_GUARD
