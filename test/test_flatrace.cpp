@@ -24,7 +24,7 @@ namespace test
 
     constexpr auto MAX_INTERSECTIONS = 3;
 
-    const std::string TEST_OBJ = "test/input/test/bunny.obj";
+    const std::string TEST_OBJ = "test/input/test/house_interior.obj";
     const std::string TEST_OBJ_FOLDER = "test/input/big_obj";
 
     //  test :loading a simple obj file
