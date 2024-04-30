@@ -3,6 +3,8 @@
 #include "src/utils/globalState.h"
 #include "src/utils/obj.h"
 
+#include <Tracy.hpp>
+
 int main()
 {
     using namespace std::chrono;
@@ -280,6 +282,7 @@ int main()
         ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
 
         SDL_RenderPresent(renderer);
+        FrameMark;
     }
 
     return EXIT_SUCCESS;

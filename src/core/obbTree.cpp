@@ -1,6 +1,7 @@
 #include <numeric>
 #include "obbTree.h"
 #include "src/utils/globalState.h"
+#include "Tracy.hpp"
 
 core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles)
         :
@@ -35,6 +36,8 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles)
 
 bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections) const
 {
+    ZoneScopedN("OBB Tree Traversal");
+
     const Node *node_stack[_nodes.size()];
 
 //    if (core::intersectAABB(_root->bbox, ray) == INF)
@@ -55,12 +58,14 @@ bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections) c
             ray.bvh_nodes_visited++;
             if (node->isLeaf())
             {
+
                 for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
                 {
                     core::intersect(_triangles[j], ray);
                 }
             } else
             {
+
                 const Node *left = &_nodes[node->leftFrom];
                 const Node *right = left + 1;
 

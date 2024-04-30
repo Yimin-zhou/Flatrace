@@ -14,6 +14,7 @@
 #include <iostream>
 #include <cmath>
 #include "src/utils/globalState.h"
+#include "Tracy.hpp"
 
 #ifdef IS_X86
 
@@ -75,6 +76,8 @@ namespace core
 
     bool BVH::traversal(Ray &ray, const int maxIntersections) const
     {
+        ZoneScopedN("AABB BVH Traversal");
+
         const Node *node_stack[_nodes.size()];
 
         if (core::intersectAABB(_root->bbox, ray) == INF)
@@ -105,6 +108,7 @@ namespace core
                     }
                 } else
                 {
+                    ZoneScopedN("Internal AABB Intersect");
                     const Node *left = &_nodes[node->leftFrom];
                     const Node *right = left + 1;
 
@@ -205,6 +209,8 @@ namespace core
 
     bool BVH::traversalOBB(Ray &ray, const int maxIntersections) const
     {
+        ZoneScopedN("OBB in AABB BVH Traversal");
+
         const Node *node_stack[_nodes.size()];
 
         if (core::intersectAABB(_root->bbox, ray) == INF)
@@ -225,12 +231,15 @@ namespace core
                 ray.bvh_nodes_visited++;
                 if (node->isLeaf())
                 {
+
                     for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
                     {
                         core::intersect(_triangles[j], ray);
                     }
                 } else
                 {
+                    ZoneScopedN("Internal OBB Intersect");
+
                     const Node *left = &_nodes[node->leftFrom];
                     const Node *right = left + 1;
 
