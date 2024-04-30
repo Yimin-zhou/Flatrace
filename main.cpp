@@ -187,7 +187,7 @@ int main()
                 }
                 else
                 {
-                    render_frameOBB(camera, obbTree, frame.pixels.get(), maxDepth);
+                    render_frameOBB(camera, obbTree, frame.pixels.get());
                 }
             #else
                 if (GlobalState::bboxView)
@@ -196,7 +196,7 @@ int main()
                 }
                 else
                 {
-                    render_frame(camera, bvh, frame.pixels.get(), maxDepth);
+                    render_frame(camera, bvh, frame.pixels.get());
                 }
             #endif
         #else

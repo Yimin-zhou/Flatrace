@@ -61,7 +61,7 @@ glm::vec3 getColorMap(int value, int minVal, int maxVal)
 }
 
 // Reference implementation that traces 1 ray at a time (no SIMD)
-void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer, int maxDepth)
+void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh)
 {
     auto COLORS = getMaterial();
     tbb::parallel_for(tbb::blocked_range<int>(0, NX * NY), [&](const tbb::blocked_range<int> &r)
@@ -89,7 +89,7 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 
                     bool hit = false;
 
-                    if (GlobalState::enableOBB)
+                    if (GlobalState::enableOBB || obbInAABBbvh)
                     {
                         hit = bvh.traversalOBB(ray, MAX_INTERSECTIONS);
                     } else
@@ -230,7 +230,7 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
 }
 
 // OBB tree traversal
-void render_frameOBB(const core::Camera &camera, const core::obb::ObbTree &obb, core::RGBA *const frameBuffer, int maxDepth)
+void render_frameOBB(const core::Camera &camera, const core::obb::ObbTree &obb, core::RGBA *const frameBuffer)
 {
     auto COLORS = getMaterial();
     tbb::parallel_for(tbb::blocked_range<int>(0, NX * NY), [&](const tbb::blocked_range<int> &r)

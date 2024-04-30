@@ -192,7 +192,10 @@ namespace utils::Obj
                                    });
                 }
 
-                scaleModel(triangles, glm::vec3(MODEL_SCALE));
+                if (!normalize)
+                {
+                    scaleModel(triangles, glm::vec3(MODEL_SCALE));
+                }
                 return triangles;
             } else
             {
