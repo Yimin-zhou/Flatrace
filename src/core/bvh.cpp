@@ -47,11 +47,14 @@ namespace core
 
         splitNode(_root);
 
-        _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
+        _maxDepth = calculateMaxLeafDepth(_root);
+        int minDepth = calculateMinLeafDepth(_root);
+        collectLeafDepths(_root);
 
-        std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
+//        std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
         std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
         std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
+        std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
 
         // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
         // data locality and avoids having to use indirection when iterating triangles for intersection
@@ -73,6 +76,46 @@ namespace core
         std::swap(_triangleIds, linearized_triangle_ids);
         std::swap(_triangles, linearized_triangles);
     }
+
+
+    int  BVH::calculateMaxLeafDepth(const Node* node, int depth) const
+    {
+        if (node->isLeaf())
+        {
+            return depth;
+        }
+
+        int leftDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom], depth + 1);
+        int rightDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+
+        return std::max(leftDepth, rightDepth);
+    }
+
+    int  BVH::calculateMinLeafDepth(const Node *node, int depth) const
+    {
+        if (node->isLeaf())
+        {
+            return depth;
+        }
+
+        int leftDepth = calculateMinLeafDepth(&_nodes[node->leftFrom], depth + 1);
+        int rightDepth = calculateMinLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+
+        return std::min(leftDepth, rightDepth);
+    }
+
+    void  BVH::collectLeafDepths(const Node *node, int currentDepth)
+    {
+        if (node->isLeaf())
+        {
+            m_leafDepths.push_back(currentDepth);
+            return;
+        }
+
+        collectLeafDepths(&_nodes[node->leftFrom], currentDepth + 1);
+        collectLeafDepths(&_nodes[node->leftFrom + 1], currentDepth + 1);
+    }
+
 
     bool BVH::traversal(Ray &ray, const int maxIntersections) const
     {

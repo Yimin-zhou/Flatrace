@@ -260,6 +260,58 @@ namespace test
         std::cout << "Render Semiconductor OBB in OBB Tree Time taken: " << time_obb << " ms" << std::endl;
     }
 
+    //  test bvh
+    TEST(FlatRace, BVH_1)
+    {
+        std::vector<std::vector<Triangle>> models;
+        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi, false);
+        std::vector<Triangle> triangles;
+        for (const auto &model : models)
+        {
+            triangles.insert(triangles.end(), model.begin(), model.end());
+        }
+
+        std::cout << "Generating OBB Tree ... " << std::endl;
+
+        auto start = std::chrono::high_resolution_clock::now();
+        core::obb::ObbTree obbTree(triangles);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        std::cout << "OBB Tree Construction Time taken: " << time_obb_construction << " ms" << std::endl;
+        if (obbTree.failed())
+        {
+            std::cerr << "obbTree construction failed" << std::endl;
+        }
+
+        // calculate standard deviation of the leaf depths
+        std::vector<int> leafDepths = obbTree.getLeafDepths();
+        float mean = std::accumulate(leafDepths.begin(), leafDepths.end(), 0.0) / leafDepths.size();
+        float sq_sum = std::inner_product(leafDepths.begin(), leafDepths.end(), leafDepths.begin(), 0.0);
+        float stdev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
+        std::cout << "Standard Deviation of OBB Tree Leaf Depths: " << stdev << std::endl;
+
+        std::cout << "Generating AABB BVH ... " << std::endl;
+
+        start = std::chrono::high_resolution_clock::now();
+        BVH bvh(triangles);
+        end = std::chrono::high_resolution_clock::now();
+
+        auto time_aabb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        std::cout << "AABB BVH Construction Time taken: " << time_aabb_construction << " ms" << std::endl;
+
+        if (bvh.failed())
+        {
+            std::cerr << "BVH construction failed" << std::endl;
+        }
+
+        // calculate standard deviation of the leaf depths
+        leafDepths = bvh.getLeafDepths();
+        mean = std::accumulate(leafDepths.begin(), leafDepths.end(), 0.0) / leafDepths.size();
+        sq_sum = std::inner_product(leafDepths.begin(), leafDepths.end(), leafDepths.begin(), 0.0);
+        stdev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
+        std::cout << "Standard Deviation of AABB BVH Leaf Depths: " << stdev << std::endl;
+    }
+
     bool compareFrames(const core::Frame &frame1, const core::Frame &frame2)
     {
         if (frame1.width != frame2.width || frame1.height != frame2.height)

@@ -3,13 +3,14 @@
 #include "src/utils/globalState.h"
 #include "Tracy.hpp"
 
-core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles)
+core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, const glm::vec3 &rayDir)
         :
         _failed(false),
         _triangles(triangles),
         _triangleIds(triangles.size()),
         _triangleCentroids(triangles.size()),
-        _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f))
+        _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
+        m_rayDir(rayDir)
 {
     std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
 
@@ -23,11 +24,14 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles)
 
     splitNode(_root);
 
-    _maxDepth = static_cast<int>(std::ceil(std::log2(_nodes.size())));
+    // BVH stats
+    _maxDepth = calculateMaxLeafDepth(_root);
+    int minDepth = calculateMinLeafDepth(_root);
+    collectLeafDepths(_root);
 
-    std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
-    std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
+    std::cerr << "BVH NODE AMOUNT: " << _nodes.size() << std::endl;
     std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
+    std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
 
     // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
     // data locality and avoids having to use indirection when iterating triangles for intersection
@@ -70,19 +74,29 @@ bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections) c
                 const Node *right = left + 1;
 
                 // transform ray to obb space for both left and right node
+//                Ray leftRay = ray;
+//                glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
+//                glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
+//                leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+//                leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
+//                                       1.0f / rayDirectionLocal.z);
+//
+//                Ray rightRay = ray;
+//                rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
+//                rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
+//                rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+//                rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
+//                                        1.0f / rayDirectionLocal.z);
+//
                 Ray leftRay = ray;
-                glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
-                glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
-                leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
-                                       1.0f / rayDirectionLocal.z);
+                glm::vec3 rayOriginalLocal = glm::vec3(left->obb.invMatrix * glm::vec4(leftRay.o, 1.0f));
+                leftRay.o = rayOriginalLocal;
+                leftRay.rd = glm::vec3(1.0f/ left->transformedRayDir.x, 1.0f/ left->transformedRayDir.y, 1.0f/ left->transformedRayDir.z);
 
                 Ray rightRay = ray;
-                rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
-                rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
-                rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
-                                        1.0f / rayDirectionLocal.z);
+                rayOriginalLocal = glm::vec3(right->obb.invMatrix * glm::vec4(rightRay.o, 1.0f));
+                rightRay.o = rayOriginalLocal;
+                rightRay.rd = glm::vec3(1.0f/ right->transformedRayDir.x, 1.0f/ right->transformedRayDir.y, 1.0f/ right->transformedRayDir.z);
 
                 float t_left = core::intersectAABB(_unitAABB, leftRay);
                 float t_right = core::intersectAABB(_unitAABB, rightRay);
@@ -119,6 +133,7 @@ bool core::obb::ObbTree::traversal4x4(core::Ray4x4 &rays, const int maxIntersect
 core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node)
 {
     computeOBB<float>(node);
+    node->transformedRayDir = glm::vec3(node->obb.invMatrix * glm::vec4(m_rayDir, 0.0f));
 
     if (node->count > LEAF_SIZE)
     {
@@ -225,6 +240,117 @@ void core::obb::ObbTree::linearize()
 
     std::swap(_triangleIds, linearized_triangle_ids);
     std::swap(_triangles, linearized_triangles);
+}
+
+void core::obb::ObbTree::preGenerateOBBs(int numOBBs)
+{
+    for (int i = 0; i < numOBBs; ++i)
+    {
+        DiTO::OBB<float> obb;
+        obb.mid = DiTO::Vector<float>(0.0f, 0.0f, 0.0f);
+        obb.v0 = DiTO::Vector<float>(1.0f, 0.0f, 0.0f);
+        obb.v1 = DiTO::Vector<float>(0.0f, 1.0f, 0.0f);
+        obb.v2 = DiTO::Vector<float>(0.0f, 0.0f, 1.0f);
+        obb.ext = DiTO::Vector<float>(0.5f, 0.5f, 0.5f);
+        m_preGeneratedOBBs.push_back(obb);
+    }
+}
+
+std::vector<std::vector<core::obb::Node>> core::obb::ObbTree::groupSimilarOBBs(float similarityThreshold)
+{
+    std::vector<std::vector<Node>> groups;
+    std::unordered_map<int, std::vector<Node>> similarityGroups;
+
+    for (const auto& node : _nodes)
+    {
+        bool foundGroup = false;
+        for (auto& [key, group] : similarityGroups)
+        {
+            if (isSimilar(node.obb, m_preGeneratedOBBs[key], similarityThreshold))
+            {
+                group.push_back(node);
+                foundGroup = true;
+                break;
+            }
+        }
+
+        if (!foundGroup)
+        {
+            int newKey = m_preGeneratedOBBs.size();
+            m_preGeneratedOBBs.push_back(node.obb);
+            similarityGroups[newKey].push_back(node);
+        }
+    }
+
+    for (auto& [key, group] : similarityGroups)
+    {
+        groups.push_back(std::move(group));
+    }
+
+    return groups;
+}
+
+bool
+core::obb::ObbTree::isSimilar(const DiTO::OBB<float> &obb1, const DiTO::OBB<float> &obb2, float similarityThreshold)
+{
+    // use dot product to calculate the angle between the two OBBs
+    float dotV0 = glm::dot(glm::vec3(obb1.v0.x, obb1.v0.y, obb1.v0.z), glm::vec3(obb2.v0.x, obb2.v0.y, obb2.v0.z));
+    float dotV1 = glm::dot(glm::vec3(obb1.v1.x, obb1.v1.y, obb1.v1.z), glm::vec3(obb2.v1.x, obb2.v1.y, obb2.v1.z));
+    float dotV2 = glm::dot(glm::vec3(obb1.v2.x, obb1.v2.y, obb1.v2.z), glm::vec3(obb2.v2.x, obb2.v2.y, obb2.v2.z));
+
+    // check if the angle between the two OBBs is less than the threshold
+    return (dotV0 > similarityThreshold && dotV1 > similarityThreshold && dotV2 > similarityThreshold);
+}
+
+void core::obb::ObbTree::cacheTransformations()
+{
+//    for (const auto& node : _nodes)
+//    {
+//        // Compute the transformation matrix for the OBB
+//        glm::mat4 transformation = glm::translate(glm::mat4(1.0f), node.obb.center) *
+//                                   glm::mat4(node.obb.orientation) *
+//                                   glm::scale(glm::mat4(1.0f), node.obb.extents);
+//
+//        m_transformationCache[node.leftFrom] = transformation;
+//    }
+}
+
+int core::obb::ObbTree::calculateMaxLeafDepth(const core::obb::Node* node, int depth) const
+{
+    if (node->isLeaf())
+    {
+        return depth;
+    }
+
+    int leftDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom], depth + 1);
+    int rightDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+
+    return std::max(leftDepth, rightDepth);
+}
+
+int core::obb::ObbTree::calculateMinLeafDepth(const core::obb::Node *node, int depth) const
+{
+    if (node->isLeaf())
+    {
+        return depth;
+    }
+
+    int leftDepth = calculateMinLeafDepth(&_nodes[node->leftFrom], depth + 1);
+    int rightDepth = calculateMinLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+
+    return std::min(leftDepth, rightDepth);
+}
+
+void core::obb::ObbTree::collectLeafDepths(const core::obb::Node *node, int currentDepth)
+{
+    if (node->isLeaf())
+    {
+        m_leafDepths.push_back(currentDepth);
+        return;
+    }
+
+    collectLeafDepths(&_nodes[node->leftFrom], currentDepth + 1);
+    collectLeafDepths(&_nodes[node->leftFrom + 1], currentDepth + 1);
 }
 
 template<typename F>

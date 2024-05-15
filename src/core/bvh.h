@@ -62,6 +62,7 @@ namespace core
 
         // return max depth of the BVH
         int getMaxDepth() const { return _maxDepth; }
+        std::vector<int> getLeafDepths() const { return m_leafDepths; }
 
         // Generate obb
         template<typename F>
@@ -95,6 +96,12 @@ namespace core
         splitPlaneSAH(const Node *const node, const int from, const int count, const int maxSplitsPerDimension) const;
 
         void linearize();
+
+        int calculateMaxLeafDepth(const Node *node, int depth = 1) const;
+        int calculateMinLeafDepth(const Node *node, int depth = 1) const;
+        void collectLeafDepths(const Node *node, int currentDepth = 1);
+
+        std::vector<int> m_leafDepths;
 
         bool _failed;
 

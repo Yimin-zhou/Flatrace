@@ -21,7 +21,7 @@ namespace core::obb
 
         DiTO::OBB<float> obb;
 //        BoundingBox bbox;
-
+        glm::vec3 transformedRayDir;
         int leftFrom;
         int count;
 
@@ -32,7 +32,7 @@ namespace core::obb
     {
     public:
         ObbTree() = default;
-        ObbTree(const std::vector<Triangle> &triangles);
+        ObbTree(const std::vector<Triangle> &triangles, const glm::vec3 &rayDir);
 
         bool traversal(Ray &ray, const int maxIntersections) const;
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
@@ -43,35 +43,31 @@ namespace core::obb
         const Node *getRoot() const { return _root; }
         const std::vector<Node> &getNodes() const { return _nodes; }
         int getMaxDepth() const { return _maxDepth; }
+        std::vector<int> getLeafDepths() const { return m_leafDepths; }
+        void setRayDir(const glm::vec3 &dir) { m_rayDir = dir; }
 
         template<typename F>
         void computeOBB(Node *node);
 
+        // For grouping similar OBBs
+        void preGenerateOBBs(int numOBBs);
+        std::vector<std::vector<Node>> groupSimilarOBBs(float similarityThreshold);
+        bool isSimilar(const DiTO::OBB<float>& obb1, const DiTO::OBB<float>& obb2, float similarityThreshold);
+        void cacheTransformations();
+
     private:
-        struct SplitDim
-        {
-            glm::vec3 normal;
-            double min = 0.0f;
-            double max = 0.0f;
-        };
-
-        struct SplitBin
-        {
-            BoundingBox bbox;
-
-            float areaLeft = 0.0f;
-            float areaRight = 0.0f;
-
-            int trianglesIn = 0;
-            int trianglesLeft = 0;
-            int trianglesRight = 0;
-        };
-
         Node *splitNode(Node *const node);
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
         std::optional<Plane> splitPlaneOBB(const Node *const node, int maxSplitsPerDimension) const;
         void linearize();
 
+        int calculateMaxLeafDepth(const Node *node, int depth = 1) const;
+        int calculateMinLeafDepth(const Node *node, int depth = 1) const;
+        void collectLeafDepths(const Node *node, int currentDepth = 1);
+
+        std::vector<int> m_leafDepths;
+
+        glm::vec3 m_rayDir;
         bool _failed;
         std::vector<Node> _nodes;
         std::vector<Triangle> _triangles;
@@ -80,6 +76,8 @@ namespace core::obb
         Node *_root;
         int _maxDepth;
         BoundingBox _unitAABB;
+        std::vector<DiTO::OBB<float>> m_preGeneratedOBBs;
+        std::unordered_map<int, glm::mat4> m_transformationCache;
     };
 
 

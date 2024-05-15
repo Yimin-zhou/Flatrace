@@ -47,10 +47,16 @@ int main()
         });
     }
 
+    // camera
+    const float cx = std::cos(2.0f) * 2.0f;
+    const float cz = std::sin(2.0f) * 2.0f;
+
+    Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+
     const auto start_bvh = steady_clock::now();
 
 #if ENABLE_OBB_BVH
-    core::obb::ObbTree obbTree(triangles);
+    core::obb::ObbTree obbTree(triangles, camera.dir);
     if (obbTree.failed())
     {
         std::cerr << "ObbTree construction failed" << std::endl;
@@ -127,7 +133,6 @@ int main()
 
     // Main render loop
     bool quit = false;
-    float theta = 2.0f;
 
     float max_rps = -INF;
     float min_rps = INF;
@@ -168,14 +173,6 @@ int main()
                   break;
           }
         }
-
-        // Update camera
-        const float cx = std::cos(theta) * 2.0f;
-        const float cz = std::sin(theta) * 2.0f;
-
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-
-        theta += (2.0f * M_PI / 120.0f) * SPEED;
 
         // Render frame
         const auto start = steady_clock::now();
