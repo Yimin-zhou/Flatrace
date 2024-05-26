@@ -150,7 +150,11 @@ namespace test
             triangles.insert(triangles.end(), model.begin(), model.end());
         }
 
-        core::obb::ObbTree obbTree(triangles);
+        // camera
+        const float cx = std::cos(0.0f) * 2.0f;
+        const float cz = std::sin(0.0f) * 2.0f;
+        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+        core::obb::ObbTree obbTree(triangles, camera.dir);
         if (obbTree.failed())
         {
             std::cerr << "obbTree construction failed" << std::endl;
@@ -158,10 +162,6 @@ namespace test
 
         Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
 
-        // camera
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
         auto start = std::chrono::high_resolution_clock::now();
         render_frameOBB(camera, obbTree, frame.pixels.get());
@@ -181,7 +181,11 @@ namespace test
             triangles.insert(triangles.end(), model.begin(), model.end());
         }
 
-        core::obb::ObbTree obbTree(triangles);
+        const float cx = std::cos(0.0f) * 2.0f;
+        const float cz = std::sin(0.0f) * 2.0f;
+        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+        core::obb::ObbTree obbTree(triangles, camera.dir);
+
         if (obbTree.failed())
         {
             std::cerr << "obbTree construction failed" << std::endl;
@@ -189,11 +193,6 @@ namespace test
         BVH bvh(triangles);
 
         Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-
-        // camera
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
         auto start = std::chrono::high_resolution_clock::now();
         render_frameOBB(camera, obbTree, frame.pixels.get());
@@ -226,7 +225,10 @@ namespace test
             triangles.insert(triangles.end(), model.begin(), model.end());
         }
 
-        core::obb::ObbTree obbTree(triangles);
+        const float cx = std::cos(0.0f) * 2.0f;
+        const float cz = std::sin(0.0f) * 2.0f;
+        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+        core::obb::ObbTree obbTree(triangles, camera.dir);
         if (obbTree.failed())
         {
             std::cerr << "obbTree construction failed" << std::endl;
@@ -234,11 +236,6 @@ namespace test
         BVH bvh(triangles);
 
         Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-
-        // camera
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
         auto start = std::chrono::high_resolution_clock::now();
         render_frameOBB(camera, obbTree, frame.pixels.get());
@@ -260,6 +257,7 @@ namespace test
         std::cout << "Render Semiconductor OBB in OBB Tree Time taken: " << time_obb << " ms" << std::endl;
     }
 
+    // Profiling tests
     //  test bvh
     TEST(FlatRace, BVH_1)
     {
@@ -272,9 +270,11 @@ namespace test
         }
 
         std::cout << "Generating OBB Tree ... " << std::endl;
-
+        const float cx = std::cos(0.0f) * 2.0f;
+        const float cz = std::sin(0.0f) * 2.0f;
+        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
         auto start = std::chrono::high_resolution_clock::now();
-        core::obb::ObbTree obbTree(triangles);
+        core::obb::ObbTree obbTree(triangles, camera.dir);
         auto end = std::chrono::high_resolution_clock::now();
         auto time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "OBB Tree Construction Time taken: " << time_obb_construction << " ms" << std::endl;
@@ -311,6 +311,12 @@ namespace test
         stdev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
         std::cout << "Standard Deviation of AABB BVH Leaf Depths: " << stdev << std::endl;
     }
+
+    // TODO: calculate surface area of the obb tree and aabb bvh
+    TEST(FlatRace, BVH_2)
+    {
+    }
+
 
     bool compareFrames(const core::Frame &frame1, const core::Frame &frame2)
     {

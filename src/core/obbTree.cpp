@@ -1,4 +1,9 @@
 #include <numeric>
+#include <iostream>
+#include <chrono>
+#include <random>
+#include <algorithm>
+
 #include "obbTree.h"
 #include "src/utils/globalState.h"
 #include "Tracy.hpp"
@@ -10,7 +15,8 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, const glm::v
         _triangleIds(triangles.size()),
         _triangleCentroids(triangles.size()),
         _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
-        m_rayDir(rayDir)
+        m_rayDir(rayDir),
+        m_nGroup(1000)
 {
     std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
 
@@ -36,9 +42,14 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, const glm::v
     // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
     // data locality and avoids having to use indirection when iterating triangles for intersection
     linearize();
+
+    // TODO: replace with real grouped nodes
+    m_transformationCache = std::vector<glm::mat4x4>(m_nGroup);
+    m_groupedNodes = groupRandomNodes(m_nGroup);
+    cacheTransformations();
 }
 
-bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections) const
+bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections)
 {
     ZoneScopedN("OBB Tree Traversal");
 
@@ -57,49 +68,20 @@ bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections) c
 
         while (stack_pointer != 0)
         {
-            const Node *const node = node_stack[--stack_pointer];
+            const core::obb::Node *const node = node_stack[--stack_pointer];
 
             ray.bvh_nodes_visited++;
             if (node->isLeaf())
             {
-
-                for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
-                {
-                    core::intersect(_triangles[j], ray);
-                }
-            } else
+                triangleIntersection(node, ray);
+            }
+            else
             {
-
                 const Node *left = &_nodes[node->leftFrom];
                 const Node *right = left + 1;
-
-                // transform ray to obb space for both left and right node
-//                Ray leftRay = ray;
-//                glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
-//                glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
-//                leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-//                leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
-//                                       1.0f / rayDirectionLocal.z);
-//
-//                Ray rightRay = ray;
-//                rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
-//                rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
-//                rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-//                rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
-//                                        1.0f / rayDirectionLocal.z);
-//
-                Ray leftRay = ray;
-                glm::vec3 rayOriginalLocal = glm::vec3(left->obb.invMatrix * glm::vec4(leftRay.o, 1.0f));
-                leftRay.o = rayOriginalLocal;
-                leftRay.rd = glm::vec3(1.0f/ left->transformedRayDir.x, 1.0f/ left->transformedRayDir.y, 1.0f/ left->transformedRayDir.z);
-
-                Ray rightRay = ray;
-                rayOriginalLocal = glm::vec3(right->obb.invMatrix * glm::vec4(rightRay.o, 1.0f));
-                rightRay.o = rayOriginalLocal;
-                rightRay.rd = glm::vec3(1.0f/ right->transformedRayDir.x, 1.0f/ right->transformedRayDir.y, 1.0f/ right->transformedRayDir.z);
-
-                float t_left = core::intersectAABB(_unitAABB, leftRay);
-                float t_right = core::intersectAABB(_unitAABB, rightRay);
+                float t_left = 0;
+                float t_right = 0;
+                intersectInternalNodes(left, right, node, ray, t_left, t_right);
 
                 if (t_left > t_right)
                 {
@@ -137,7 +119,7 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node)
 
     if (node->count > LEAF_SIZE)
     {
-        auto split_plane = splitPlaneOBB(node, 32);
+        auto split_plane = splitPlaneMid(node, 32);
 
         if (split_plane)
         {
@@ -163,7 +145,7 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node)
 }
 
 std::optional<core::Plane>
-core::obb::ObbTree::splitPlaneOBB(const core::obb::Node *const node, int maxSplitsPerDimension) const
+core::obb::ObbTree::splitPlaneMid(const Node *const node, int maxSplitsPerDimension) const
 {
     const DiTO::OBB obb = node->obb;
     std::optional<Plane> best_plane;
@@ -201,6 +183,75 @@ core::obb::ObbTree::splitPlaneOBB(const core::obb::Node *const node, int maxSpli
 
     return best_plane;
 }
+
+// Utility function to calculate the surface area of an OBB
+template<typename F>
+float surfaceArea(const DiTO::OBB<F>& obb) {
+    // Approximate surface area using the extents
+    return 2.0f * (obb.ext.x * obb.ext.y + obb.ext.y * obb.ext.z + obb.ext.z * obb.ext.x);
+}
+
+std::optional<core::Plane> core::obb::ObbTree::splitPlaneSAH(const Node* const node, int maxSplitsPerDimension) const {
+    const float inf = std::numeric_limits<float>::infinity();
+    float bestCost = inf;
+    std::optional<Plane> bestPlane;
+
+    // Check along each principal axis (v0, v1, v2)
+    const glm::vec3 axes[3] = {
+            glm::vec3(node->obb.v0.x, node->obb.v0.y, node->obb.v0.z),
+            glm::vec3(node->obb.v1.x, node->obb.v1.y, node->obb.v1.z),
+            glm::vec3(node->obb.v2.x, node->obb.v2.y, node->obb.v2.z)
+    };
+
+    for (const auto& axis : axes) {
+        // Project centroids onto the axis
+        std::vector<float> projections(node->count);
+        for (int i = 0; i < node->count; ++i) {
+            int index = node->leftFrom + i;
+            const glm::vec3& centroid = _triangleCentroids[_triangleIds[index]];
+            projections[i] = glm::dot(centroid, axis);
+        }
+
+        // Sort projections to find candidate split positions
+        std::sort(projections.begin(), projections.end());
+
+        // Evaluate each split plane
+        for (int i = 1; i < maxSplitsPerDimension; ++i) {
+            float splitValue = projections[(i * projections.size()) / maxSplitsPerDimension];
+
+            // Calculate SAH cost
+            DiTO::OBB<float> leftOBB, rightOBB;
+            int leftCount = 0, rightCount = 0;
+            for (int j = 0; j < node->count; ++j) {
+                int index = node->leftFrom + j;
+                const glm::vec3& centroid = _triangleCentroids[_triangleIds[index]];
+
+                if (glm::dot(centroid, axis) <= splitValue) {
+                    leftCount++;
+                    // Update left OBB (not implemented here for simplicity)
+                } else {
+                    rightCount++;
+                    // Update right OBB (not implemented here for simplicity)
+                }
+            }
+
+            // Calculate surface areas of the resulting child OBBs
+            float leftArea = surfaceArea(leftOBB);
+            float rightArea = surfaceArea(rightOBB);
+
+            // SAH cost: Area-weighted sum of child costs
+            float sahCost = leftCount * leftArea + rightCount * rightArea;
+
+            if (sahCost < bestCost) {
+                bestCost = sahCost;
+//                bestPlane = core::Plane{axis, splitValue};
+            }
+        }
+    }
+
+    return bestPlane;
+}
+
 
 std::optional<int> core::obb::ObbTree::partition(const int from, const int count, const core::Plane &splitPlane)
 {
@@ -244,20 +295,21 @@ void core::obb::ObbTree::linearize()
 
 void core::obb::ObbTree::preGenerateOBBs(int numOBBs)
 {
-    for (int i = 0; i < numOBBs; ++i)
-    {
-        DiTO::OBB<float> obb;
-        obb.mid = DiTO::Vector<float>(0.0f, 0.0f, 0.0f);
-        obb.v0 = DiTO::Vector<float>(1.0f, 0.0f, 0.0f);
-        obb.v1 = DiTO::Vector<float>(0.0f, 1.0f, 0.0f);
-        obb.v2 = DiTO::Vector<float>(0.0f, 0.0f, 1.0f);
-        obb.ext = DiTO::Vector<float>(0.5f, 0.5f, 0.5f);
-        m_preGeneratedOBBs.push_back(obb);
-    }
+//    for (int i = 0; i < numOBBs; ++i)
+//    {
+//        DiTO::OBB<float> obb;
+//        obb.mid = DiTO::Vector<float>(0.0f, 0.0f, 0.0f);
+//        obb.v0 = DiTO::Vector<float>(1.0f, 0.0f, 0.0f);
+//        obb.v1 = DiTO::Vector<float>(0.0f, 1.0f, 0.0f);
+//        obb.v2 = DiTO::Vector<float>(0.0f, 0.0f, 1.0f);
+//        obb.ext = DiTO::Vector<float>(0.5f, 0.5f, 0.5f);
+//        m_preGeneratedOBBs.push_back(obb);
+//    }
 }
 
 std::vector<std::vector<core::obb::Node>> core::obb::ObbTree::groupSimilarOBBs(float similarityThreshold)
 {
+    //TODO: Brute force
     std::vector<std::vector<Node>> groups;
     std::unordered_map<int, std::vector<Node>> similarityGroups;
 
@@ -302,17 +354,52 @@ core::obb::ObbTree::isSimilar(const DiTO::OBB<float> &obb1, const DiTO::OBB<floa
     return (dotV0 > similarityThreshold && dotV1 > similarityThreshold && dotV2 > similarityThreshold);
 }
 
+std::vector<std::vector<core::obb::Node>> core::obb::ObbTree::groupRandomNodes(int numGroups)
+{
+    std::vector<std::vector<core::obb::Node>> finalGroups(numGroups);
+    std::vector<core::obb::Node> leafNodes;
+
+    // Extract leaf nodes
+    for (auto& node : _nodes)
+    {
+        if (node.isLeaf())
+        {
+            leafNodes.push_back(node);
+        }
+    }
+
+    // Create a random number generator
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Shuffle leaf nodes
+    std::shuffle(leafNodes.begin(), leafNodes.end(), gen);
+
+    // Group leaf nodes into numGroups
+    for (size_t i = 0; i < leafNodes.size(); ++i)
+    {
+        int group = i % numGroups;
+        leafNodes[i].groupNumber = group;
+        finalGroups[group].push_back(leafNodes[i]);
+    }
+
+    return finalGroups;
+}
+
 void core::obb::ObbTree::cacheTransformations()
 {
-//    for (const auto& node : _nodes)
-//    {
-//        // Compute the transformation matrix for the OBB
-//        glm::mat4 transformation = glm::translate(glm::mat4(1.0f), node.obb.center) *
-//                                   glm::mat4(node.obb.orientation) *
-//                                   glm::scale(glm::mat4(1.0f), node.obb.extents);
-//
-//        m_transformationCache[node.leftFrom] = transformation;
-//    }
+    //TODO replace with real funciton
+    // set one transformation matrix for one group, and store in m_cachedTransformation
+    for (auto& group : m_groupedNodes)
+    {
+        if (group.empty())
+        {
+            continue;
+        }
+
+        // for now just store the first obb's transformation matrix
+        m_transformationCache[group[0].groupNumber] = group[0].obb.invMatrix;
+    }
 }
 
 int core::obb::ObbTree::calculateMaxLeafDepth(const core::obb::Node* node, int depth) const
@@ -393,3 +480,53 @@ void core::obb::ObbTree::computeOBB(core::obb::Node *node)
     // Calculate the inverse of the transformation matrix
     node->obb.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
 }
+
+void core::obb::ObbTree::triangleIntersection(const core::obb::Node *const node, core::Ray &ray)
+{
+    for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
+    {
+    core::intersect(_triangles[j], ray);
+    }
+}
+
+void core::obb::ObbTree::intersectInternalNodes(const Node *left, const Node *right, const core::obb::Node *const node, core::Ray &ray, float& outLeft, float& outRight)
+{
+//    Ray leftRay = ray;
+//    glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
+//    glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
+//    leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+//    leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
+//
+//    Ray rightRay = ray;
+//    rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
+//    rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
+//    rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+//    rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
+
+//                Ray leftRay = ray;
+//                glm::vec3 rayOriginalLocal = glm::vec3(left->obb.invMatrix * glm::vec4(leftRay.o, 1.0f));
+//                leftRay.o = rayOriginalLocal;
+//                leftRay.rd = glm::vec3(1.0f/ left->transformedRayDir.x, 1.0f/ left->transformedRayDir.y, 1.0f/ left->transformedRayDir.z);
+//
+//                Ray rightRay = ray;
+//                rayOriginalLocal = glm::vec3(right->obb.invMatrix * glm::vec4(rightRay.o, 1.0f));
+//                rightRay.o = rayOriginalLocal;
+//                rightRay.rd = glm::vec3(1.0f/ right->transformedRayDir.x, 1.0f/ right->transformedRayDir.y, 1.0f/ right->transformedRayDir.z);
+
+    // Use grouped transformations
+    Ray leftRay = ray;
+    glm::vec4 rayOriginalLocal = m_transformationCache[left->groupNumber] * glm::vec4(leftRay.o, 1.0f);
+    glm::vec4 rayDirectionLocal = m_transformationCache[left->groupNumber] * glm::vec4(leftRay.d, 0.0f);
+    leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+    leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
+
+    Ray rightRay = ray;
+    rayOriginalLocal = m_transformationCache[right->groupNumber]* glm::vec4(rightRay.o, 1.0f);
+    rayDirectionLocal = m_transformationCache[right->groupNumber] * glm::vec4(rightRay.d, 0.0f);
+    rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+    rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
+
+    outLeft = core::intersectAABB(_unitAABB, leftRay);
+    outRight = core::intersectAABB(_unitAABB, rightRay);
+}
+

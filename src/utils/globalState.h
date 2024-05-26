@@ -1,6 +1,6 @@
 #pragma once
 
-#define LEAF_SIZE 15
+#define LEAF_SIZE 5
 
 #define ENABLE_OBB_BVH 1// DISABLE WHEN TESTING
 

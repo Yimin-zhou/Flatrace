@@ -2,7 +2,6 @@
 #include "src/debug/bvh_debugger.h"
 #include "src/utils/globalState.h"
 #include "src/utils/obj.h"
-
 #include <Tracy.hpp>
 
 int main()
@@ -11,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/big_obj");
+    const std::string input_folder("test/input/small_semi");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;

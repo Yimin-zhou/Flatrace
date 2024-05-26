@@ -45,4 +45,4 @@ void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *
 void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer);
 
 // OBB
-void render_frameOBB(const core::Camera &camera, const core::obb::ObbTree &obb, core::RGBA *const frameBuffer);
+void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer);

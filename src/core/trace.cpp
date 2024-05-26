@@ -231,9 +231,9 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
 }
 
 // OBB tree traversal
-void render_frameOBB(const core::Camera &camera, const core::obb::ObbTree &obb, core::RGBA *const frameBuffer)
+void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer)
 {
-    ZoneScoped;
+    ZoneScopedN("Render OBB Tree");
     auto COLORS = getMaterial();
     tbb::parallel_for(tbb::blocked_range<int>(0, NX * NY), [&](const tbb::blocked_range<int> &r)
     {
