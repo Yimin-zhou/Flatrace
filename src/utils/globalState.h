@@ -1,8 +1,9 @@
 #pragma once
 
-#define LEAF_SIZE 5
+#define LEAF_SIZE 15
 
-#define ENABLE_OBB_BVH 1// DISABLE WHEN TESTING
+#define ENABLE_OBB_BVH 1
+#define ENABLE_CLUSTERING 0 // DISABLE WHEN TESTING
 
 #define MODEL_NORMALIZE 0
 #define MODEL_SCALE 0.00035f
@@ -14,4 +15,5 @@ struct GlobalState
     static bool heatmapView;
     static bool bboxView;
     static bool enableOBB;
+    static bool enableClustering;
 };

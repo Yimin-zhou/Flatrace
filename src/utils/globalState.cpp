@@ -3,3 +3,4 @@
 bool GlobalState::heatmapView = false;
 bool GlobalState::bboxView = false;
 bool GlobalState::enableOBB = false;
+bool GlobalState::enableClustering = false;

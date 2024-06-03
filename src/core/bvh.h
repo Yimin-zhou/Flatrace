@@ -42,7 +42,7 @@ namespace core
         BVH() = default;
         BVH(const std::vector<Triangle> &triangles);
 
-        bool traversal(Ray &ray, const int maxIntersections) const;
+        bool traversal(Ray &ray, const int maxIntersections);
 
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
@@ -100,6 +100,11 @@ namespace core
         int calculateMaxLeafDepth(const Node *node, int depth = 1) const;
         int calculateMinLeafDepth(const Node *node, int depth = 1) const;
         void collectLeafDepths(const Node *node, int currentDepth = 1);
+
+        // Ray intersection
+        void triangleIntersection(const core::Node *const node, core::Ray &ray);
+        void intersectInternalNodes(const Node *left, const Node *right, core::Ray &ray, float& outLeft, float& outRight,  bool useClustering = false);
+
 
         std::vector<int> m_leafDepths;
 

@@ -39,6 +39,7 @@ Version: 1.0
 #define DITO_H_INCLUSION_GUARD
 
 #include <glm/glm.hpp>
+#include <Eigen/Dense>
 
 namespace DiTO
 {
@@ -52,7 +53,7 @@ first casting the array pointer to DiTO::Vector<F>* (where, e.g., F = float or F
     struct Vector
     {
         Vector(F x, F y, F z) : x(x), y(y), z(z) {}
-        Vector() {}
+        Vector() : x(0), y(0), z(0) {}
         F x, y, z;
     };
 
@@ -71,6 +72,19 @@ Members:
         Vector<F> ext;
         glm::mat4 invMatrix;
     };
+
+    // Flatten an OBB into a vector
+    template<typename F>
+    Eigen::Matrix<F, Eigen::Dynamic, 1> flatten(const OBB<F>& obb) {
+        Eigen::Matrix<F, Eigen::Dynamic, 1> flattened(12); // 4 vectors of 3 components each
+
+        flattened << obb.v0.x, obb.v0.y, obb.v0.z,
+                obb.v1.x, obb.v1.y, obb.v1.z,
+                obb.v2.x, obb.v2.y, obb.v2.z,
+                obb.ext.x, obb.ext.y, obb.ext.z;
+
+        return flattened;
+    }
 
 /*
 Compute an oriented bounding box using the DiTO-14 algorithm.

@@ -55,6 +55,8 @@ find_package (Boost 1.37.0 REQUIRED)
 find_package (TBB REQUIRED)
 find_package (SDL2 2.0.17 REQUIRED)
 find_package (GTest REQUIRED)
+find_package (Eigen3 REQUIRED)
+find_package(mlpack REQUIRED)
 
 # find_path (simde_INCLUDE_DIR simde/check.h REQUIRED)
 set (simde_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/simde/simde")
@@ -72,6 +74,7 @@ include_directories (PRIVATE "third_party")
 include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
 include_directories (PRIVATE ${SDL2_INCLUDE_DIRS})
 include_directories (PRIVATE ${TBB_INCLUDE_DIR})
+include_directories (PRIVATE ${EIGEN3_INCLUDE_DIR})
 
 add_subdirectory (third_party/imgui)
 
@@ -114,6 +117,8 @@ target_link_libraries (flatrace
         imgui
         ${SDL2_LIBRARIES}
         ${TBB_LIBRARIES}
+        Eigen3::Eigen
+        mlpack
 )
 
 target_include_directories(flatrace PRIVATE ${GLM_INCLUDE_DIRS})
@@ -133,6 +138,8 @@ target_link_libraries (tests
         imgui
         ${SDL2_LIBRARIES}
         ${TBB_LIBRARIES}
+        Eigen3::Eigen
+        mlpack
 )
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)

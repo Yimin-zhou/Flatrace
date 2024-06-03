@@ -9,6 +9,8 @@
 #include "src/utils/obj.h"
 #include "src/utils/ppm.h"
 
+constexpr float PI = 3.14159265359f;
+
 using namespace core;
 
 namespace test
@@ -74,118 +76,18 @@ namespace test
         render_frame(camera, bvh, frame.pixels.get(), maxDepth);
     }
 
-    //  test : aabb BVH (Bunny)
+    //  test :compare obb tree, aabb, aabb with obb (bunny)
     TEST(FlatRace, Render_1)
     {
-        std::vector<std::vector<Triangle>> models;
+        std::vector<std::vector<core::Triangle>> models;
         models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Bunny, true);
-        std::vector<Triangle> triangles;
+        std::vector<core::Triangle> triangles;
         for (const auto &model : models)
         {
             triangles.insert(triangles.end(), model.begin(), model.end());
         }
 
-        BVH bvh(triangles);
-        if (bvh.failed())
-        {
-            std::cerr << "BVH construction failed" << std::endl;
-        }
-
-        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-
-        // camera
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-        int maxDepth = bvh.getMaxDepth();
-
-        auto start = std::chrono::high_resolution_clock::now();
-        render_frame(camera, bvh, frame.pixels.get(), false);
-        auto end = std::chrono::high_resolution_clock::now();
-        auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "Render Bunny Time taken: " << time << " ms" << std::endl;
-        ASSERT_LE(time, 15);
-    }
-
-    //  test :aabb BVH (obb tracing) (Bunny)
-    TEST(FlatRace, Render_2)
-    {
-        std::vector<std::vector<Triangle>> models;
-        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Bunny, true);
-        std::vector<Triangle> triangles;
-        for (const auto &model : models)
-        {
-            triangles.insert(triangles.end(), model.begin(), model.end());
-        }
-
-        BVH bvh(triangles);
-        if (bvh.failed())
-        {
-            std::cerr << "BVH construction failed" << std::endl;
-        }
-
-        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-
-        // camera
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-        int maxDepth = bvh.getMaxDepth();
-
-        auto start = std::chrono::high_resolution_clock::now();
-        render_frame(camera, bvh, frame.pixels.get(), true);
-        auto end = std::chrono::high_resolution_clock::now();
-        auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "Render Bunny OBB in AABB Time taken: " << time << " ms" << std::endl;
-    }
-
-    //  test : obb BVH (Bunny)
-    TEST(FlatRace, Render_3)
-    {
-        std::vector<std::vector<Triangle>> models;
-        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Bunny, true);
-        std::vector<Triangle> triangles;
-        for (const auto &model : models)
-        {
-            triangles.insert(triangles.end(), model.begin(), model.end());
-        }
-
-        // camera
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-        core::obb::ObbTree obbTree(triangles, camera.dir);
-        if (obbTree.failed())
-        {
-            std::cerr << "obbTree construction failed" << std::endl;
-        }
-
-        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-
-
-        auto start = std::chrono::high_resolution_clock::now();
-        render_frameOBB(camera, obbTree, frame.pixels.get());
-        auto end = std::chrono::high_resolution_clock::now();
-        auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "Render Bunny OBB in OBB Tree Time taken: " << time << " ms" << std::endl;
-    }
-
-    //  test :compare obb tree, aabb, aabb with obb (bunny)
-    TEST(FlatRace, Render_4)
-    {
-        std::vector<std::vector<Triangle>> models;
-        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Bunny, true);
-        std::vector<Triangle> triangles;
-        for (const auto &model : models)
-        {
-            triangles.insert(triangles.end(), model.begin(), model.end());
-        }
-
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-        core::obb::ObbTree obbTree(triangles, camera.dir);
-
+        core::obb::ObbTree obbTree(triangles);
         if (obbTree.failed())
         {
             std::cerr << "obbTree construction failed" << std::endl;
@@ -194,41 +96,52 @@ namespace test
 
         Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
 
-        auto start = std::chrono::high_resolution_clock::now();
-        render_frameOBB(camera, obbTree, frame.pixels.get());
-        auto end = std::chrono::high_resolution_clock::now();
-        auto time_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        double totalTimeAABB = 0.0;
+        double totalTimeAABB_OBB = 0.0;
+        double totalTimeOBB = 0.0;
 
-        start = std::chrono::high_resolution_clock::now();
-        render_frame(camera, bvh, frame.pixels.get(), false);
-        end = std::chrono::high_resolution_clock::now();
-        auto time_aabb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        for (int i = 0; i < 10; ++i)
+        {
+            float angle = 2 * PI * i / 10;
+            float cx = std::cos(angle) * 2.0f;
+            float cz = std::sin(angle) * 2.0f;
+            Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
-        start = std::chrono::high_resolution_clock::now();
-        render_frame(camera, bvh, frame.pixels.get(), true);
-        end = std::chrono::high_resolution_clock::now();
-        auto time_aabb_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            auto start = std::chrono::high_resolution_clock::now();
+            render_frameOBB(camera, obbTree, frame.pixels.get());
+            auto end = std::chrono::high_resolution_clock::now();
+            auto time_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeOBB += time_obb;
 
-        std::cout << "Render Bunny AABB Time taken: " << time_aabb << " ms" << std::endl;
-        std::cout << "Render Bunny OBB in AABB Time taken: " << time_aabb_obb << " ms" << std::endl;
-        std::cout << "Render Bunny OBB in OBB Tree Time taken: " << time_obb << " ms" << std::endl;
+            start = std::chrono::high_resolution_clock::now();
+            render_frame(camera, bvh, frame.pixels.get(), false);
+            end = std::chrono::high_resolution_clock::now();
+            auto time_aabb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeAABB += time_aabb;
+
+            start = std::chrono::high_resolution_clock::now();
+            render_frame(camera, bvh, frame.pixels.get(), true);
+            end = std::chrono::high_resolution_clock::now();
+            auto time_aabb_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeAABB_OBB += time_aabb_obb;
+        }
+
+        std::cout << "Average Render Bunny AABB Time taken: " << totalTimeAABB / 10.0 << " ms" << std::endl;
+        std::cout << "Average Render Bunny OBB in AABB Time taken: " << totalTimeAABB_OBB / 10.0 << " ms" << std::endl;
+        std::cout << "Average Render Bunny OBB in OBB Tree Time taken: " << totalTimeOBB / 10.0 << " ms" << std::endl;
     }
 
     //  test :compare obb tree, aabb, aabb with obb (semiconductor)
-    TEST(FlatRace, Render_5)
+    TEST(FlatRace, Render_2)
     {
-        std::vector<std::vector<Triangle>> models;
+        std::vector<std::vector<core::Triangle>> models;
         models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi, false);
-        std::vector<Triangle> triangles;
-        for (const auto &model : models)
-        {
+        std::vector<core::Triangle> triangles;
+        for (const auto &model : models) {
             triangles.insert(triangles.end(), model.begin(), model.end());
         }
 
-        const float cx = std::cos(0.0f) * 2.0f;
-        const float cz = std::sin(0.0f) * 2.0f;
-        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-        core::obb::ObbTree obbTree(triangles, camera.dir);
+        core::obb::ObbTree obbTree(triangles);
         if (obbTree.failed())
         {
             std::cerr << "obbTree construction failed" << std::endl;
@@ -237,24 +150,39 @@ namespace test
 
         Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
 
-        auto start = std::chrono::high_resolution_clock::now();
-        render_frameOBB(camera, obbTree, frame.pixels.get());
-        auto end = std::chrono::high_resolution_clock::now();
-        auto time_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        double totalTimeAABB = 0.0;
+        double totalTimeAABB_OBB = 0.0;
+        double totalTimeOBB = 0.0;
 
-        start = std::chrono::high_resolution_clock::now();
-        render_frame(camera, bvh, frame.pixels.get(), false);
-        end = std::chrono::high_resolution_clock::now();
-        auto time_aabb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        for (int i = 0; i < 10; ++i)
+        {
+            float angle = 2 * PI * i / 10;
+            float cx = std::cos(angle) * 2.0f;
+            float cz = std::sin(angle) * 2.0f;
+            Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
-        start = std::chrono::high_resolution_clock::now();
-        render_frame(camera, bvh, frame.pixels.get(), true);
-        end = std::chrono::high_resolution_clock::now();
-        auto time_aabb_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            auto start = std::chrono::high_resolution_clock::now();
+            render_frameOBB(camera, obbTree, frame.pixels.get());
+            auto end = std::chrono::high_resolution_clock::now();
+            auto time_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeOBB += time_obb;
 
-        std::cout << "Render Semiconductor AABB Time taken: " << time_aabb << " ms" << std::endl;
-        std::cout << "Render Semiconductor OBB in AABB Time taken: " << time_aabb_obb << " ms" << std::endl;
-        std::cout << "Render Semiconductor OBB in OBB Tree Time taken: " << time_obb << " ms" << std::endl;
+            start = std::chrono::high_resolution_clock::now();
+            render_frame(camera, bvh, frame.pixels.get(), false);
+            end = std::chrono::high_resolution_clock::now();
+            auto time_aabb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeAABB += time_aabb;
+
+            start = std::chrono::high_resolution_clock::now();
+            render_frame(camera, bvh, frame.pixels.get(), true);
+            end = std::chrono::high_resolution_clock::now();
+            auto time_aabb_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeAABB_OBB += time_aabb_obb;
+        }
+
+        std::cout << "Average Render Semiconductor AABB Time taken: " << totalTimeAABB / 10.0 << " ms" << std::endl;
+        std::cout << "Average Render Semiconductor OBB in AABB Time taken: " << totalTimeAABB_OBB / 10.0 << " ms" << std::endl;
+        std::cout << "Average Render Semiconductor OBB in OBB Tree Time taken: " << totalTimeOBB / 10.0 << " ms" << std::endl;
     }
 
     // Profiling tests
@@ -274,7 +202,7 @@ namespace test
         const float cz = std::sin(0.0f) * 2.0f;
         Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
         auto start = std::chrono::high_resolution_clock::now();
-        core::obb::ObbTree obbTree(triangles, camera.dir);
+        core::obb::ObbTree obbTree(triangles);
         auto end = std::chrono::high_resolution_clock::now();
         auto time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "OBB Tree Construction Time taken: " << time_obb_construction << " ms" << std::endl;
@@ -315,6 +243,52 @@ namespace test
     // TODO: calculate surface area of the obb tree and aabb bvh
     TEST(FlatRace, BVH_2)
     {
+    }
+
+    // Test clustering vs no-clustering (OBB BVH)
+    TEST(FlatRace, Clustering_1)
+    {
+        std::vector<std::vector<core::Triangle>> models;
+        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi, false);
+        std::vector<core::Triangle> triangles;
+        for (const auto &model : models) {
+            triangles.insert(triangles.end(), model.begin(), model.end());
+        }
+
+        core::obb::ObbTree obbTree(triangles);
+        if (obbTree.failed())
+        {
+            std::cerr << "obbTree construction failed" << std::endl;
+        }
+
+        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
+
+        double totalTimeClustering = 0.0;
+        double totalTimeNonClustering = 0.0;
+
+        for (int i = 0; i < 10; ++i)
+        {
+            float angle = 2 * PI * i / 10;
+            float cx = std::cos(angle) * 2.0f;
+            float cz = std::sin(angle) * 2.0f;
+            Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+
+            auto start = std::chrono::high_resolution_clock::now();
+            render_frameOBB(camera, obbTree, frame.pixels.get(), true);
+            auto end = std::chrono::high_resolution_clock::now();
+            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeClustering += time;
+
+            start = std::chrono::high_resolution_clock::now();
+            render_frameOBB(camera, obbTree, frame.pixels.get(), false);
+            end = std::chrono::high_resolution_clock::now();
+            time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            totalTimeNonClustering += time;
+
+        }
+
+        std::cout << "Average Render Semiconductor OBB in OBB Tree with Clustering Time taken: " << totalTimeClustering / 10.0 << " ms" << std::endl;
+        std::cout << "Average Render Semiconductor OBB in OBB Tree without Clustering Time taken: " << totalTimeNonClustering / 10.0 << " ms" << std::endl;
     }
 
 

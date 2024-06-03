@@ -34,9 +34,9 @@ namespace core::obb
     {
     public:
         ObbTree() = default;
-        ObbTree(const std::vector<Triangle> &triangles, const glm::vec3 &rayDir);
+        ObbTree(const std::vector<Triangle> &triangles);
 
-        bool traversal(Ray &ray, const int maxIntersections);
+        bool traversal(Ray &ray, const int maxIntersections, bool useClustering = false);
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
         bool failed() const { return _failed; }
@@ -46,15 +46,13 @@ namespace core::obb
         const std::vector<Node> &getNodes() const { return _nodes; }
         int getMaxDepth() const { return _maxDepth; }
         std::vector<int> getLeafDepths() const { return m_leafDepths; }
-        void setRayDir(const glm::vec3 &dir) { m_rayDir = dir; }
 
         template<typename F>
         void computeOBB(Node *node);
 
         // For grouping similar OBBs
         void preGenerateOBBs(int numOBBs); // TODO
-        std::vector<std::vector<Node>> groupSimilarOBBs(float similarityThreshold);
-        bool isSimilar(const DiTO::OBB<float>& obb1, const DiTO::OBB<float>& obb2, float similarityThreshold);
+        std::vector<std::vector<core::obb::Node>>  clusterOBBs(int num_clusters);
         void cacheTransformations();
 
         // For now just randomly group obbs
@@ -74,12 +72,11 @@ namespace core::obb
 
         // Ray intersection
         void triangleIntersection(const core::obb::Node *const node, core::Ray &ray);
-        void intersectInternalNodes(const Node *left, const Node *right, const core::obb::Node *const node, core::Ray &ray, float& outLeft, float& outRight);
+        void intersectInternalNodes(const Node *left, const Node *right, const core::obb::Node *const node, core::Ray &ray, float& outLeft, float& outRight,  bool useClustering = false);
 
 
         std::vector<int> m_leafDepths;
 
-        glm::vec3 m_rayDir;
         bool _failed;
         std::vector<Node> _nodes;
         std::vector<Triangle> _triangles;
@@ -93,7 +90,7 @@ namespace core::obb
         std::vector<DiTO::OBB<float>> m_preGeneratedOBBs;
         int m_nGroup;
         std::vector<glm::mat4x4> m_transformationCache;
-        std::vector<std::vector<Node>> m_groupedNodes;
+        std::vector<std::vector<Node>> m_clusteredNodes;
     };
 
 

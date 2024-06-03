@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/small_semi");
+    const std::string input_folder("test/input/big_obj");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
@@ -55,7 +55,7 @@ int main()
     const auto start_bvh = steady_clock::now();
 
 #if ENABLE_OBB_BVH
-    core::obb::ObbTree obbTree(triangles, camera.dir);
+    core::obb::ObbTree obbTree(triangles);
     if (obbTree.failed())
     {
         std::cerr << "ObbTree construction failed" << std::endl;
@@ -185,7 +185,7 @@ int main()
                 }
                 else
                 {
-                    render_frameOBB(camera, obbTree, frame.pixels.get());
+                    render_frameOBB(camera, obbTree, frame.pixels.get(), ENABLE_CLUSTERING);
                 }
             #else
                 if (GlobalState::bboxView)
@@ -194,7 +194,7 @@ int main()
                 }
                 else
                 {
-                    render_frame(camera, bvh, frame.pixels.get());
+                    render_frame(camera, bvh, frame.pixels.get(), false);
                 }
             #endif
         #else
@@ -267,6 +267,11 @@ int main()
                 if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
                 {
                     GlobalState::heatmapView = false;
+                }
+
+                ImGui::Separator();
+                if (ImGui::Checkbox("Enable Clustering Tracing", &GlobalState::enableClustering))
+                {
                 }
             }
 

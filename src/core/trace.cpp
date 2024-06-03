@@ -62,7 +62,7 @@ glm::vec3 getColorMap(int value, int minVal, int maxVal)
 }
 
 // Reference implementation that traces 1 ray at a time (no SIMD)
-void render_frame(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh)
+void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh)
 {
     auto COLORS = getMaterial();
     tbb::parallel_for(tbb::blocked_range<int>(0, NX * NY), [&](const tbb::blocked_range<int> &r)
@@ -231,7 +231,7 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
 }
 
 // OBB tree traversal
-void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer)
+void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer, bool useClustering)
 {
     ZoneScopedN("Render OBB Tree");
     auto COLORS = getMaterial();
@@ -258,7 +258,7 @@ void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::
 
                     core::Ray ray = {ray_origin, ray_direction};
 
-                    bool hit = obb.traversal(ray, MAX_INTERSECTIONS);
+                    bool hit = obb.traversal(ray, MAX_INTERSECTIONS, useClustering);
 
                     const float src_alpha = 0.4f;
 

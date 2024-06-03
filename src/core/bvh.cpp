@@ -117,7 +117,7 @@ namespace core
     }
 
 
-    bool BVH::traversal(Ray &ray, const int maxIntersections) const
+    bool BVH::traversal(Ray &ray, const int maxIntersections)
     {
         ZoneScopedN("AABB BVH Traversal");
 
@@ -145,18 +145,17 @@ namespace core
                 ray.bvh_nodes_visited++;
                 if (node->isLeaf())
                 {
-                    for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
-                    {
-                        core::intersect(getTriangle(i), ray);
-                    }
-                } else
+                    triangleIntersection(node, ray);
+                }
+                else
                 {
-                    ZoneScopedN("Internal AABB Intersect");
                     const Node *left = &_nodes[node->leftFrom];
                     const Node *right = left + 1;
 
-                    float t_left = core::intersectAABB(left->bbox, ray);
-                    float t_right = core::intersectAABB(right->bbox, ray);
+                    float t_left = 0;
+                    float t_right = 0;
+
+                    intersectInternalNodes(left, right, ray, t_left, t_right, false);
 
                     if (t_left > t_right)
                     {
@@ -507,6 +506,21 @@ namespace core
         const int n_right = count - n_left;
 
         return ((n_left != 0) && (n_right != 0) ? std::make_optional(left_to) : std::nullopt);
+    }
+
+    void BVH::intersectInternalNodes(const Node *left, const Node *right, Ray &ray,
+                                     float &outLeft, float &outRight, bool useClustering)
+    {
+        outLeft = core::intersectAABB(left->bbox, ray);
+        outRight = core::intersectAABB(right->bbox, ray);
+    }
+
+    void BVH::triangleIntersection(const core::Node *const node, Ray &ray)
+    {
+        for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
+        {
+            core::intersect(getTriangle(i), ray);
+        }
     }
 
     template<typename F>
