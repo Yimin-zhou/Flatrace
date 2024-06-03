@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/big_obj");
+    const std::string input_folder("test/input/small_semi");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
@@ -72,8 +72,14 @@ int main()
 
     // Bounding box visualization
 #if ENABLE_OBB_BVH
+//#if ENABLE_CLUSTERING TODO: FIX VISUALIZE CLUSTERING BUGS
+//    debug::Visualization visualization(obbTree);
+//    visualization.visualizationClustering(obbTree.getClusterOBBs());
+//    BVH boundingBoxBVH(visualization.getTriangles());
+//#else
     debug::Visualization visualization(obbTree);
     BVH boundingBoxBVH(visualization.getTriangles());
+//#endif
 #else
     debug::Visualization visualization(bvh);
     BVH boundingBoxBVH(visualization.getTriangles());
@@ -267,11 +273,6 @@ int main()
                 if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
                 {
                     GlobalState::heatmapView = false;
-                }
-
-                ImGui::Separator();
-                if (ImGui::Checkbox("Enable Clustering Tracing", &GlobalState::enableClustering))
-                {
                 }
             }
 

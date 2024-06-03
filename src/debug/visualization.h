@@ -17,6 +17,7 @@ namespace debug
         Visualization(const core::BVH &bvh);
         Visualization(const core::obb::ObbTree &obbTree);
 
+        void visualizationClustering(const std::vector<DiTO::OBB<float>> &clusters);
         std::vector<core::Triangle> getTriangles() const { return m_triangles; }
 
     private:

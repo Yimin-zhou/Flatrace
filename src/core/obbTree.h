@@ -55,9 +55,8 @@ namespace core::obb
         std::vector<std::vector<core::obb::Node>>  clusterOBBs(int num_clusters);
         void cacheTransformations();
 
-        // For now just randomly group obbs
-        std::vector<std::vector<Node>> groupRandomNodes(int numGroups);
-
+        // For cluster obb visualization
+        std::vector<DiTO::OBB<float>> getClusterOBBs() const { return m_clusterOBBs; }
 
     private:
         Node *splitNode(Node *const node);
@@ -72,8 +71,7 @@ namespace core::obb
 
         // Ray intersection
         void triangleIntersection(const core::obb::Node *const node, core::Ray &ray);
-        void intersectInternalNodes(const Node *left, const Node *right, const core::obb::Node *const node, core::Ray &ray, float& outLeft, float& outRight,  bool useClustering = false);
-
+        void intersectInternalNodes(const Node *left, const Node *right, core::Ray &ray, float& outLeft, float& outRight,  bool useClustering = false);
 
         std::vector<int> m_leafDepths;
 
@@ -87,13 +85,14 @@ namespace core::obb
         BoundingBox _unitAABB;
 
         // group similar nodes
-        std::vector<DiTO::OBB<float>> m_preGeneratedOBBs;
         int m_nGroup;
         std::vector<glm::mat4x4> m_transformationCache;
         std::vector<std::vector<Node>> m_clusteredNodes;
+        std::vector<bool> m_isTransformed;
+        std::vector<glm::vec3> m_clusterRayDirs;
+        // for visualization
+        std::vector<DiTO::OBB<float>> m_clusterOBBs;
     };
-
-
 }
 
 

@@ -103,6 +103,19 @@ debug::Visualization::visualizeAABB(const glm::vec3 &center, const glm::vec3 &di
     return triangles;
 }
 
+void debug::Visualization::visualizationClustering(const std::vector<DiTO::OBB<float>> &clusters)
+{
+    // clear the triangles
+    m_triangles.clear();
+
+    int triangleId = 0;
+    for (const auto &cluster: clusters)
+    {
+        std::vector<core::Triangle> clusterTriangles = visualizeOBB(cluster, triangleId);
+        m_triangles.insert(m_triangles.end(), clusterTriangles.begin(), clusterTriangles.end());
+    }
+}
+
 template<typename T>
 std::vector<core::Triangle> debug::Visualization::visualizeOBB(const DiTO::OBB<T> &obb, int &triangleId) const
 {
