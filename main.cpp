@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/small_semi");
+    const std::string input_folder("test/input/big_obj");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;

@@ -148,6 +148,12 @@ namespace core
             }
         }
 
+        // center of the bounding box
+        glm::vec3 center() const
+        {
+            return (min + max) * 0.5f;
+        }
+
         glm::vec3 min;
         glm::vec3 max;
     };

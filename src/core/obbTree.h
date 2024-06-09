@@ -14,18 +14,19 @@ namespace core::obb
     struct Node
     {
     public:
-        Node(const int from, const int count)
+        Node(const int from, const int count, const uint32_t index)
                 :
-                leftFrom(from), count(count)
+                leftFrom(from), count(count), index(index)
         {
         }
 
+        uint32_t index;
         DiTO::OBB<float> obb;
-//        BoundingBox bbox;
-        glm::vec3 transformedRayDir;
+        BoundingBox bbox;
+//        glm::vec3 transformedRayDir;
         int leftFrom;
         int count;
-        int groupNumber;
+        int groupNumber = -1;
 
         bool isLeaf() const { return (count != 0); }
     };
@@ -36,7 +37,7 @@ namespace core::obb
         ObbTree() = default;
         ObbTree(const std::vector<Triangle> &triangles);
 
-        bool traversal(Ray &ray, const int maxIntersections, bool useClustering = false);
+        bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useClustering = false);
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
         bool failed() const { return _failed; }
@@ -54,6 +55,7 @@ namespace core::obb
         void preGenerateOBBs(int numOBBs); // TODO
         std::vector<std::vector<core::obb::Node>>  clusterOBBs(int num_clusters);
         void cacheTransformations();
+        std::vector<glm::mat4x4>& getTransformationCache() { return m_transformationCache; }
 
         // For cluster obb visualization
         std::vector<DiTO::OBB<float>> getClusterOBBs() const { return m_clusterOBBs; }
@@ -71,7 +73,8 @@ namespace core::obb
 
         // Ray intersection
         void triangleIntersection(const core::obb::Node *const node, core::Ray &ray);
-        void intersectInternalNodes(const Node *left, const Node *right, core::Ray &ray, float& outLeft, float& outRight,  bool useClustering = false);
+        void intersectInternalNodes(const Node *node, core::Ray &ray, float& outT,
+                                    const std::vector<glm::vec3>& cachedClusterRaydirs, bool useClustering = false);
 
         std::vector<int> m_leafDepths;
 
@@ -88,8 +91,8 @@ namespace core::obb
         int m_nGroup;
         std::vector<glm::mat4x4> m_transformationCache;
         std::vector<std::vector<Node>> m_clusteredNodes;
-        std::vector<bool> m_isTransformed;
-        std::vector<glm::vec3> m_clusterRayDirs;
+//        std::vector<bool> m_isTransformed;
+//        std::vector<glm::vec3> m_clusterRayDirs;
         // for visualization
         std::vector<DiTO::OBB<float>> m_clusterOBBs;
     };

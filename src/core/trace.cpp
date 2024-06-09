@@ -234,6 +234,16 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
 void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer, bool useClustering)
 {
     ZoneScopedN("Render OBB Tree");
+    // TODO: Put it in a function
+    // BEFORE LOOPING. SHARE READ ONLY
+    const glm::vec3 ray_direction = camera.dir;
+    std::vector<glm::mat4x4> cachedObbTransformations = obb.getTransformationCache();
+    std::vector<glm::vec3> cachedRayDirs;
+    for (auto& obbTransformation : cachedObbTransformations)
+    {
+        cachedRayDirs.emplace_back(obbTransformation * glm::vec4(ray_direction, 0.0f));
+    }
+
     auto COLORS = getMaterial();
     tbb::parallel_for(tbb::blocked_range<int>(0, NX * NY), [&](const tbb::blocked_range<int> &r)
     {
@@ -254,11 +264,10 @@ void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::
                 for (int j = tile_j * TILE_SIZE; j < (tile_j * TILE_SIZE) + TILE_SIZE; j++)
                 {
                     const glm::vec3 ray_origin = camera.pos + camera.x * x + camera.y * y;
-                    const glm::vec3 ray_direction = camera.dir;
 
                     core::Ray ray = {ray_origin, ray_direction};
 
-                    bool hit = obb.traversal(ray, MAX_INTERSECTIONS, useClustering);
+                    bool hit = obb.traversal(ray, MAX_INTERSECTIONS, cachedRayDirs, useClustering);
 
                     const float src_alpha = 0.4f;
 
