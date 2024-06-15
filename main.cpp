@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/big_obj");
+    const std::string input_folder("test/input/cube");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
@@ -72,14 +72,15 @@ int main()
 
     // Bounding box visualization
 #if ENABLE_OBB_BVH
-//#if ENABLE_CLUSTERING TODO: FIX VISUALIZE CLUSTERING BUGS
-//    debug::Visualization visualization(obbTree);
-//    visualization.visualizationClustering(obbTree.getClusterOBBs());
-//    BVH boundingBoxBVH(visualization.getTriangles());
-//#else
-    debug::Visualization visualization(obbTree);
-    BVH boundingBoxBVH(visualization.getTriangles());
-//#endif
+    #if 0 //TODO: FIX VISUALIZE CLUSTERING BUGS
+        debug::Visualization visualization(obbTree);
+        visualization.visualizationClustering(obbTree.getClusterOBBs());
+        std::vector<core::Triangle> temTris = visualization.getTriangles();
+        BVH boundingBoxBVH(temTris);
+    #else
+        debug::Visualization visualization(obbTree);
+        BVH boundingBoxBVH(visualization.getTriangles());
+    #endif
 #else
     debug::Visualization visualization(bvh);
     BVH boundingBoxBVH(visualization.getTriangles());
