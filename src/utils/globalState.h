@@ -1,13 +1,13 @@
 #pragma once
 
-#define LEAF_SIZE 1
+#define LEAF_SIZE 15
 
 #define ENABLE_OBB_BVH 1
 #define ENABLE_CLUSTERING 1 // DISABLE WHEN TESTING
 
-#define MODEL_NORMALIZE 1
-//#define MODEL_SCALE 0.00035f
-#define MODEL_SCALE 1.0f
+#define MODEL_NORMALIZE 0
+#define MODEL_SCALE 0.00035f
+//#define MODEL_SCALE 1.0f
 #define MODEL_FLIP 0
 
 struct GlobalState
