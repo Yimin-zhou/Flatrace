@@ -61,9 +61,26 @@ glm::vec3 getColorMap(int value, int minVal, int maxVal)
     return color;
 }
 
-// Reference implementation that traces 1 ray at a time (no SIMD)
-void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh)
+// For AABB tree
+void cacheRayDirsAABBTree(core::BVH& bvh, const glm::vec3& rayDir)
 {
+    // Loop over all nodes in the tree
+    for (auto& node : bvh.getNodes())
+    {
+        node.cachedRayDir = glm::vec3((node.obb.invMatrix) * glm::vec4(rayDir, 0.0f));
+    }
+}
+
+// Reference implementation that traces 1 ray at a time (no SIMD)
+void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh, bool useCaching)
+{
+    const glm::vec3 ray_direction = camera.dir;
+
+    if (useCaching && obbInAABBbvh)
+    {
+        cacheRayDirsAABBTree(bvh, ray_direction);
+    }
+
     auto COLORS = getMaterial();
     tbb::parallel_for(tbb::blocked_range<int>(0, NX * NY), [&](const tbb::blocked_range<int> &r)
     {
@@ -84,15 +101,14 @@ void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const 
                 for (int j = tile_j * TILE_SIZE; j < (tile_j * TILE_SIZE) + TILE_SIZE; j++)
                 {
                     const glm::vec3 ray_origin = camera.pos + camera.x * x + camera.y * y;
-                    const glm::vec3 ray_direction = camera.dir;
 
                     core::Ray ray = {ray_origin, ray_direction};
 
                     bool hit = false;
 
-                    if (GlobalState::enableOBB || obbInAABBbvh)
+                    if (obbInAABBbvh)
                     {
-                        hit = bvh.traversalOBB(ray, MAX_INTERSECTIONS);
+                        hit = bvh.traversalOBB(ray, MAX_INTERSECTIONS, useCaching);
                     } else
                     {
                         hit = bvh.traversal(ray, MAX_INTERSECTIONS);
@@ -230,18 +246,40 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
     });
 }
 
-// OBB tree traversal
-void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer, bool useClustering)
+// For OBBs
+void cacheRayDirs(core::obb::ObbTree &obbTree, std::vector<glm::vec3>& out, const glm::vec3& rayDir)
 {
-    ZoneScopedN("Render OBB Tree");
-    // TODO: Put it in a function
-    // BEFORE LOOPING. SHARE READ ONLY
-    const glm::vec3 ray_direction = camera.dir;
-    std::vector<glm::mat4x4> cachedObbTransformations = obb.getTransformationCache();
-    std::vector<glm::vec3> cachedRayDirs;
+    std::vector<glm::mat4x4> cachedObbTransformations = obbTree.getTransformationCache();
     for (auto& obbTransformation : cachedObbTransformations)
     {
-        cachedRayDirs.emplace_back(obbTransformation * glm::vec4(ray_direction, 0.0f));
+        out.emplace_back(obbTransformation * glm::vec4(rayDir, 0.0f));
+    }
+}
+
+void cacheRayDirsNoClustering(core::obb::ObbTree &obbTree, const glm::vec3& rayDir)
+{
+    // Loop over all nodes in the tree
+    for (auto& node : obbTree.getNodes())
+    {
+        node.cachedRayDir = glm::vec3((node.obb.invMatrix) * glm::vec4(rayDir, 0.0f));
+    }
+}
+
+// OBB tree traversal
+void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obbTree, core::RGBA *const frameBuffer, bool useClustering, bool useRayCaching)
+{
+    ZoneScopedN("Render OBB Tree");
+    // BEFORE LOOPING. SHARE READ ONLY
+    const glm::vec3 ray_direction = camera.dir;
+    std::vector<glm::vec3> cachedRayDirs;
+
+    if (useRayCaching && useClustering)
+    {
+        cacheRayDirs(obbTree, cachedRayDirs, ray_direction);
+    }
+    else if (useRayCaching && !useClustering)
+    {
+        cacheRayDirsNoClustering(obbTree, ray_direction);
     }
 
     auto COLORS = getMaterial();
@@ -267,7 +305,7 @@ void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::
 
                     core::Ray ray = {ray_origin, ray_direction};
 
-                    bool hit = obb.traversal(ray, MAX_INTERSECTIONS, cachedRayDirs, useClustering);
+                    bool hit = obbTree.traversal(ray, MAX_INTERSECTIONS, cachedRayDirs, useRayCaching);
 
                     const float src_alpha = 0.4f;
 
@@ -295,7 +333,7 @@ void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::
                                 const __m128 abs_dot_x4 = _mm_andnot_ps(_mm_set1_ps(-0.0f),
                                                                         _mm_load1_ps(&ray.dot[n]));
                                 const __m128 tri_color = _mm_load_ps(
-                                        COLORS[obb.getTriangle(triangle).material & 0x07].data());
+                                        COLORS[obbTree.getTriangle(triangle).material & 0x07].data());
                                 const __m128 shaded_color = _mm_mul_ps(tri_color, abs_dot_x4);
 
                                 const float alpha = dst_alpha * src_alpha;
@@ -322,6 +360,7 @@ void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::
         }
     });
 }
+
 
 
 

@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/big_obj");
+    const std::string input_folder("test/input/stacks/stack_a");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
@@ -55,21 +55,20 @@ int main()
     const auto start_bvh = steady_clock::now();
 
 #if ENABLE_OBB_BVH
-    core::obb::ObbTree obbTree(triangles);
+    core::obb::ObbTree obbTree(triangles, ENABLE_CLUSTERING, NUM_CLUSTERS);
     if (obbTree.failed())
     {
         std::cerr << "ObbTree construction failed" << std::endl;
         return EXIT_FAILURE;
     }
 #else
-    BVH bvh(triangles);
+    BVH bvh(triangles, ENABLE_AABB_WITH_OBB);
     if (bvh.failed())
     {
         std::cerr << "BVH construction failed" << std::endl;
         return EXIT_FAILURE;
     }
 #endif
-
     // Bounding box visualization
 #if ENABLE_OBB_BVH
     #if ENABLE_CLUSTERING //TODO: FIX VISUALIZE CLUSTERING BUGS
@@ -79,11 +78,11 @@ int main()
         BVH boundingBoxBVH(temTris);
     #else
         debug::Visualization visualization(obbTree);
-        BVH boundingBoxBVH(visualization.getTriangles());
+        BVH boundingBoxBVH(visualization.getTriangles(), false);
     #endif
 #else
     debug::Visualization visualization(bvh);
-    BVH boundingBoxBVH(visualization.getTriangles());
+    BVH boundingBoxBVH(visualization.getTriangles(), false);
 #endif
 
     const auto end_bvh = steady_clock::now();
@@ -201,7 +200,7 @@ int main()
                 }
                 else
                 {
-                    render_frame(camera, bvh, frame.pixels.get(), false);
+                    render_frame(camera, bvh, frame.pixels.get(), ENABLE_AABB_WITH_OBB, ENABLE_CACHING);
                 }
             #endif
         #else
@@ -258,11 +257,6 @@ int main()
 #else
                     debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
 #endif
-                }
-
-                ImGui::Separator();
-                if (ImGui::Checkbox("Use OBB Tracing", &GlobalState::enableOBB))
-                {
                 }
 
                 ImGui::Separator();

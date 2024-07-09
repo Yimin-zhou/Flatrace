@@ -23,10 +23,10 @@ namespace core::obb
         uint32_t index;
         DiTO::OBB<float> obb;
         BoundingBox bbox;
-//        glm::vec3 transformedRayDir;
         int leftFrom;
         int count;
         int groupNumber = -1;
+        glm::vec3 cachedRayDir;
 
         bool isLeaf() const { return (count != 0); }
     };
@@ -35,16 +35,16 @@ namespace core::obb
     {
     public:
         ObbTree() = default;
-        ObbTree(const std::vector<Triangle> &triangles);
+        ObbTree(const std::vector<Triangle> &triangles, bool useClustering, int num_clusters = 10);
 
-        bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useClustering = false);
+        bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
         bool failed() const { return _failed; }
         const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
         const glm::vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
         const Node *getRoot() const { return _root; }
-        const std::vector<Node> &getNodes() const { return _nodes; }
+        std::vector<Node> &getNodes() { return _nodes; }
         int getMaxDepth() const { return _maxDepth; }
         std::vector<int> getLeafDepths() const { return m_leafDepths; }
 
@@ -52,8 +52,8 @@ namespace core::obb
         void computeOBB(Node *node);
 
         // For grouping similar OBBs
-        void preGenerateOBBs(int numOBBs); // TODO
-        std::vector<std::vector<core::obb::Node>>  clusterOBBs(int num_clusters);
+        std::vector<std::vector<core::obb::Node>> clusterOBBsKmeans(int num_clusters);
+        std::vector<std::vector<core::obb::Node>> clusterOBBsMeanshift();
         void cacheTransformations();
         std::vector<glm::mat4x4>& getTransformationCache() { return m_transformationCache; }
 
@@ -61,10 +61,29 @@ namespace core::obb
         std::vector<DiTO::OBB<float>> getClusterOBBs() const { return m_clusterOBBs; }
 
     private:
+        struct SplitDim
+        {
+            glm::vec3 normal;
+            double min = 0.0f;
+            double max = 0.0f;
+        };
+
+        struct SplitBin
+        {
+            DiTO::OBB<float> obb;
+
+            float areaLeft = 0.0f;
+            float areaRight = 0.0f;
+
+            int trianglesIn = 0;
+            int trianglesLeft = 0;
+            int trianglesRight = 0;
+        };
+
         Node *splitNode(Node *const node);
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
         std::optional<Plane> splitPlaneMid(const Node *const node, int maxSplitsPerDimension) const;
-        std::optional<Plane> splitPlaneSAH(const Node *const node, int maxSplitsPerDimension) const;
+        std::optional<Plane> splitPlaneSAH(const Node *const node, const int from, const int count, int maxSplitsPerDimension) const;
         void linearize();
 
         int calculateMaxLeafDepth(const Node *node, int depth = 1) const;
@@ -73,8 +92,7 @@ namespace core::obb
 
         // Ray intersection
         void triangleIntersection(const core::obb::Node *const node, core::Ray &ray);
-        void intersectInternalNodes(const Node *node, core::Ray &ray, float& outT,
-                                    const std::vector<glm::vec3>& cachedClusterRaydirs, bool useClustering = false);
+        void intersectInternalNodes(const Node *node, core::Ray &ray, float& outT, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
 
         std::vector<int> m_leafDepths;
 
@@ -91,8 +109,8 @@ namespace core::obb
         int m_nGroup;
         std::vector<glm::mat4x4> m_transformationCache;
         std::vector<std::vector<Node>> m_clusteredNodes;
-//        std::vector<bool> m_isTransformed;
-//        std::vector<glm::vec3> m_clusterRayDirs;
+        bool m_useClustering;
+
         // for visualization
         std::vector<DiTO::OBB<float>> m_clusterOBBs;
     };

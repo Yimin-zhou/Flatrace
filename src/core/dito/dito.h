@@ -71,11 +71,18 @@ Members:
         Vector<F> v0, v1, v2;
         Vector<F> ext;
         glm::mat4 invMatrix;
+
+        // Calculate the surface area of an OBB
+        const double area() const
+        {
+            return 2.0f * (this->ext.x * this->ext.y + this->ext.y * this->ext.z + this->ext.z * this->ext.x);
+        }
     };
 
     // Flatten an OBB into a vector
     template<typename F>
-    Eigen::Matrix<F, Eigen::Dynamic, 1> flatten(const OBB<F>& obb) {
+    Eigen::Matrix<F, Eigen::Dynamic, 1> flatten(const OBB<F>& obb)
+    {
         Eigen::Matrix<F, Eigen::Dynamic, 1> flattened(12); // 4 vectors of 3 components each
 
         flattened << obb.v0.x, obb.v0.y, obb.v0.z,

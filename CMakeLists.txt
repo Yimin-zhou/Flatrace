@@ -69,6 +69,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Profile")
   set(TRACY_SOURCES "${TRACY_DIR}/TracyClient.cpp")
 endif()
 
+# dlib include
+include_directories ("${CMAKE_SOURCE_DIR}/third_party/dlib")
+add_subdirectory (third_party/dlib build)
+
 include_directories (PRIVATE ".")
 include_directories (PRIVATE "third_party")
 include_directories (PRIVATE ${Boost_INCLUDE_DIRS})
@@ -119,6 +123,7 @@ target_link_libraries (flatrace
         ${TBB_LIBRARIES}
         Eigen3::Eigen
         mlpack
+        dlib::dlib
 )
 
 target_include_directories(flatrace PRIVATE ${GLM_INCLUDE_DIRS})
@@ -140,6 +145,7 @@ target_link_libraries (tests
         ${TBB_LIBRARIES}
         Eigen3::Eigen
         mlpack
+        dlib::dlib
 )
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)

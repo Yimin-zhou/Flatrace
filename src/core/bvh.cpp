@@ -27,7 +27,7 @@
 namespace core
 {
 
-    BVH::BVH(const std::vector<Triangle> &triangles)
+    BVH::BVH(const std::vector<Triangle> &triangles, bool useOBB)
             :
             _failed(false),
             _triangles(triangles),
@@ -45,16 +45,16 @@ namespace core
         _nodes.reserve(triangles.size() * 2 - 1);
         _root = &_nodes.emplace_back(0, triangles.size());
 
-        splitNode(_root);
+        splitNode(_root, useOBB);
 
         _maxDepth = calculateMaxLeafDepth(_root);
         int minDepth = calculateMinLeafDepth(_root);
         collectLeafDepths(_root);
 
 //        std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
-        std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
-        std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
-        std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
+//        std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
+//        std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
+//        std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
 
         // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
         // data locality and avoids having to use indirection when iterating triangles for intersection
@@ -155,7 +155,7 @@ namespace core
                     float t_left = 0;
                     float t_right = 0;
 
-                    intersectInternalNodes(left, right, ray, t_left, t_right, false);
+                    intersectInternalNodes(left, right, ray, t_left, t_right);
 
                     if (t_left > t_right)
                     {
@@ -249,7 +249,7 @@ namespace core
         return hit;
     }
 
-    bool BVH::traversalOBB(Ray &ray, const int maxIntersections) const
+    bool BVH::traversalOBB(Ray &ray, const int maxIntersections, bool useCaching) const
     {
         ZoneScopedN("OBB in AABB BVH Traversal");
 
@@ -286,22 +286,10 @@ namespace core
                     const Node *right = left + 1;
 
                     // transform ray to obb space for both left and right node
-                    Ray leftRay = ray;
-                    glm::vec4 rayOriginalLocal = (left->obb.invMatrix) * glm::vec4(leftRay.o, 1.0f);
-                    glm::vec4 rayDirectionLocal = (left->obb.invMatrix) * glm::vec4(leftRay.d, 0.0f);
-                    leftRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                    leftRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
-                                           1.0f / rayDirectionLocal.z);
-
-                    Ray rightRay = ray;
-                    rayOriginalLocal = (right->obb.invMatrix) * glm::vec4(rightRay.o, 1.0f);
-                    rayDirectionLocal = (right->obb.invMatrix) * glm::vec4(rightRay.d, 0.0f);
-                    rightRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-                    rightRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
-                                            1.0f / rayDirectionLocal.z);
-
-                    float t_left = core::intersectAABB(_unitAABB, leftRay);
-                    float t_right = core::intersectAABB(_unitAABB, rightRay);
+                    float t_left;
+                    float t_right;
+                    intersectInternalNodesOBB(left, ray, t_left, useCaching);
+                    intersectInternalNodesOBB(right, ray, t_right, useCaching);
 
                     if (t_left > t_right)
                     {
@@ -328,10 +316,13 @@ namespace core
 
     }
 
-    Node *BVH::splitNode(Node *const node)
+    Node *BVH::splitNode(Node *const node, bool useOBB)
     {
         // generate obb
-        computeOBB<float>(node);
+        if (useOBB)
+        {
+            computeOBB<float>(node);
+        }
 
         // Calculate node bounding box, and getCentroid bounding box (for splitting)
         BoundingBox centroid_bbox;
@@ -368,8 +359,8 @@ namespace core
                     _nodes.emplace_back(node->leftFrom, left_count);
                     _nodes.emplace_back(*split_index, right_count);
 
-                    splitNode(&_nodes[left_index]);
-                    splitNode(&_nodes[right_index]);
+                    splitNode(&_nodes[left_index], useOBB);
+                    splitNode(&_nodes[right_index], useOBB);
 
                     node->leftFrom = left_index;
                     node->count = 0;
@@ -388,7 +379,8 @@ namespace core
     std::optional<Plane>
     BVH::splitPlaneSAH(const Node *const node, const int from, const int count, int maxSplitsPerDimension) const
     {
-        const std::array<SplitDim, 3> split_dims = {
+        const std::array<SplitDim, 3> split_dims =
+                {
                 SplitDim{{1.0f, 0.0f, 0.0f}, node->bbox.min.x, node->bbox.max.x},
                 SplitDim{{0.0f, 1.0f, 0.0f}, node->bbox.min.y, node->bbox.max.y},
                 SplitDim{{0.0f, 0.0f, 1.0f}, node->bbox.min.z, node->bbox.max.z},
@@ -509,10 +501,30 @@ namespace core
     }
 
     void BVH::intersectInternalNodes(const Node *left, const Node *right, Ray &ray,
-                                     float &outLeft, float &outRight, bool useClustering)
+                                     float &outLeft, float &outRight)
     {
         outLeft = core::intersectAABB(left->bbox, ray);
         outRight = core::intersectAABB(right->bbox, ray);
+    }
+
+    void BVH::intersectInternalNodesOBB(const Node *node, Ray &ray, float &outT, bool useRaycaching) const
+    {
+        Ray tempRay = ray;
+        if (useRaycaching)
+        {
+            glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
+            tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+            tempRay.rd = glm::vec3(1.0f / node->cachedRayDir.x, 1.0f / node->cachedRayDir.y, 1.0f / node->cachedRayDir.z);
+        } else
+        {
+            glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
+            glm::vec4 rayDirectionLocal = (node->obb.invMatrix) * glm::vec4(tempRay.d, 0.0f);
+            tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
+            tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y,
+                                   1.0f / rayDirectionLocal.z);
+        }
+
+        outT = core::intersectAABB(_unitAABB, tempRay);
     }
 
     void BVH::triangleIntersection(const core::Node *const node, Ray &ray)

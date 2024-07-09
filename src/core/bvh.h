@@ -32,6 +32,7 @@ namespace core
 
         int leftFrom;
         int count;
+        glm::vec3 cachedRayDir;
 
         bool isLeaf() const { return (count != 0); }
     };
@@ -40,13 +41,13 @@ namespace core
     {
     public:
         BVH() = default;
-        BVH(const std::vector<Triangle> &triangles);
+        BVH(const std::vector<Triangle> &triangles, bool useOBB);
 
         bool traversal(Ray &ray, const int maxIntersections);
 
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
-        bool traversalOBB(Ray &ray, const int maxIntersections) const;
+        bool traversalOBB(Ray &ray, const int maxIntersections, bool useCaching) const;
 
         bool failed() const { return _failed; }
 
@@ -54,13 +55,10 @@ namespace core
 
         const glm::vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
 
-        // return the root node
         const Node *getRoot() const { return _root; }
 
-        // return all nodes
-        const std::vector<Node> &getNodes() const { return _nodes; }
+        std::vector<Node> &getNodes() { return _nodes; }
 
-        // return max depth of the BVH
         int getMaxDepth() const { return _maxDepth; }
         std::vector<int> getLeafDepths() const { return m_leafDepths; }
 
@@ -88,7 +86,7 @@ namespace core
             int trianglesRight = 0;
         };
 
-        Node *splitNode(Node *const node);
+        Node *splitNode(Node *const node, bool useOBB);
 
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
 
@@ -103,8 +101,9 @@ namespace core
 
         // Ray intersection
         void triangleIntersection(const core::Node *const node, core::Ray &ray);
-        void intersectInternalNodes(const Node *left, const Node *right, core::Ray &ray, float& outLeft, float& outRight,  bool useClustering = false);
+        void intersectInternalNodes(const Node *left, const Node *right, core::Ray &ray, float& outLeft, float& outRight);
 
+        void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float& outT, bool useRaycaching) const;
 
         std::vector<int> m_leafDepths;
 
