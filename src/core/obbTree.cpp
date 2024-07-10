@@ -124,19 +124,19 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node)
 {
     computeOBB<float>(node);
 
-    for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
-    {
-        for (const glm::vec3 &v: getTriangle(i).vertices)
-        {
-            node->bbox.min = glm::min(node->bbox.min, v);
-            node->bbox.max = glm::max(node->bbox.max, v);
-        }
-    }
+//    for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
+//    {
+//        for (const glm::vec3 &v: getTriangle(i).vertices)
+//        {
+//            node->bbox.min = glm::min(node->bbox.min, v);
+//            node->bbox.max = glm::max(node->bbox.max, v);
+//        }
+//    }
 
     if (node->count > LEAF_SIZE)
     {
-        auto split_plane = splitPlaneMid(node, 32);
-//        auto split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
+//        auto split_plane = splitPlaneMid(node, 32);
+        auto split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
 
         if (split_plane)
         {
@@ -195,38 +195,37 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node, int maxSplitsPerDimens
         glm::dvec3 planeNormal = axes[axis];
 
         best_plane = Plane(planePoint, planeNormal);
-        break; // Break after the first axis for simplicity, or remove to select the 'best' axis
+        break;
     }
 
     return best_plane;
 }
 
-// Utility function to calculate the surface area of an OBB
-template<typename F>
-float surfaceArea(const DiTO::OBB<F>& obb) {
-    // Approximate surface area using the extents
-    return 2.0f * (obb.ext.x * obb.ext.y + obb.ext.y * obb.ext.z + obb.ext.z * obb.ext.x);
-}
-
 std::optional<core::Plane>
-core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const int count, int maxSplitsPerDimension) const {
-    const std::array<SplitDim, 3> split_dims =
-    {
-            SplitDim{{node->obb.v0.x, node->obb.v0.y, node->obb.v0.z}, -node->obb.ext.x, node->obb.ext.x},
-            SplitDim{{node->obb.v1.x, node->obb.v1.y, node->obb.v1.z}, -node->obb.ext.y, node->obb.ext.y},
-            SplitDim{{node->obb.v2.x, node->obb.v2.y, node->obb.v2.z}, -node->obb.ext.z, node->obb.ext.z}
-    };
+core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const int count, int maxSplitsPerDimension) const
+{
+    glm::vec3 mid = glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z);
+    glm::vec3 axis0 = glm::vec3(node->obb.v0.x, node->obb.v0.y, node->obb.v0.z);
+    glm::vec3 axis1 = glm::vec3(node->obb.v1.x, node->obb.v1.y, node->obb.v1.z);
+    glm::vec3 axis2 = glm::vec3(node->obb.v2.x, node->obb.v2.y, node->obb.v2.z);
+
+    std::array<SplitDim, 3> split_dims =
+            {
+                    SplitDim{axis0, mid - axis0 * node->obb.ext.x, mid + axis0 * node->obb.ext.x},
+                    SplitDim{axis1, mid - axis1 * node->obb.ext.y, mid + axis1 * node->obb.ext.y},
+                    SplitDim{axis2, mid - axis2 * node->obb.ext.z, mid + axis2 * node->obb.ext.z}
+            };
 
     const int splitsPerDimension = std::min(count, maxSplitsPerDimension);
 
-    float best = INF;
+    float best_cost = std::numeric_limits<float>::infinity();
     std::optional<Plane> best_plane;
 
-    for (const SplitDim &split_dim : split_dims)
+    for (const SplitDim& split_dim : split_dims)
     {
         std::vector<SplitBin> bins(splitsPerDimension + 1);
 
-        const float dim_width = (split_dim.max - split_dim.min);
+        const float dim_width = glm::distance(split_dim.minPoint, split_dim.maxPoint);
         const float bin_width = dim_width / bins.size();
 
         if (bin_width <= 1e-6)
@@ -234,110 +233,97 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
             continue;
         }
 
+        // Debug: Log split dimension information
+        std::cout << "Dimension width: " << dim_width << ", Bin width: " << bin_width << std::endl;
+
         for (int triangle_index = from; triangle_index < (from + count); triangle_index++)
         {
-            const glm::vec3 &triangle_centroid = getCentroid(triangle_index);
-            const float triangle_bin_offset = glm::dot(triangle_centroid - glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z) , split_dim.normal);
-            const int bin_index = std::min<int>((triangle_bin_offset - split_dim.min) / bin_width, bins.size() - 1);
+            const glm::vec3& triangle_centroid = getCentroid(triangle_index);
+            const float triangle_bin_offset = glm::dot(triangle_centroid - mid, split_dim.axis)  - glm::dot(split_dim.minPoint - mid, split_dim.axis);
+            const int bin_index = std::min<int>(triangle_bin_offset / bin_width, bins.size() - 1);
 
-            // TODO: Extend the obb with the triangle
-//            std::vector<DiTO::Vector<float>> tempVertices;
-//            DiTO::OBB<float> tempOBB;
-//
-//            for (const auto &v: getTriangle(triangle_index).vertices)
-//            {
-//                DiTO::Vector<float> vertex(v.x, v.y, v.z);
-//                tempVertices.push_back(vertex);
-//            }
-//
-//            // TODO: bug might be here?
-//            DiTO::DiTO_14(tempVertices.data(), tempVertices.size(), tempOBB);
-//            bins[bin_index].obb = tempOBB;
-//            bins[bin_index].obb = bins[bin_index].obb.extended(getTriangle(triangle_index));
+            core::Triangle tempTri = getTriangle(triangle_index);
+            DiTO::Vector<float> vertex_0 = DiTO::Vector<float>(tempTri.vertices[0].x, tempTri.vertices[0].y, tempTri.vertices[0].z);
+            DiTO::Vector<float> vertex_1 = DiTO::Vector<float>(tempTri.vertices[1].x, tempTri.vertices[1].y, tempTri.vertices[1].z);
+            DiTO::Vector<float> vertex_2 = DiTO::Vector<float>(tempTri.vertices[2].x, tempTri.vertices[2].y, tempTri.vertices[2].z);
+
+            std::vector<DiTO::Vector<float>> vertices = {vertex_0, vertex_1, vertex_2};
+
+            // Compute the OBB using the DiTO algorithm, if there are vertices present
+            if (!vertices.empty())
+            {
+                DiTO::DiTO_14(vertices.data(), vertices.size(), bins[bin_index].obb);
+            }
+
             bins[bin_index].trianglesIn++;
+
+            // Debug: Log triangle assignment to bin
+            std::cout << "Triangle " << triangle_index << " -> bin " << bin_index << std::endl;
         }
 
         float left_sum = 0.0f;
         float right_sum = 0.0f;
 
-        DiTO::OBB<float> left_obb;
-        DiTO::OBB<float> right_obb;
+        SplitBin& bin_left_temp = bins[0];
+        SplitBin& bin_right_temp = bins[bins.size() - 1];
 
-        for (int i = 0; i < splitsPerDimension; i++) {
+        DiTO::OBB<float> left_obb = bin_left_temp.obb;
+        DiTO::OBB<float> right_obb = bin_right_temp.obb;
+
+        for (int i = 0; i < splitsPerDimension; i++)
+        {
             const int bin_index_left = i;
             const int bin_index_right = bins.size() - i - 1;
 
-            SplitBin &bin_left = bins[bin_index_left];
-            SplitBin &bin_right = bins[bin_index_right];
-
+            SplitBin& bin_left = bins[bin_index_left];
+            SplitBin& bin_right = bins[bin_index_right];
             left_sum += bin_left.trianglesIn;
-//            left_obb = left_obb.extended(bin_left.obb);
-//            std::vector<DiTO::Vector<float>> tempVertices;
-//            DiTO::OBB<float> tempOBB;
-//
-//            for (int triangle_index = from; triangle_index < (from + count); triangle_index++)
-//            {
-//                if (glm::dot(getCentroid(triangle_index) - glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z), split_dim.normal) < 0.0f)
-//                {
-//                    for (const auto &v: getTriangle(triangle_index).vertices)
-//                    {
-//                        DiTO::Vector<float> vertex(v.x, v.y, v.z);
-//                        tempVertices.push_back(vertex);
-//                    }
-//                }
-//            }
-//
-//            DiTO::DiTO_14(tempVertices.data(), tempVertices.size(), tempOBB);
-//            left_obb = tempOBB;
+            left_obb = left_obb.extended(bin_left.obb);
 
             bin_left.trianglesLeft = left_sum;
-            bin_left.areaLeft = surfaceArea(left_obb);
+            bin_left.areaLeft = left_obb.area();
 
             right_sum += bin_right.trianglesIn;
-
-//            std::vector<DiTO::Vector<float>> tempVerticesRight;
-//            DiTO::OBB<float> tempOBBRight;
-//
-//            for (int triangle_index = from; triangle_index < (from + count); triangle_index++)
-//            {
-//                if (glm::dot(getCentroid(triangle_index) - glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z), split_dim.normal) >= 0.0f)
-//                {
-//                    for (const auto &v: getTriangle(triangle_index).vertices)
-//                    {
-//                        DiTO::Vector<float> vertex(v.x, v.y, v.z);
-//                        tempVerticesRight.push_back(vertex);
-//                    }
-//                }
-//            }
-//
-//            DiTO::DiTO_14(tempVerticesRight.data(), tempVerticesRight.size(), tempOBBRight);
-//            right_obb = tempOBBRight;
+            right_obb = right_obb.extended(bin_right.obb);
 
             bins[bin_index_right - 1].trianglesRight = right_sum;
-            bins[bin_index_right - 1].areaRight = surfaceArea(right_obb);
+            bins[bin_index_right - 1].areaRight = right_obb.area();
+
+            // Debug: Log left and right bin accumulations
+            std::cout << "Bin " << bin_index_left << ": left_sum = " << left_sum << ", left_area = " << bin_left.areaLeft << std::endl;
+            std::cout << "Bin " << bin_index_right << ": right_sum = " << right_sum << ", right_area = " << bin_right.areaRight << std::endl;
         }
 
-        for (int plane_index = 1; plane_index < splitsPerDimension; plane_index++) {
-            const float d = split_dim.min + plane_index * bin_width;
+        for (int plane_index = 1; plane_index < splitsPerDimension; plane_index++)
+        {
+            const float d = glm::dot(split_dim.minPoint - mid, split_dim.axis) + plane_index * bin_width;
 
-            const int n_left = bins[plane_index].trianglesLeft;
+            const int n_left = bins[plane_index - 1].trianglesLeft;
             const int n_right = bins[plane_index].trianglesRight + bins[plane_index].trianglesIn;
 
-            const float cost_left = (n_left != 0 ? n_left * bins[plane_index].areaLeft : INF);
-            const float cost_right = (n_right != 0 ? n_right * (bins[plane_index].areaRight + surfaceArea(bins[plane_index].obb)) : INF);
+            const float cost_left = (n_left != 0 ? n_left * bins[plane_index - 1].areaLeft : 0.0f);
+            const float cost_right = (n_right != 0 ? n_right * bins[plane_index].areaRight : 0.0f);
 
             const float cost = cost_left + cost_right;
 
-            if (cost < best) {
-                best_plane = Plane(glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z) + split_dim.normal * d, split_dim.normal);
-                best = cost;
+            // Debug: Log SAH cost calculations
+            std::cout << "Plane " << plane_index << ": d = " << d << ", n_left = " << n_left << ", cost_left = " << cost_left << ", n_right = " << n_right << ", cost_right = " << cost_right << ", total_cost = " << cost << std::endl;
+
+            if (cost < best_cost)
+            {
+                best_plane = Plane(mid + split_dim.axis * d, split_dim.axis);
+                best_cost = cost;
+
+                // Debug: Log best plane update
+                std::cout << "Best plane updated: d = " << d << ", best_cost = " << best_cost << std::endl;
             }
+
+            if (plane_index == 18) break;
         }
     }
 
     return best_plane;
 }
-
 
 std::optional<int> core::obb::ObbTree::partition(const int from, const int count, const core::Plane &splitPlane)
 {

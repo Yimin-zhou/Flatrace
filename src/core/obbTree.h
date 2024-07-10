@@ -63,9 +63,9 @@ namespace core::obb
     private:
         struct SplitDim
         {
-            glm::vec3 normal;
-            double min = 0.0f;
-            double max = 0.0f;
+            glm::vec3 axis;
+            glm::vec3 minPoint;
+            glm::vec3 maxPoint;
         };
 
         struct SplitBin

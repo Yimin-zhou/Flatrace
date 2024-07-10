@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/stacks/stack_a");
+    const std::string input_folder("test/input/test");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
@@ -191,7 +191,7 @@ int main()
                 }
                 else
                 {
-                    render_frameOBB(camera, obbTree, frame.pixels.get(), ENABLE_CLUSTERING);
+                    render_frameOBB(camera, obbTree, frame.pixels.get(), ENABLE_CLUSTERING, ENABLE_CACHING);
                 }
             #else
                 if (GlobalState::bboxView)
