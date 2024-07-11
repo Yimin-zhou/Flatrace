@@ -95,7 +95,7 @@ namespace core::obb
         void intersectInternalNodes(const Node *node, core::Ray &ray, float& outT, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
 
         // SAH
-        float evaluateSAH(const Node* const node, glm::vec3 axis, float candidateProj ) const;
+        float evaluateSAH(const Node* const node, const glm::vec3& axis, const glm::vec3& candidate ) const;
 
         std::vector<int> m_leafDepths;
 

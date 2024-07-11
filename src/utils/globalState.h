@@ -17,9 +17,9 @@
 // Hybrid Tree
 #define ENABLE_HYBRID_BVH 0
 
-#define MODEL_NORMALIZE 1
-//#define MODEL_SCALE 0.00035f
-#define MODEL_SCALE 1.0f
+#define MODEL_NORMALIZE 0
+#define MODEL_SCALE 0.00035f
+//#define MODEL_SCALE 1.0f
 #define MODEL_FLIP 0
 
 struct GlobalState

@@ -212,149 +212,95 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node, int maxSplitsPerDimens
 }
 
 
-//float core::obb::ObbTree::evaluateSAH(const Node* const node, glm::vec3 axis, float candidateProj ) const
-//{
-//    // determine triangle counts and bounds for this split candidate
-//    DiTO::OBB<float> leftBox;
-//    DiTO::OBB<float> rightBox;
-//
-//    int leftCount = 0, rightCount = 0;
-//    for( uint i = 0; i < node->count; i++ )
-//    {
-//        core::Triangle triangle =  getTriangle(node->leftFrom + i);
-//        float centroidProj = glm::dot(getCentroid(node->leftFrom + i) - glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z), axis);
-//
-//        if (centroidProj < candidateProj)
-//        {
-//            leftCount++;
-//            leftBox.extended(triangle);
-//        }
-//        else
-//        {
-//            rightCount++;
-//            rightBox.extended(triangle);
-//        }
-//    }
-//    float cost = leftCount * leftBox.area() + rightCount * rightBox.area();
-//
-//    return cost > 0 ? cost : 1e30f;
-//}
+float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& axis, const glm::vec3& candidate) const
+{
+    // determine triangle counts and bounds for this split candidate
+    DiTO::OBB<float> leftBox;
+    DiTO::OBB<float> rightBox;
+    glm::vec3 mid = glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z);
+
+    // Project candidate point to the axis
+    float candidateProj = glm::dot(candidate - mid, axis);
+
+    int leftCount = 0, rightCount = 0;
+
+    std::vector<DiTO::Vector<float>> leftVertices;
+    std::vector<DiTO::Vector<float>> rightVertices;
+
+    for( uint i = 0; i < node->count; i++ )
+    {
+        core::Triangle triangle =  getTriangle(node->leftFrom + i);
+        float centroidProj = glm::dot(getCentroid(node->leftFrom + i) - mid, axis);
+
+        if (centroidProj < candidateProj)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                leftVertices.emplace_back(triangle.vertices[j].x, triangle.vertices[j].y, triangle.vertices[j].z);
+            }
+            leftCount++;
+        }
+        else
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                rightVertices.emplace_back(triangle.vertices[j].x, triangle.vertices[j].y, triangle.vertices[j].z);
+            }
+            rightCount++;
+        }
+    }
+
+    DiTO::DiTO_14(leftVertices.data(), leftVertices.size(), leftBox);
+    DiTO::DiTO_14(rightVertices.data(), rightVertices.size(), rightBox);
+
+    float leftArea = leftBox.area();
+    float rightArea = rightBox.area();
+    float cost = leftCount * leftArea + rightCount * rightArea;
+
+    return cost > 0 ? cost : 1e30f;
+}
 
 std::optional<core::Plane>
 core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const int count, int maxSplitsPerDimension) const
 {
-    // Transform matrix
-    glm::mat4x4 transform = node->obb.invMatrix;
+    glm::vec3 bestAxis = glm::vec3(0.0f);
+    float bestCost = std::numeric_limits<float>::infinity();
+    glm::vec3 bestPos = glm::vec3(0.0f);
 
-    // Create a unit aabb
-    BoundingBox unitAABB = BoundingBox(glm::vec3(-0.5f), glm::vec3(0.5f));
+    float parentCost = node->obb.area() * count;
 
-    const std::array<SplitDim, 3> split_dims =
-            {
-                    SplitDim{{1.0f, 0.0f, 0.0f}, unitAABB.min.x, unitAABB.max.x},
-                    SplitDim{{0.0f, 1.0f, 0.0f}, unitAABB.min.y, unitAABB.max.y},
-                    SplitDim{{0.0f, 0.0f, 1.0f}, unitAABB.min.z, unitAABB.max.z},
-            };
-
-    const int splitsPerDimension = std::min(count, maxSplitsPerDimension);
-
-    float best = INF;
-    std::optional<Plane> best_plane;
-
-    for (const SplitDim &split_dim: split_dims)
+    std::vector<glm::vec3> axes =
     {
-        std::vector<SplitBin> bins(splitsPerDimension + 1);
+            glm::vec3(node->obb.v0.x, node->obb.v0.y, node->obb.v0.z),
+            glm::vec3(node->obb.v1.x, node->obb.v1.y, node->obb.v1.z),
+            glm::vec3(node->obb.v2.x, node->obb.v2.y, node->obb.v2.z)
+    };
 
-        const float dim_width = (split_dim.max - split_dim.min);
-        const float bin_width = dim_width / bins.size();
-
-        if (bin_width <= 1e-6)
+    for (const auto& axis : axes)
+    {
+        for (int i = from; i < from + count; i++)
         {
-            continue;
-        }
+            core::Triangle triangle = getTriangle(i);
+            glm::vec3 centroid = getCentroid(i);
 
-        // First bin all triangles and track the bin bounding boxes
-        for (int triangle_index = from; triangle_index < (from + count); triangle_index++)
-        {
-            const glm::vec3 &triangle_centroid = glm::vec3(transform * glm::vec4(getCentroid(triangle_index), 1.0f));
-            const float triangle_bin_offset = glm::dot(triangle_centroid, split_dim.normal) - split_dim.min;
-            const int bin_index = std::min<int>(triangle_bin_offset / bin_width, bins.size() - 1);
+            float cost = evaluateSAH(node, axis, centroid);
 
-            core::Triangle transformedTri = getTriangle(triangle_index);
-            for (int i = 0; i < 3; i++)
+            if (cost < bestCost)
             {
-                transformedTri.vertices[i] = glm::vec3(transform * glm::vec4(getTriangle(triangle_index).vertices[i], 1.0f));
-            }
-
-            bins[bin_index].aabb = bins[bin_index].aabb.extended(transformedTri);
-            bins[bin_index].trianglesIn++;
-        }
-
-        // Now calculate the 'left of' and 'right of' bounding box area and # of triangles for each bin
-        float left_sum = 0.0f;
-        float right_sum = 0.0f;
-
-        BoundingBox left_box;
-        BoundingBox right_box;
-
-        for (int i = 0; i < splitsPerDimension; i++)
-        {
-            const int bin_index_left = i;
-            const int bin_index_right = bins.size() - i - 1;
-
-            SplitBin &bin_left = bins[bin_index_left];
-            SplitBin &bin_right = bins[bin_index_right];
-
-            left_sum += bin_left.trianglesIn;
-            left_box = left_box.extended(bin_left.aabb);
-
-            bin_left.trianglesLeft = left_sum;
-            bin_left.areaLeft = left_box.area();
-
-            right_sum += bin_right.trianglesIn;
-            right_box = right_box.extended(bin_right.aabb);
-
-            bins[bin_index_right - 1].trianglesRight = right_sum;
-            bins[bin_index_right - 1].areaRight = right_box.area();
-        }
-
-        // Now find the bin with the minimum cost. Note that for N bins we have (N -1) candidate planes,
-        // so we skip bin in, and use the leftmost extent of each bins as the corresponding split plane offset.
-        for (int plane_index = 1; plane_index < splitsPerDimension; plane_index++)
-        {
-            const float d = split_dim.min + plane_index * bin_width;
-
-            const int n_left = bins[plane_index].trianglesLeft;
-            const int n_right = bins[plane_index].trianglesRight + bins[plane_index].trianglesIn;
-
-            const float cost_left = (n_left != 0 ? n_left * bins[plane_index].areaLeft : INF);
-            const float cost_right = (n_right != 0 ? n_right *
-                                                     (bins[plane_index].areaRight + bins[plane_index].aabb.area())
-                                                   : INF);
-
-            const float cost = cost_left + cost_right;
-
-            if (cost < best)
-            {
-                best_plane = Plane(split_dim.normal * d, split_dim.normal);
-                best = cost;
+                bestCost = cost;
+                bestAxis = axis;
+                bestPos = centroid;
             }
         }
     }
 
-    // Transform bestplane back to world space
-    if (best_plane)
+    if (bestCost >= parentCost)
     {
-        glm::vec3 planePoint = best_plane->pointOnPlane();
-        glm::vec3 planeNormal = best_plane->normal();
-
-        planePoint = glm::vec3(glm::inverse(transform) * glm::vec4(planePoint, 1.0f));
-        planeNormal = glm::vec3(glm::inverse(transform) * glm::vec4(planeNormal, 0.0f));
-
-        best_plane = Plane(planePoint, planeNormal);
+        return std::nullopt;
     }
 
-    return best_plane;
+    return std::optional<Plane> (Plane(bestPos, bestAxis));
+
 }
 
 std::optional<int> core::obb::ObbTree::partition(const int from, const int count, const core::Plane &splitPlane)
