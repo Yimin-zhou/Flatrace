@@ -139,7 +139,7 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
         std::optional<Plane> split_plane;
         if (useSAH)
         {
-            split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
+            split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 64);
         }
         else
         {
