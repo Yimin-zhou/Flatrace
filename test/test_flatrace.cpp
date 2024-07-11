@@ -19,52 +19,6 @@ namespace test
     const std::string TEST_OBJ_FOLDER_Bunny = "test/input/test";
     const std::string TEST_OBJ_FOLDER_Semi = "test/input/stacks/stack_";
 
-//{
-//    //  test :loading a simple obj file
-//    TEST(FlatRace, ObjLoading_1)
-//    {
-//        std::vector<Triangle> test_model = utils::Obj::read(TEST_OBJ, true);
-//    }
-//
-//    // test : loading multiple obj files
-//    TEST(FlatRace, ObjLoading_2)
-//    {
-//        std::vector<std::vector<Triangle>> models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi, false);
-//    }
-//
-//    //  test :simple test the construction of the aabb BVH
-//    TEST(FlatRace, Construction_1)
-//    {
-//        const std::vector<std::pair<int, glm::vec3>> POINTS = {
-//                {0, {-20.0f, -20.0f, 0.0f}},
-//                {1, {11.0f,  21.0f,  0.0f}},
-//                {2, {-20.0f, -10.0f, 0.0f}},
-//                {3, {21.0f,  11.0f,  0.0f}},
-//                {4, {12.0f,  -12.0f, 42.0f}},
-//                {5, {-10.0f, -20.0f, 0.0f}},
-//        };
-//
-//        std::vector<Triangle> triangles(POINTS.size());
-//        std::transform(POINTS.begin(), POINTS.end(), triangles.begin(),
-//                       [](const auto &v) -> Triangle { return {v.first, v.second, v.second, v.second, 0}; });
-//
-//        BVH bvh(triangles);
-//        if (bvh.failed())
-//        {
-//            std::cerr << "BVH construction failed" << std::endl;
-//        }
-//
-//        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-//
-//        // camera
-//        const float cx = std::cos(0.0f) * 2.0f;
-//        const float cz = std::sin(0.0f) * 2.0f;
-//        Camera camera = {{cx, 1.0f, cz},
-//                         {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-//        int maxDepth = bvh.getMaxDepth();
-//        render_frame(camera, bvh, frame.pixels.get(), maxDepth);
-//    }
-//
     //  test :compare obb tree, aabb, aabb with obb (bunny)
     TEST(FlatRace, Render_1)
     {
@@ -76,7 +30,7 @@ namespace test
             triangles.insert(triangles.end(), model.begin(), model.end());
         }
 
-        core::obb::ObbTree obbTree(triangles, false);
+        core::obb::ObbTree obbTree(triangles, false, false);
 
         BVH bvh(triangles, false);
         BVH bvhOBB(triangles, true);
@@ -117,167 +71,6 @@ namespace test
         std::cout << "Average Render Bunny OBB in AABB Time taken: " << totalTimeAABB_OBB / 10.0 << " ms" << std::endl;
         std::cout << "Average Render Bunny OBB in OBB Tree Time taken: " << totalTimeOBB / 10.0 << " ms" << std::endl;
     }
-//
-//    //  test :compare obb tree, aabb, aabb with obb (semiconductor)
-//    TEST(FlatRace, Render_2)
-//    {
-//        std::vector<std::vector<core::Triangle>> models;
-//        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi, false);
-//        std::vector<core::Triangle> triangles;
-//        for (const auto &model : models) {
-//            triangles.insert(triangles.end(), model.begin(), model.end());
-//        }
-//
-//        core::obb::ObbTree obbTree(triangles);
-//        if (obbTree.failed())
-//        {
-//            std::cerr << "obbTree construction failed" << std::endl;
-//        }
-//        BVH bvh(triangles);
-//
-//        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-//
-//        double totalTimeAABB = 0.0;
-//        double totalTimeAABB_OBB = 0.0;
-//        double totalTimeOBB = 0.0;
-//
-//        for (int i = 0; i < 10; ++i)
-//        {
-//            float angle = 2 * PI * i / 10;
-//            float cx = std::cos(angle) * 2.0f;
-//            float cz = std::sin(angle) * 2.0f;
-//            Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-//
-//            auto start = std::chrono::high_resolution_clock::now();
-//            render_frameOBB(camera, obbTree, frame.pixels.get());
-//            auto end = std::chrono::high_resolution_clock::now();
-//            auto time_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//            totalTimeOBB += time_obb;
-//
-//            start = std::chrono::high_resolution_clock::now();
-//            render_frame(camera, bvh, frame.pixels.get(), false);
-//            end = std::chrono::high_resolution_clock::now();
-//            auto time_aabb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//            totalTimeAABB += time_aabb;
-//
-//            start = std::chrono::high_resolution_clock::now();
-//            render_frame(camera, bvh, frame.pixels.get(), true);
-//            end = std::chrono::high_resolution_clock::now();
-//            auto time_aabb_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//            totalTimeAABB_OBB += time_aabb_obb;
-//        }
-//
-//        std::cout << "Average Render Semiconductor AABB Time taken: " << totalTimeAABB / 10.0 << " ms" << std::endl;
-//        std::cout << "Average Render Semiconductor OBB in AABB Time taken: " << totalTimeAABB_OBB / 10.0 << " ms" << std::endl;
-//        std::cout << "Average Render Semiconductor OBB in OBB Tree Time taken: " << totalTimeOBB / 10.0 << " ms" << std::endl;
-//    }
-//
-//    // Profiling tests
-//    //  test bvh
-//    TEST(FlatRace, BVH_1)
-//    {
-//        std::vector<std::vector<Triangle>> models;
-//        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi, false);
-//        std::vector<Triangle> triangles;
-//        for (const auto &model : models)
-//        {
-//            triangles.insert(triangles.end(), model.begin(), model.end());
-//        }
-//
-//        std::cout << "Generating OBB Tree ... " << std::endl;
-//        const float cx = std::cos(0.0f) * 2.0f;
-//        const float cz = std::sin(0.0f) * 2.0f;
-//        Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-//        auto start = std::chrono::high_resolution_clock::now();
-//        core::obb::ObbTree obbTree(triangles);
-//        auto end = std::chrono::high_resolution_clock::now();
-//        auto time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//        std::cout << "OBB Tree Construction Time taken: " << time_obb_construction << " ms" << std::endl;
-//        if (obbTree.failed())
-//        {
-//            std::cerr << "obbTree construction failed" << std::endl;
-//        }
-//
-//        // calculate standard deviation of the leaf depths
-//        std::vector<int> leafDepths = obbTree.getLeafDepths();
-//        float mean = std::accumulate(leafDepths.begin(), leafDepths.end(), 0.0) / leafDepths.size();
-//        float sq_sum = std::inner_product(leafDepths.begin(), leafDepths.end(), leafDepths.begin(), 0.0);
-//        float stdev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
-//        std::cout << "Standard Deviation of OBB Tree Leaf Depths: " << stdev << std::endl;
-//
-//        std::cout << "Generating AABB BVH ... " << std::endl;
-//
-//        start = std::chrono::high_resolution_clock::now();
-//        BVH bvh(triangles);
-//        end = std::chrono::high_resolution_clock::now();
-//
-//        auto time_aabb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//        std::cout << "AABB BVH Construction Time taken: " << time_aabb_construction << " ms" << std::endl;
-//
-//        if (bvh.failed())
-//        {
-//            std::cerr << "BVH construction failed" << std::endl;
-//        }
-//
-//        // calculate standard deviation of the leaf depths
-//        leafDepths = bvh.getLeafDepths();
-//        mean = std::accumulate(leafDepths.begin(), leafDepths.end(), 0.0) / leafDepths.size();
-//        sq_sum = std::inner_product(leafDepths.begin(), leafDepths.end(), leafDepths.begin(), 0.0);
-//        stdev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
-//        std::cout << "Standard Deviation of AABB BVH Leaf Depths: " << stdev << std::endl;
-//    }
-//
-//    // TODO: calculate surface area of the obb tree and aabb bvh
-//    TEST(FlatRace, BVH_2)
-//    {
-//    }
-//
-//    // Test clustering vs no-clustering (OBB BVH)
-//    TEST(FlatRace, Clustering_1)
-//    {
-//        std::vector<std::vector<core::Triangle>> models;
-//        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi, false);
-//        std::vector<core::Triangle> triangles;
-//        for (const auto &model : models) {
-//            triangles.insert(triangles.end(), model.begin(), model.end());
-//        }
-//
-//        core::obb::ObbTree obbTree(triangles);
-//        if (obbTree.failed())
-//        {
-//            std::cerr << "obbTree construction failed" << std::endl;
-//        }
-//
-//        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-//
-//        double totalTimeClustering = 0.0;
-//        double totalTimeNonClustering = 0.0;
-//
-//        for (int i = 0; i < 10; ++i)
-//        {
-//            float angle = 2 * PI * i / 10;
-//            float cx = std::cos(angle) * 2.0f;
-//            float cz = std::sin(angle) * 2.0f;
-//            Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-//
-//            auto start = std::chrono::high_resolution_clock::now();
-//            render_frameOBB(camera, obbTree, frame.pixels.get(), true);
-//            auto end = std::chrono::high_resolution_clock::now();
-//            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//            totalTimeClustering += time;
-//
-//            start = std::chrono::high_resolution_clock::now();
-//            render_frameOBB(camera, obbTree, frame.pixels.get(), false);
-//            end = std::chrono::high_resolution_clock::now();
-//            time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-//            totalTimeNonClustering += time;
-//
-//        }
-//
-//        std::cout << "Average Render Semiconductor OBB in OBB Tree with Clustering Time taken: " << totalTimeClustering / 10.0 << " ms" << std::endl;
-//        std::cout << "Average Render Semiconductor OBB in OBB Tree without Clustering Time taken: " << totalTimeNonClustering / 10.0 << " ms" << std::endl;
-//    }
-//}
 
     // Tests for getting data
     // Models' triangle count
@@ -304,6 +97,76 @@ namespace test
         }
     }
 
+    // check if the scene if split correctly
+    TEST(FlatRace, BVH_Accuracy)
+    {
+        std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
+
+        for (const std::string &code : fileCode)
+        {
+            std::cout << std::fixed << std::setprecision(2);
+            std::cout << "Processing file: " << code << std::endl;
+            std::string inputFile = code;
+
+            std::vector<std::vector<Triangle>> models;
+            models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
+            std::vector<Triangle> triangles;
+
+            for (const auto &model : models)
+            {
+                triangles.insert(triangles.end(), model.begin(), model.end());
+            }
+
+            // AABB BVH without OBB
+            BVH bvh(triangles, false);
+            int aabbBVHErrorNodeCount = 0;
+            for (const auto &node : bvh.getNodes())
+            {
+                if (node.count > LEAF_SIZE)
+                {
+                    aabbBVHErrorNodeCount++;
+                }
+            }
+            std::cout << "AABB BVH (No OBB) Error Node Count: " << aabbBVHErrorNodeCount << std::endl;
+
+            // AABB BVH with OBB
+            BVH bvh_obb(triangles, true);
+            int aabbBVH_OBBErrorNodeCount = 0;
+            for (const auto &node : bvh_obb.getNodes())
+            {
+                if (node.count > LEAF_SIZE)
+                {
+                    aabbBVH_OBBErrorNodeCount++;
+                }
+            }
+            std::cout << "AABB BVH (Has OBB) Error Node Count: " << aabbBVH_OBBErrorNodeCount << std::endl;
+
+            // OBB tree Midpoint
+            core::obb::ObbTree obbTree(triangles, false, false);
+            int obbTreeErrorNodeCount = 0;
+            for (const auto &node : obbTree.getNodes())
+            {
+                if (node.count > LEAF_SIZE)
+                {
+                    obbTreeErrorNodeCount++;
+                }
+            }
+            std::cout << "OBB Tree (Midpoint) Error Node Count: " << obbTreeErrorNodeCount << std::endl;
+
+            // OBB tree SAH
+            core::obb::ObbTree obbTree_sah(triangles, true, false);
+            int obbTreeSAHErrorNodeCount = 0;
+            for (const auto &node : obbTree_sah.getNodes())
+            {
+                if (node.count > LEAF_SIZE)
+                {
+                    obbTreeSAHErrorNodeCount++;
+                }
+            }
+            std::cout << "OBB Tree (SAH) Error Node Count: " << obbTreeSAHErrorNodeCount << std::endl << std::endl;
+        }
+    }
+
     // BVH building time
     TEST(FlatRace, Analysis_BVH_Build_time)
     {
@@ -324,17 +187,10 @@ namespace test
                 triangles.insert(triangles.end(), model.begin(), model.end());
             }
 
-            // OBB tree without clustering
-            auto start = std::chrono::high_resolution_clock::now();
-            core::obb::ObbTree obbTree(triangles, false);
-            auto end = std::chrono::high_resolution_clock::now();
-            float time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            std::cout << "OBB Tree (No Clustering) Construction Time taken: " << time_obb_construction << " ms" << std::endl;
-
             // AABB BVH without OBB
-            start = std::chrono::high_resolution_clock::now();
+            auto start = std::chrono::high_resolution_clock::now();
             BVH bvh(triangles, false);
-            end = std::chrono::high_resolution_clock::now();
+            auto end = std::chrono::high_resolution_clock::now();
             float time_aabb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
             std::cout << "AABB BVH (No OBB) Construction Time taken: " << time_aabb_construction << " ms" << std::endl;
 
@@ -343,7 +199,21 @@ namespace test
             BVH bvh_obb(triangles, true);
             end = std::chrono::high_resolution_clock::now();
             float time_aabb_withobb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            std::cout << "AABB BVH (Has OBB) Construction Time taken: " << time_aabb_withobb_construction << " ms" << std::endl  << std::endl;;
+            std::cout << "AABB BVH (Has OBB) Construction Time taken: " << time_aabb_withobb_construction << " ms"   << std::endl;;
+
+            // OBB tree Midpoint
+            start = std::chrono::high_resolution_clock::now();
+            core::obb::ObbTree obbTree(triangles, false, false);
+            end = std::chrono::high_resolution_clock::now();
+            float time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            std::cout << "OBB Tree (Midpoint) Construction Time taken: " << time_obb_construction << " ms" << std::endl;
+
+            // OBB tree SAH
+            start = std::chrono::high_resolution_clock::now();
+            core::obb::ObbTree obbTree_sah(triangles, true, false);
+            end = std::chrono::high_resolution_clock::now();
+            float time_obb_sah_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            std::cout << "OBB Tree (SAH) Construction Time taken: " << time_obb_sah_construction << " ms" << std::endl << std::endl;
         }
     }
 
@@ -358,13 +228,13 @@ namespace test
             for (const auto &node: nodes)
             {
                 // DO not consider the child nodes
-                    totalSAHCost += node.bbox.area() * node.count;
+                totalSAHCost += node.bbox.area() * node.count;
             }
         } else
         {
             for (const auto &node: nodes)
             {
-                totalSAHCost += node.obb.area() * node.count;
+                totalSAHCost += node.obb.area() * node.count;;
             }
         }
 
@@ -378,7 +248,25 @@ namespace test
         for (const auto &node : nodes)
         {
             // DO not consider the child nodes
-            totalSAHCost += node.obb.area() * node.count;
+            totalSAHCost += node.obb.area()  * node.count;;
+        }
+        return totalSAHCost;
+    }
+
+    double calculateHybridTreeSAHCost(BVH &bvh)
+    {
+        std::vector<Node> nodes = bvh.getNodes();
+        double totalSAHCost = 0.0;
+
+        for (const auto &node : nodes)
+        {
+            if (node.obbFlag)
+            {
+                totalSAHCost += node.obb.area() * node.count;;
+            } else
+            {
+                totalSAHCost += node.bbox.area() * node.count;;
+            }
         }
         return totalSAHCost;
     }
@@ -412,43 +300,18 @@ namespace test
             sahCost = calculateAABBTreeSAHCost(bvh_obb, true);
             std::cout << "SAH Cost of AABB (Has OBB) BVH: " << sahCost << std::endl;
 
-            // OBB tree without clustering
-            core::obb::ObbTree obbTree(triangles, false);
+            // OBB tree Midpoint
+            core::obb::ObbTree obbTree(triangles, false, false);
             sahCost = CalculateOBBTreeSAHCost(obbTree);
-            std::cout << "SAH Cost of OBB Tree (No Clustering): " << sahCost << std::endl << std::endl;
+            std::cout << "SAH Cost of OBB Tree (Midpoint): " << sahCost << std::endl;
 
+            // OBB tree SAH
+            core::obb::ObbTree obbTree_sah(triangles, true, false);
+            sahCost = CalculateOBBTreeSAHCost(obbTree_sah);
+            std::cout << "SAH Cost of OBB Tree (SAH): " << sahCost << std::endl;
         }
     }
 
-    TEST(FlatRace, BVH_Mtrics_hitratio)
-    {
-        std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
-
-        for (const std::string &code : fileCode)
-        {
-            std::cout << std::fixed << std::setprecision(2);
-            std::cout << "Processing file: " << code << std::endl;
-            std::string inputFile = code;
-
-            std::vector<std::vector<Triangle>> models;
-            models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
-            std::vector<Triangle> triangles;
-
-            for (const auto &model : models)
-            {
-                triangles.insert(triangles.end(), model.begin(), model.end());
-            }
-
-            // AABB BVH without OBB
-            BVH bvh(triangles, false);
-
-            // AABB BVH with OBB
-            BVH bvh_obb(triangles, true);
-
-            // OBB tree without clustering
-            core::obb::ObbTree obbTree(triangles, false);
-        }
-    }
 
     TEST(FlatRace, BVH_Mtrics_stddev)
     {
@@ -485,13 +348,21 @@ namespace test
             stddev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
             std::cout << "Standard Deviation of AABB (Has OBB) BVH Leaf Depths: " << stddev << std::endl;
 
-            // OBB tree without clustering
-            core::obb::ObbTree obbTree(triangles, false);
+            // OBB tree Midpoint
+            core::obb::ObbTree obbTree(triangles, false, false);
             leafDepths = obbTree.getLeafDepths();
             mean = std::accumulate(leafDepths.begin(), leafDepths.end(), 0.0) / leafDepths.size();
             sq_sum = std::inner_product(leafDepths.begin(), leafDepths.end(), leafDepths.begin(), 0.0);
             stddev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
-            std::cout << "Standard Deviation of OBB Tree (No Clustering) Leaf Depths: " << stddev << std::endl << std::endl;
+            std::cout << "Standard Deviation of OBB Tree (Midpoint) Leaf Depths: " << stddev << std::endl;
+
+            // OBB tree SAH
+            core::obb::ObbTree obbTree_sah(triangles, true, false);
+            leafDepths = obbTree_sah.getLeafDepths();
+            mean = std::accumulate(leafDepths.begin(), leafDepths.end(), 0.0) / leafDepths.size();
+            sq_sum = std::inner_product(leafDepths.begin(), leafDepths.end(), leafDepths.begin(), 0.0);
+            stddev = std::sqrt(sq_sum / leafDepths.size() - mean * mean);
+            std::cout << "Standard Deviation of OBB Tree (SAH) Leaf Depths: " << stddev << std::endl << std::endl;
         }
     }
 
@@ -514,14 +385,17 @@ namespace test
                 triangles.insert(triangles.end(), model.begin(), model.end());
             }
 
-            // OBB without clustering
-            core::obb::ObbTree obbTree(triangles, false);
+            // OBB Midpoint
+            core::obb::ObbTree obbTree(triangles, false, false);
 
             // AABB without OBB
             BVH bvh(triangles, false);
 
             // AABB with OBB
             BVH bvh_obb(triangles, true);
+
+            // Hybrid tree
+            BVH bvh_hybrid(triangles, true);
 
             Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
 
@@ -563,7 +437,83 @@ namespace test
             std::cout << "Average Render Semiconductor AABB (Use OBB) Time taken: " << totalTimeAABB_OBB / 10.0 << " ms"
                       << std::endl;
             std::cout << "Average Render Semiconductor OBB (No Clustering) Time taken: " << totalTimeOBB / 10.0 << " ms"
-                      << std::endl << std::endl;
+                      << std::endl << std::endl;;
+        }
+    }
+
+    // Test basics of Hybrid Tree using different offset numbers
+    TEST(FlatRace, BVH_Hybrid)
+    {
+        std::vector<std::string> fileCode = {"a"};
+        std::vector<float> offsets = {0.01, 0.05, 0.1, 0.5, 1, 1.5, 2};
+
+        for (const std::string &code : fileCode)
+        {
+            std::cout << std::fixed << std::setprecision(2);
+            std::cout << "Processing file: " << code << std::endl;
+            std::string inputFile = code;
+
+            std::vector<std::vector<core::Triangle>> models;
+            models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + code, false);
+            std::vector<core::Triangle> triangles;
+            for (const auto &model: models)
+            {
+                triangles.insert(triangles.end(), model.begin(), model.end());
+            }
+
+            for (const float num: offsets)
+            {
+                auto start = std::chrono::high_resolution_clock::now();
+                core::BVH hybrid(triangles, true, num);
+                auto end = std::chrono::high_resolution_clock::now();
+                auto time_hybrid_build = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                std::cout << "Hybrid Tree (Offset: " << num << ") Construction Time taken: " << time_hybrid_build << " ms" << std::endl;
+
+                // SAH
+                double sahCost = calculateHybridTreeSAHCost(hybrid);
+                std::cout << "SAH Cost of Hybrid Tree (Offset: " << num << "): " << sahCost << std::endl;
+
+                // Render (No caching)
+                Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
+                double totalTime = 0.0;
+
+                for (int i = 0; i < 10; ++i)
+                {
+                    float angle = 2 * PI * i / 10;
+                    float cx = std::cos(angle) * 2.0f;
+                    float cz = std::sin(angle) * 2.0f;
+                    Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+
+                    // AABB with OBB
+                    auto start = std::chrono::high_resolution_clock::now();
+                    render_frameHybrid(camera, hybrid, frame.pixels.get(), false);
+                    auto end = std::chrono::high_resolution_clock::now();
+                    auto time_hybrid = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                    totalTime += time_hybrid;
+                }
+                std::cout << "Average Render Hybrid Tree (Offset: " << num << ") Time taken: " << totalTime / 10.0 << " ms" << std::endl;
+
+                // Render (caching)
+                Frame frame_caching(FRAME_WIDTH, FRAME_HEIGHT);
+                double totalTime_caching = 0.0;
+
+                for (int i = 0; i < 10; ++i)
+                {
+                    float angle = 2 * PI * i / 10;
+                    float cx = std::cos(angle) * 2.0f;
+                    float cz = std::sin(angle) * 2.0f;
+                    Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+
+                    // AABB with OBB
+                    auto start = std::chrono::high_resolution_clock::now();
+                    render_frameHybrid(camera, hybrid, frame.pixels.get(), false);
+                    auto end = std::chrono::high_resolution_clock::now();
+                    auto time_hybrid = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                    totalTime_caching += time_hybrid;
+                }
+                std::cout << "Average Render Hybrid Tree(caching) (Offset: " << num << ") Time taken: " << totalTime_caching / 10.0 << " ms" << std::endl << std::endl;
+
+            }
         }
     }
 
@@ -631,7 +581,7 @@ namespace test
             }
 
             // OBB without clustering
-            core::obb::ObbTree obbTree(triangles, false);
+            core::obb::ObbTree obbTree(triangles, false, false);
 
             Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
 
@@ -644,7 +594,7 @@ namespace test
                 float cz = std::sin(angle) * 2.0f;
                 Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
-                // OBB without clustering / without raycaching
+                // OBB without clustering / with raycaching
                 auto start = std::chrono::high_resolution_clock::now();
                 render_frameOBB(camera, obbTree, frame.pixels.get(), false, true);
                 auto end = std::chrono::high_resolution_clock::now();
@@ -652,7 +602,7 @@ namespace test
                 totalTimeOBB += time_obb;
             }
 
-            std::cout << "Average Render Semiconductor OBB (No Clustering, With Caching) Time taken: " << totalTimeOBB / 10.0 << " ms"
+            std::cout << "Average Render Semiconductor OBB (Midpoint, No Clustering, With Caching) Time taken: " << totalTimeOBB / 10.0 << " ms"
                       << std::endl << std::endl;
         }
     }
@@ -682,7 +632,7 @@ namespace test
 
                 // OBB tree without clustering
                 auto start = std::chrono::high_resolution_clock::now();
-                core::obb::ObbTree obbTree(triangles, true, num);
+                core::obb::ObbTree obbTree(triangles, false, true, num);
                 auto end = std::chrono::high_resolution_clock::now();
                 float time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(
                         end - start).count();

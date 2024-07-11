@@ -27,13 +27,14 @@
 namespace core
 {
 
-    BVH::BVH(const std::vector<Triangle> &triangles, bool useOBB)
+    BVH::BVH(const std::vector<Triangle> &triangles, bool useOBB, float offset)
             :
             _failed(false),
             _triangles(triangles),
             _triangleIds(triangles.size()),
             _triangleCentroids(triangles.size()),
-            _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f))
+            _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
+            m_offset(offset)
     {
         std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
 
@@ -134,10 +135,6 @@ namespace core
 
             node_stack[stack_pointer++] = _root;
 
-            // Traversal works like this: while there are nodes left on the stack, pop the topmost one. If it is a leaf,
-            // intersect & shorten the ray against the triangles in the leaf node. If the node is an internal node,
-            // intersect the ray against its left & right child node bboxes, and push those child nodes that were hit,
-            // ordered by hit distance, to ensure the closest node gets traversed first.
             while (stack_pointer != 0)
             {
                 const Node *const node = node_stack[--stack_pointer];
@@ -155,7 +152,8 @@ namespace core
                     float t_left = 0;
                     float t_right = 0;
 
-                    intersectInternalNodes(left, right, ray, t_left, t_right);
+                    intersectInternalNodesAABB(left, ray, t_left);
+                    intersectInternalNodesAABB(right, ray, t_right);
 
                     if (t_left > t_right)
                     {
@@ -316,6 +314,80 @@ namespace core
 
     }
 
+    bool BVH::traversalHybrid(Ray &ray, const int maxIntersections, bool useCaching)
+    {
+        ZoneScopedN("Hybrid BVH Traversal");
+
+        const Node *node_stack[_nodes.size()];
+
+        if (core::intersectAABB(_root->bbox, ray) == INF)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < maxIntersections; i++)
+        {
+            int stack_pointer = 0;
+
+            node_stack[stack_pointer++] = _root;
+
+            while (stack_pointer != 0)
+            {
+                const Node *const node = node_stack[--stack_pointer];
+
+                ray.bvh_nodes_visited++;
+                if (node->isLeaf())
+                {
+                    triangleIntersection(node, ray);
+                }
+                else
+                {
+                    const Node *left = &_nodes[node->leftFrom];
+                    const Node *right = left + 1;
+
+                    float t_left = 0;
+                    float t_right = 0;
+
+                    if (left->obbFlag)
+                    {
+                        intersectInternalNodesOBB(left, ray, t_left, useCaching);
+                    } else
+                    {
+                        intersectInternalNodesAABB(left, ray, t_left);
+                    }
+
+                    if (right->obbFlag)
+                    {
+                        intersectInternalNodesOBB(right, ray, t_right, useCaching);
+                    } else
+                    {
+                        intersectInternalNodesAABB(right, ray, t_right);
+                    }
+
+                    if (t_left > t_right)
+                    {
+                        std::swap(t_left, t_right);
+                        std::swap(left, right);
+                    }
+
+                    if (t_left != INF)
+                    {
+                        if (t_right != INF)
+                        {
+                            node_stack[stack_pointer++] = right;
+                        }
+
+                        node_stack[stack_pointer++] = left;
+                    }
+                }
+            }
+
+            ray.nextIntersection();
+        }
+
+        return (ray.t[0] != core::INF);
+    }
+
     Node *BVH::splitNode(Node *const node, bool useOBB)
     {
         // generate obb
@@ -324,9 +396,7 @@ namespace core
             computeOBB<float>(node);
         }
 
-        // Calculate node bounding box, and getCentroid bounding box (for splitting)
-        BoundingBox centroid_bbox;
-
+        // Calculate node bounding box
         for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
         {
             for (const glm::vec3 &v: getTriangle(i).vertices)
@@ -334,9 +404,15 @@ namespace core
                 node->bbox.min = glm::min(node->bbox.min, v);
                 node->bbox.max = glm::max(node->bbox.max, v);
             }
+        }
 
-            centroid_bbox.min = glm::min(centroid_bbox.min, getCentroid(i));
-            centroid_bbox.max = glm::max(centroid_bbox.max, getCentroid(i));
+        // Compare surface area of AABB and OBB
+        if (useOBB)
+        {
+            if (node->bbox.area() > node->obb.area() + m_offset)
+            {
+                node->obbFlag = true;
+            }
         }
 
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
@@ -500,11 +576,9 @@ namespace core
         return ((n_left != 0) && (n_right != 0) ? std::make_optional(left_to) : std::nullopt);
     }
 
-    void BVH::intersectInternalNodes(const Node *left, const Node *right, Ray &ray,
-                                     float &outLeft, float &outRight)
+    void BVH::intersectInternalNodesAABB(const Node *node, Ray &ray, float &outT)
     {
-        outLeft = core::intersectAABB(left->bbox, ray);
-        outRight = core::intersectAABB(right->bbox, ray);
+        outT = core::intersectAABB(node->bbox, ray);
     }
 
     void BVH::intersectInternalNodesOBB(const Node *node, Ray &ray, float &outT, bool useRaycaching) const

@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/test");
+    const std::string input_folder("test/input/small_semi");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
@@ -55,10 +55,17 @@ int main()
     const auto start_bvh = steady_clock::now();
 
 #if ENABLE_OBB_BVH
-    core::obb::ObbTree obbTree(triangles, ENABLE_CLUSTERING, NUM_CLUSTERS);
+    core::obb::ObbTree obbTree(triangles, ENABLE_OBB_SAH, ENABLE_CLUSTERING, NUM_CLUSTERS);
     if (obbTree.failed())
     {
         std::cerr << "ObbTree construction failed" << std::endl;
+        return EXIT_FAILURE;
+    }
+#elif ENABLE_HYBRID_BVH
+    BVH bvh(triangles, ENABLE_HYBRID_BVH, 0);
+    if (bvh.failed())
+    {
+        std::cerr << "BVH construction failed" << std::endl;
         return EXIT_FAILURE;
     }
 #else
@@ -69,9 +76,10 @@ int main()
         return EXIT_FAILURE;
     }
 #endif
+
     // Bounding box visualization
 #if ENABLE_OBB_BVH
-    #if ENABLE_CLUSTERING //TODO: FIX VISUALIZE CLUSTERING BUGS
+    #if ENABLE_CLUSTERING
         debug::Visualization visualization(obbTree);
         visualization.visualizationClustering(obbTree.getClusterOBBs());
         std::vector<core::Triangle> temTris = visualization.getTriangles();
@@ -193,6 +201,16 @@ int main()
                 {
                     render_frameOBB(camera, obbTree, frame.pixels.get(), ENABLE_CLUSTERING, ENABLE_CACHING);
                 }
+            #elif ENABLE_HYBRID_BVH
+                if (GlobalState::bboxView)
+                {
+                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
+                }
+                else
+                {
+                    render_frameHybrid(camera, bvh, frame.pixels.get(), ENABLE_CACHING);
+                }
+
             #else
                 if (GlobalState::bboxView)
                 {

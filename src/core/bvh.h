@@ -34,6 +34,8 @@ namespace core
         int count;
         glm::vec3 cachedRayDir;
 
+        bool obbFlag;
+
         bool isLeaf() const { return (count != 0); }
     };
 
@@ -41,13 +43,15 @@ namespace core
     {
     public:
         BVH() = default;
-        BVH(const std::vector<Triangle> &triangles, bool useOBB);
+        BVH(const std::vector<Triangle> &triangles, bool useOBB, float offset = 0);
 
         bool traversal(Ray &ray, const int maxIntersections);
 
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
         bool traversalOBB(Ray &ray, const int maxIntersections, bool useCaching) const;
+
+        bool traversalHybrid(Ray &ray, const int maxIntersections, bool useCaching);
 
         bool failed() const { return _failed; }
 
@@ -101,7 +105,7 @@ namespace core
 
         // Ray intersection
         void triangleIntersection(const core::Node *const node, core::Ray &ray);
-        void intersectInternalNodes(const Node *left, const Node *right, core::Ray &ray, float& outLeft, float& outRight);
+        void intersectInternalNodesAABB(const Node *node, Ray &ray, float &outT);
 
         void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float& outT, bool useRaycaching) const;
 
@@ -119,6 +123,8 @@ namespace core
 
         int _maxDepth;
         BoundingBox _unitAABB;
+
+        float m_offset;
 
     };
 

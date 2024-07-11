@@ -35,7 +35,7 @@ namespace core::obb
     {
     public:
         ObbTree() = default;
-        ObbTree(const std::vector<Triangle> &triangles, bool useClustering, int num_clusters = 10);
+        ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int num_clusters = 10);
 
         bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
@@ -80,7 +80,7 @@ namespace core::obb
             int trianglesRight = 0;
         };
 
-        Node *splitNode(Node *const node);
+        Node *splitNode(Node *const node, bool useSAH);
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
         std::optional<Plane> splitPlaneMid(const Node *const node, int maxSplitsPerDimension) const;
         std::optional<Plane> splitPlaneSAH(const Node *const node, const int from, const int count, int maxSplitsPerDimension) const;

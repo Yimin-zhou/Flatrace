@@ -12,7 +12,7 @@
 #include "src/utils/globalState.h"
 #include "Tracy.hpp"
 
-core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useClustering, int num_clusters)
+core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int num_clusters)
         :
         _failed(false),
         _triangles(triangles),
@@ -33,16 +33,16 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useClus
     _nodes.reserve(triangles.size() * 2 - 1);
     _root = &_nodes.emplace_back(0, triangles.size(), 0);
 
-    splitNode(_root);
+    splitNode(_root, useSAH);
 
     // BVH stats
     _maxDepth = calculateMaxLeafDepth(_root);
     int minDepth = calculateMinLeafDepth(_root);
     collectLeafDepths(_root);
 
-//    std::cerr << "BVH NODE AMOUNT: " << _nodes.size() << std::endl;
-//    std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
-//    std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
+    std::cerr << "BVH NODE AMOUNT: " << _nodes.size() << std::endl;
+    std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
+    std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
 
     // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
     // data locality and avoids having to use indirection when iterating triangles for intersection
@@ -62,10 +62,10 @@ bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections, c
 
     const Node *node_stack[_nodes.size()];
 
-//    if (core::intersectAABB(_root->bbox, ray) == INF)
-//    {
-//        return false;
-//    }
+    if (core::intersectAABB(_root->bbox, ray) == INF)
+    {
+        return false;
+    }
 
     for (int i = 0; i < maxIntersections; i++)
     {
@@ -120,23 +120,33 @@ bool core::obb::ObbTree::traversal4x4(core::Ray4x4 &rays, const int maxIntersect
     return false;
 }
 
-core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node)
+core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool useSAH)
 {
     computeOBB<float>(node);
 
-//    for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
-//    {
-//        for (const glm::vec3 &v: getTriangle(i).vertices)
-//        {
-//            node->bbox.min = glm::min(node->bbox.min, v);
-//            node->bbox.max = glm::max(node->bbox.max, v);
-//        }
-//    }
+    if (node->index == 0)
+    {
+        for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
+        {
+            for (const glm::vec3 &v: getTriangle(i).vertices)
+            {
+                node->bbox.min = glm::min(node->bbox.min, v);
+                node->bbox.max = glm::max(node->bbox.max, v);
+            }
+        }
+    }
 
     if (node->count > LEAF_SIZE)
     {
-//        auto split_plane = splitPlaneMid(node, 32);
-        auto split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
+        std::optional<Plane> split_plane;
+        if (useSAH)
+        {
+            split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
+        }
+        else
+        {
+            split_plane = splitPlaneMid(node, 32);
+        }
 
         if (split_plane)
         {
@@ -148,8 +158,8 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node)
                 _nodes.emplace_back(node->leftFrom, *split_index - node->leftFrom, left_index);
                 _nodes.emplace_back(*split_index, node->leftFrom + node->count - *split_index, left_index + 1);
 
-                splitNode(&_nodes[left_index]);
-                splitNode(&_nodes[left_index + 1]);
+                splitNode(&_nodes[left_index], useSAH);
+                splitNode(&_nodes[left_index + 1], useSAH);
 
                 // Update the original node to no longer directly contain triangles
                 node->leftFrom = left_index;
@@ -258,11 +268,6 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
         const float dim_width = (split_dim.max - split_dim.min);
         const float bin_width = dim_width / bins.size();
 
-        // If all triangles in the current node lie in the same axis-aligned plane, 1 of the
-        // split dimensions will have zero width (degenerate) and needs to be skipped. Similarly,
-        // if the bin width drops below a (somewhat arbitrary) low threshold, binning and splitting
-        // along this dimension is worthless and may lead to precision/roundoff errors, so we
-        // drop it.
         if (bin_width <= 1e-6)
         {
             continue;
