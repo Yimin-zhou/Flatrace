@@ -282,78 +282,30 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
 
     for (int a = 0; a < 3; ++a)
     {
-        std::vector<SplitBin> bins(maxSplitsPerDimension);
-
-        float minProj = 1e30f;
-        float maxProj = -1e30f;
-        for (int i = 0; i < node->count; i++)
-        {
-            glm::vec3 centroid = getCentroid(from + i);
-            float proj = glm::dot(centroid - mid, axes[a]);
-            minProj = std::min(minProj, proj);
-            maxProj = std::max(maxProj, proj);
-        }
+        glm::vec3 minPoint = mid - axes[a] * ext[a];
+        glm::vec3 maxPoint = mid + axes[a] * ext[a];
+        float minProj = glm::dot(minPoint, axes[a]);
+        float maxProj = glm::dot(maxPoint, axes[a]);
 
         if (minProj == maxProj)
         {
             continue;
         }
 
-        float scale = maxSplitsPerDimension / (maxProj - minProj);
-
-        for (int i = 0; i < node->count; i++)
+        float scale = (maxProj - minProj) / 100;
+        for (int i = 1; i < 100; i++)
         {
-            core::Triangle triangle = getTriangle(from + i);
-            int binIndex = glm::clamp(static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - minProj) * scale), 0, static_cast<int>(bins.size() - 1));
-            bins[binIndex].triangleCount++;
+            core::Triangle triangle = getTriangle(i);
+            float candidatePosProj = minProj + scale * i;
+            glm::vec3 candidatePos = mid + axes[a] * candidatePosProj;
 
-            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z);
-            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z);
-            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z);
+            float cost = evaluateSAH(node, axes[a], candidatePosProj);
 
-            DiTO::DiTO_14(bins[binIndex].obbBoundVertices.data(), bins[binIndex].obbBoundVertices.size(), bins[binIndex].bound);
-        }
-
-        std::vector<float> leftArea(maxSplitsPerDimension- 1);
-        std::vector<float> rightArea(maxSplitsPerDimension - 1);
-        std::vector<int> leftCount(maxSplitsPerDimension - 1);
-        std::vector<int> rightCount(maxSplitsPerDimension - 1);
-
-        std::vector<DiTO::Vector<float>> leftBoxVertices, rightBoxVertices;
-        int leftTrianglesCountSum = 0, rightTrianglesCountSum = 0;
-
-        // Calculate the area of the left and right of each bin
-        for (int i = 0; i < maxSplitsPerDimension - 1; i++)
-        {
-            leftTrianglesCountSum += bins[i].triangleCount;
-            leftCount[i] = leftTrianglesCountSum;
-            leftBoxVertices.insert(leftBoxVertices.end(), bins[i].obbBoundVertices.begin(), bins[i].obbBoundVertices.end());
-            leftArea[i] = bins[i].bound.area();
-
-            rightTrianglesCountSum += bins[maxSplitsPerDimension - 1 - i].triangleCount;
-            rightCount[maxSplitsPerDimension - 2 - i] = rightTrianglesCountSum;
-            rightBoxVertices.insert(rightBoxVertices.end(), bins[maxSplitsPerDimension - 1 - i].obbBoundVertices.begin(), bins[maxSplitsPerDimension - 1 - i].obbBoundVertices.end());
-            rightArea[maxSplitsPerDimension - 2 - i] = bins[maxSplitsPerDimension - 1 - i].bound.area();
-        }
-        DiTO::OBB<float> leftOBB, rightOBB;
-        DiTO::DiTO_14(leftBoxVertices.data(), leftBoxVertices.size(), leftOBB);
-        DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), rightOBB);
-
-        scale = (maxProj - minProj) / maxSplitsPerDimension;
-        for (int i = 1; i < maxSplitsPerDimension - 1; i++)
-        {
-//            core::Triangle triangle = getTriangle(i);
-//            float candidatePosProj = minProj + scale * i;
-//            glm::vec3 candidatePos = mid + axes[a] * candidatePosProj;
-//
-//            float cost = evaluateSAH(node, axes[a], candidatePosProj);
-            float planeCost = leftCount[i] * leftArea[i] + rightCount[i] * rightArea[i];
-
-            if (planeCost < bestCost)
+            if (cost < bestCost)
             {
-                bestCost = planeCost;
+                bestCost = cost;
                 bestAxis = axes[a];
-                bestPos = mid + axes[a] * (minProj + scale * (i + 1));
+                bestPos = candidatePos;
             }
         }
     }
