@@ -80,54 +80,53 @@ Members:
             return 2.0f * (this->ext.x * this->ext.y + this->ext.y * this->ext.z + this->ext.z * this->ext.x);
         }
 
-//        OBB extended(core::Triangle triangle)
-//        {
-//            Vector<F> newMid = mid;
-//            Vector<F> newExt = ext;
-//
-//            // Array of OBB axes
-//            Vector<F> axes[] = {v0, v1, v2};
-//
-//            // Loop over the three orientations (axes)
-//            for (int i = 0; i < 3; i++)
-//            {
-//                Vector<F> minPoint = mid - Vector<F>{v0.x * ext.x, v1.y * ext.y, v2.z * ext.z};
-//                Vector<F> maxPoint = mid + Vector<F>{v0.x * ext.x, v1.y * ext.y, v2.z * ext.z};
-//
-//                // Project triangle vertices onto the current axis
-//                Vector<F> vertices[] =
-//                {
-//                    Vector<F>({triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z}),
-//                    Vector<F>({triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z}),
-//                    Vector<F>({triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z})
-//                };
-//
-//                for (const auto& vertex : vertices)
-//                {
-//                    // Project vertex onto axis
-//                    F dot = (vertex.x - mid.x) * axes[i].x + (vertex.y - mid.y) * axes[i].y + (vertex.z - mid.z) * axes[i].z;
-//
-//                    // Update the min and max points based on the projection
-//                    if (dot < -newExt[i])
-//                    {
-//                        newExt[i] = -dot;
-//                        newMid = mid + axes[i] * (dot * 0.5);
-//                    }
-//                    if (dot > newExt[i])
-//                    {
-//                        newExt[i] = dot;
-//                        newMid = mid + axes[i] * (dot * 0.5);
-//                    }
-//                }
-//            }
+        OBB extended(core::Triangle triangle)
+        {
+            glm::vec3 newMid = glm::vec3(mid.x, mid.y, mid.z);
+            glm::vec3 newExt = glm::vec3(ext.x, ext.y, ext.z);
 
-//            // Create the extended OBB
-//            OBB newOBB = *this;
-//            newOBB.mid = newMid;
-//            newOBB.ext = newExt;
-//
-//            return newOBB;
-//        }
+            // Array of OBB axes
+            glm::vec3 axes[] = {glm::vec3(v0.x, v0.y, v0.z), glm::vec3(v1.x, v1.y, v1.z), glm::vec3(v2.x, v2.y, v2.z)};
+
+            glm::vec3 otherVertices[] = {glm::vec3(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z),
+                                         glm::vec3(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z),
+                                         glm::vec3(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z)};
+
+            // Loop over the three orientations (axes)
+            for (int i = 0; i < 3; i++)
+            {
+                // Initialize min and max points
+                glm::vec3 minPoint = newMid - axes[i] * newExt[i];
+                glm::vec3 maxPoint = newMid + axes[i] * newExt[i];
+
+                for (const auto& vertex : otherVertices)
+                {
+                    // Project the vertex onto the axis
+                    float projection = glm::dot(vertex - newMid, axes[i]);
+
+                    // Check if the vertex is out of OBB in this axis
+                    if (projection > glm::dot(maxPoint - newMid, axes[i]))
+                    {
+                        maxPoint = newMid + axes[i] * projection;
+                    }
+                    else if (projection < glm::dot(minPoint - newMid, axes[i]))
+                    {
+                        minPoint = newMid + axes[i] * projection;
+                    }
+                }
+
+                // Update the midpoint and extent along this axis
+                newMid += axes[i] * (glm::dot(maxPoint - newMid, axes[i]) - glm::dot(minPoint - newMid, axes[i])) * 0.5f;
+                newExt[i] = glm::length(maxPoint - minPoint) * 0.5f;
+            }
+
+            // Create the extended OBB
+            OBB newOBB = *this;
+            newOBB.mid = Vector<F>(newMid.x, newMid.y, newMid.z);
+            newOBB.ext = Vector<F>(newExt.x, newExt.y, newExt.z);
+
+            return newOBB;
+        }
 
         OBB extended(const OBB& other) const
         {

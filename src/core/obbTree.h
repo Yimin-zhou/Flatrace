@@ -63,14 +63,14 @@ namespace core::obb
     private:
         struct SplitDim
         {
-            glm::vec3 axis;
-            glm::vec3 minPoint;
-            glm::vec3 maxPoint;
+            glm::vec3 normal;
+            float min;
+            float max;
         };
 
         struct SplitBin
         {
-            DiTO::OBB<float> obb;
+            BoundingBox aabb;
 
             float areaLeft = 0.0f;
             float areaRight = 0.0f;
@@ -93,6 +93,9 @@ namespace core::obb
         // Ray intersection
         void triangleIntersection(const core::obb::Node *const node, core::Ray &ray);
         void intersectInternalNodes(const Node *node, core::Ray &ray, float& outT, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
+
+        // SAH
+        float evaluateSAH(const Node* const node, glm::vec3 axis, float candidateProj ) const;
 
         std::vector<int> m_leafDepths;
 
