@@ -70,14 +70,9 @@ namespace core::obb
 
         struct SplitBin
         {
-            BoundingBox aabb;
-
-            float areaLeft = 0.0f;
-            float areaRight = 0.0f;
-
-            int trianglesIn = 0;
-            int trianglesLeft = 0;
-            int trianglesRight = 0;
+            std::vector<DiTO::Vector<float>> obbBoundVertices;
+            DiTO::OBB<float> bound;
+            int triangleCount = 0;
         };
 
         Node *splitNode(Node *const node, bool useSAH);
@@ -95,7 +90,7 @@ namespace core::obb
         void intersectInternalNodes(const Node *node, core::Ray &ray, float& outT, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
 
         // SAH
-        float evaluateSAH(const Node* const node, const glm::vec3& axis, const glm::vec3& candidate ) const;
+        float evaluateSAH(const Node* const node, const glm::vec3& axis, const float candidateProj ) const;
 
         std::vector<int> m_leafDepths;
 

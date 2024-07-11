@@ -385,14 +385,17 @@ namespace test
                 triangles.insert(triangles.end(), model.begin(), model.end());
             }
 
-            // OBB Midpoint
-            core::obb::ObbTree obbTree(triangles, false, false);
-
             // AABB without OBB
             BVH bvh(triangles, false);
 
             // AABB with OBB
             BVH bvh_obb(triangles, true);
+
+            // OBB Midpoint
+            core::obb::ObbTree obbTree(triangles, false, false);
+
+            // OBB SAH
+            core::obb::ObbTree obbTreeSAH(triangles, true, false);
 
             // Hybrid tree
             BVH bvh_hybrid(triangles, true);
@@ -402,6 +405,7 @@ namespace test
             double totalTimeAABB = 0.0;
             double totalTimeAABB_OBB = 0.0;
             double totalTimeOBB = 0.0;
+            double totalTimeOBBSAH = 0.0;
 
             for (int i = 0; i < 10; ++i)
             {
@@ -416,6 +420,13 @@ namespace test
                 auto end = std::chrono::high_resolution_clock::now();
                 auto time_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
                 totalTimeOBB += time_obb;
+
+                // OBB SAH
+                start = std::chrono::high_resolution_clock::now();
+                render_frameOBB(camera, obbTreeSAH, frame.pixels.get(), false, false);
+                end = std::chrono::high_resolution_clock::now();
+                auto time_obb_sah = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                totalTimeOBBSAH += time_obb_sah;
 
                 // AABB without OBB
                 start = std::chrono::high_resolution_clock::now();
@@ -436,8 +447,10 @@ namespace test
                       << std::endl;
             std::cout << "Average Render Semiconductor AABB (Use OBB) Time taken: " << totalTimeAABB_OBB / 10.0 << " ms"
                       << std::endl;
-            std::cout << "Average Render Semiconductor OBB (No Clustering) Time taken: " << totalTimeOBB / 10.0 << " ms"
-                      << std::endl << std::endl;;
+            std::cout << "Average Render Semiconductor OBB (Midpoint) Time taken: " << totalTimeOBB / 10.0 << " ms"
+                      << std::endl;
+            std::cout << "Average Render Semiconductor OBB (SAH) Time taken: " << totalTimeOBBSAH / 10.0 << " ms"
+                    << std::endl << std::endl;
         }
     }
 

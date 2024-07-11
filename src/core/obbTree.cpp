@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <mlpack/methods/kmeans/kmeans.hpp>
 #include <mlpack/core.hpp>
-#include <dlib/clustering.h>
-#include <dlib/matrix.h>
 
 #include "obbTree.h"
 #include "src/utils/globalState.h"
@@ -40,9 +38,9 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH,
     int minDepth = calculateMinLeafDepth(_root);
     collectLeafDepths(_root);
 
-    std::cerr << "BVH NODE AMOUNT: " << _nodes.size() << std::endl;
-    std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
-    std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
+//    std::cerr << "BVH NODE AMOUNT: " << _nodes.size() << std::endl;
+//    std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
+//    std::cerr << "BVH MIN DEPTH: " << minDepth << std::endl;
 
     // Re-order triangles such that triangles for each node are adjacent in memory again. This should improve
     // data locality and avoids having to use indirection when iterating triangles for intersection
@@ -219,15 +217,12 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node, int maxSplitsPerDimens
 }
 
 
-float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& axis, const glm::vec3& candidate) const
+float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& axis, const float candidateProj) const
 {
     // determine triangle counts and bounds for this split candidate
     DiTO::OBB<float> leftBox;
     DiTO::OBB<float> rightBox;
     glm::vec3 mid = glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z);
-
-    // Project candidate point to the axis
-    float candidateProj = glm::dot(candidate - mid, axis);
 
     int leftCount = 0, rightCount = 0;
 
@@ -276,6 +271,8 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
 
     float parentCost = node->obb.area() * count;
 
+    glm::vec3 mid = glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z);
+    glm::vec3 ext = glm::vec3(node->obb.ext.x, node->obb.ext.y, node->obb.ext.z);
     std::vector<glm::vec3> axes =
     {
             glm::vec3(node->obb.v0.x, node->obb.v0.y, node->obb.v0.z),
@@ -283,20 +280,80 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
             glm::vec3(node->obb.v2.x, node->obb.v2.y, node->obb.v2.z)
     };
 
-    for (const auto& axis : axes)
+    for (int a = 0; a < 3; ++a)
     {
-        for (int i = from; i < from + count; i++)
+        std::vector<SplitBin> bins(maxSplitsPerDimension);
+
+        float minProj = 1e30f;
+        float maxProj = -1e30f;
+        for (int i = 0; i < node->count; i++)
         {
-            core::Triangle triangle = getTriangle(i);
-            glm::vec3 centroid = getCentroid(i);
+            glm::vec3 centroid = getCentroid(from + i);
+            float proj = glm::dot(centroid - mid, axes[a]);
+            minProj = std::min(minProj, proj);
+            maxProj = std::max(maxProj, proj);
+        }
 
-            float cost = evaluateSAH(node, axis, centroid);
+        if (minProj == maxProj)
+        {
+            continue;
+        }
 
-            if (cost < bestCost)
+        float scale = maxSplitsPerDimension / (maxProj - minProj);
+
+        for (int i = 0; i < node->count; i++)
+        {
+            core::Triangle triangle = getTriangle(from + i);
+            int binIndex = glm::clamp(static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - minProj) * scale), 0, static_cast<int>(bins.size() - 1));
+            bins[binIndex].triangleCount++;
+
+            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z);
+            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z);
+            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z);
+
+            DiTO::DiTO_14(bins[binIndex].obbBoundVertices.data(), bins[binIndex].obbBoundVertices.size(), bins[binIndex].bound);
+        }
+
+        std::vector<float> leftArea(maxSplitsPerDimension- 1);
+        std::vector<float> rightArea(maxSplitsPerDimension - 1);
+        std::vector<int> leftCount(maxSplitsPerDimension - 1);
+        std::vector<int> rightCount(maxSplitsPerDimension - 1);
+
+        std::vector<DiTO::Vector<float>> leftBoxVertices, rightBoxVertices;
+        int leftTrianglesCountSum = 0, rightTrianglesCountSum = 0;
+
+        // Calculate the area of the left and right of each bin
+        for (int i = 0; i < maxSplitsPerDimension - 1; i++)
+        {
+            leftTrianglesCountSum += bins[i].triangleCount;
+            leftCount[i] = leftTrianglesCountSum;
+            leftBoxVertices.insert(leftBoxVertices.end(), bins[i].obbBoundVertices.begin(), bins[i].obbBoundVertices.end());
+            leftArea[i] = bins[i].bound.area();
+
+            rightTrianglesCountSum += bins[maxSplitsPerDimension - 1 - i].triangleCount;
+            rightCount[maxSplitsPerDimension - 2 - i] = rightTrianglesCountSum;
+            rightBoxVertices.insert(rightBoxVertices.end(), bins[maxSplitsPerDimension - 1 - i].obbBoundVertices.begin(), bins[maxSplitsPerDimension - 1 - i].obbBoundVertices.end());
+            rightArea[maxSplitsPerDimension - 2 - i] = bins[maxSplitsPerDimension - 1 - i].bound.area();
+        }
+        DiTO::OBB<float> leftOBB, rightOBB;
+        DiTO::DiTO_14(leftBoxVertices.data(), leftBoxVertices.size(), leftOBB);
+        DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), rightOBB);
+
+        scale = (maxProj - minProj) / maxSplitsPerDimension;
+        for (int i = 1; i < maxSplitsPerDimension - 1; i++)
+        {
+//            core::Triangle triangle = getTriangle(i);
+//            float candidatePosProj = minProj + scale * i;
+//            glm::vec3 candidatePos = mid + axes[a] * candidatePosProj;
+//
+//            float cost = evaluateSAH(node, axes[a], candidatePosProj);
+            float planeCost = leftCount[i] * leftArea[i] + rightCount[i] * rightArea[i];
+
+            if (planeCost < bestCost)
             {
-                bestCost = cost;
-                bestAxis = axis;
-                bestPos = centroid;
+                bestCost = planeCost;
+                bestAxis = axes[a];
+                bestPos = mid + axes[a] * (minProj + scale * (i + 1));
             }
         }
     }
