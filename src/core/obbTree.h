@@ -64,15 +64,21 @@ namespace core::obb
         struct SplitDim
         {
             glm::vec3 normal;
-            float min;
-            float max;
+            float minProj;
+            float maxProj;
         };
 
         struct SplitBin
         {
             std::vector<DiTO::Vector<float>> obbBoundVertices;
-            DiTO::OBB<float> bound;
-            int triangleCount = 0;
+            DiTO::OBB<float> obb;
+
+            float areaLeft = 0.0f;
+            float areaRight = 0.0f;
+
+            int trianglesIn = 0;
+            int trianglesLeft = 0;
+            int trianglesRight = 0;
         };
 
         Node *splitNode(Node *const node, bool useSAH);
