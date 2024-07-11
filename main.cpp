@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/stacks/stack_a");
+    const std::string input_folder("test/input/test");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;

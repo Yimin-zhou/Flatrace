@@ -177,36 +177,43 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node, int maxSplitsPerDimens
     const DiTO::OBB obb = node->obb;
     std::optional<Plane> best_plane;
 
-    std::array<glm::vec3, 3> axes = {glm::vec3(obb.v0.x, obb.v0.y, obb.v0.z),
-                                     glm::vec3(obb.v1.x, obb.v1.y, obb.v1.z),
-                                     glm::vec3(obb.v2.x, obb.v2.y, obb.v2.z)};
+    std::vector<glm::vec3> axes = {glm::vec3(obb.v0.x, obb.v0.y, obb.v0.z),
+                                 glm::vec3(obb.v1.x, obb.v1.y, obb.v1.z),
+                                 glm::vec3(obb.v2.x, obb.v2.y, obb.v2.z)};
 
-    // Iterate over each axis of the OBB
-    for (int axis = 0; axis < 3; ++axis)
+    // Find the axis with the max length
+    int axis = 0;
+    float max_length = glm::length(axes[0]);
+    for (int i = 1; i < 3; i++)
     {
-        float minExtent = std::numeric_limits<float>::infinity();
-        float maxExtent = -std::numeric_limits<float>::infinity();
-
-        // Find min and max extents of the triangles along the current axis
-        for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i)
+        float length = glm::length(axes[i]);
+        if (length > max_length)
         {
-            const glm::vec3 centroid = getCentroid(i);
-            float projection = glm::dot(centroid - glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z),
-                                        axes[axis]);
-
-            minExtent = std::min(minExtent, projection);
-            maxExtent = std::max(maxExtent, projection);
+            max_length = length;
+            axis = i;
         }
-
-        // Calculate the midpoint along the current axis
-        float midPoint = (minExtent + maxExtent) * 0.5f;
-
-        glm::dvec3 planePoint = glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z)+ axes[axis] * midPoint;
-        glm::dvec3 planeNormal = axes[axis];
-
-        best_plane = Plane(planePoint, planeNormal);
-        break;
     }
+
+    float minExtent = std::numeric_limits<float>::infinity();
+    float maxExtent = -std::numeric_limits<float>::infinity();
+
+    // Find min and max extents of the triangles along the current axis
+    for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i)
+    {
+        const glm::vec3 centroid = getCentroid(i);
+        float projection = glm::dot(centroid - glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z), axes[axis]);
+
+        minExtent = std::min(minExtent, projection);
+        maxExtent = std::max(maxExtent, projection);
+    }
+
+    // Calculate the midpoint along the current axis
+    float midPoint = (minExtent + maxExtent) * 0.5f;
+
+    glm::dvec3 planePoint = glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z) + axes[axis] * midPoint;
+    glm::dvec3 planeNormal = axes[axis];
+
+    best_plane = Plane(planePoint, planeNormal);
 
     return best_plane;
 }
