@@ -72,6 +72,7 @@ namespace core::obb
         {
             std::vector<DiTO::Vector<float>> obbBoundVertices;
             DiTO::OBB<float> bound;
+//            Aabb aabb;
             int triangleCount = 0;
         };
 

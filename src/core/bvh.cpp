@@ -418,7 +418,7 @@ namespace core
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
         if (node->count > LEAF_SIZE)
         {
-            const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
+            const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 100);
 
             if (split_plane)
             {

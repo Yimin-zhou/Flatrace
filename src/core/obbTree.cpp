@@ -139,11 +139,11 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
         std::optional<Plane> split_plane;
         if (useSAH)
         {
-            split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 32);
+            split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 100);
         }
         else
         {
-            split_plane = splitPlaneMid(node, 32);
+            split_plane = splitPlaneMid(node, 100);
         }
 
         if (split_plane)
@@ -301,17 +301,29 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
 
         float scale = maxSplitsPerDimension / (maxProj - minProj);
 
+        // TODO 1: Transform triangle to unit AABB
+        // TODO Compare MSE, single OBB visualization,
+        // TODO simple objs, plane, rotated box, sheared box, rotated plane, triangle...
+        // TODO TBB parallel_for
         for (int i = 0; i < node->count; i++)
         {
             core::Triangle triangle = getTriangle(from + i);
             int binIndex = glm::clamp(static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - minProj) * scale), 0, static_cast<int>(bins.size() - 1));
+            // TODO 1 ab = aabb of triangle
+            // bins[binIndex].aabb.extend(ab)
             bins[binIndex].triangleCount++;
-
+            // TODO Store the vertices index of the triangle in the bins
             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z);
             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z);
             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z);
+        }
+        // TODO 2:
+        // bins[i].aabb * node.Transform
 
-            DiTO::DiTO_14(bins[binIndex].obbBoundVertices.data(), bins[binIndex].obbBoundVertices.size(), bins[binIndex].bound);
+        for (auto& bin : bins)
+        {
+            // TODO 2 : Calculate the OBB of each bin outside the loop
+            DiTO::DiTO_14(bin.obbBoundVertices.data(), bin.obbBoundVertices.size(), bin.bound); // TODO Axis problem
         }
 
         std::vector<float> leftArea(maxSplitsPerDimension- 1);
@@ -322,6 +334,7 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
         std::vector<DiTO::Vector<float>> leftBoxVertices, rightBoxVertices;
         int leftTrianglesCountSum = 0, rightTrianglesCountSum = 0;
 
+        // TODO TBB parallel_for
         // Calculate the area of the left and right of each bin
         for (int i = 0; i < maxSplitsPerDimension - 1; i++)
         {
@@ -340,6 +353,7 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
         DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), rightOBB);
 
         scale = (maxProj - minProj) / maxSplitsPerDimension;
+        // TODO TBB parallel_for
         for (int i = 1; i < maxSplitsPerDimension - 1; i++)
         {
 //            core::Triangle triangle = getTriangle(i);
@@ -348,7 +362,6 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
 //
 //            float cost = evaluateSAH(node, axes[a], candidatePosProj);
             float planeCost = leftCount[i] * leftArea[i] + rightCount[i] * rightArea[i];
-
             if (planeCost < bestCost)
             {
                 bestCost = planeCost;
