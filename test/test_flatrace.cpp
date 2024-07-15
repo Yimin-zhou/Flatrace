@@ -19,60 +19,6 @@ namespace test
     const std::string TEST_OBJ_FOLDER_Bunny = "test/input/test";
     const std::string TEST_OBJ_FOLDER_Semi = "test/input/stacks/stack_";
 
-    //  test :compare obb tree, aabb, aabb with obb (bunny)
-    TEST(FlatRace, Render_1)
-    {
-        std::vector<std::vector<core::Triangle>> models;
-        models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Bunny, true);
-        std::vector<core::Triangle> triangles;
-        for (const auto &model : models)
-        {
-            triangles.insert(triangles.end(), model.begin(), model.end());
-        }
-
-        core::obb::ObbTree obbTree(triangles, false, false);
-
-        BVH bvh(triangles, false);
-        BVH bvhOBB(triangles, true);
-
-        Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
-
-        double totalTimeAABB = 0.0;
-        double totalTimeAABB_OBB = 0.0;
-        double totalTimeOBB = 0.0;
-
-        for (int i = 0; i < 10; ++i)
-        {
-            float angle = 2 * PI * i / 10;
-            float cx = std::cos(angle) * 2.0f;
-            float cz = std::sin(angle) * 2.0f;
-            Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
-
-            auto start = std::chrono::high_resolution_clock::now();
-            render_frameOBB(camera, obbTree, frame.pixels.get(), false, false);
-            auto end = std::chrono::high_resolution_clock::now();
-            auto time_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            totalTimeOBB += time_obb;
-
-            start = std::chrono::high_resolution_clock::now();
-            render_frame(camera, bvh, frame.pixels.get(), false, false);
-            end = std::chrono::high_resolution_clock::now();
-            auto time_aabb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            totalTimeAABB += time_aabb;
-
-            start = std::chrono::high_resolution_clock::now();
-            render_frame(camera, bvhOBB, frame.pixels.get(), true, false);
-            end = std::chrono::high_resolution_clock::now();
-            auto time_aabb_obb = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            totalTimeAABB_OBB += time_aabb_obb;
-        }
-
-        std::cout << "Average Render Bunny AABB Time taken: " << totalTimeAABB / 10.0 << " ms" << std::endl;
-        std::cout << "Average Render Bunny OBB in AABB Time taken: " << totalTimeAABB_OBB / 10.0 << " ms" << std::endl;
-        std::cout << "Average Render Bunny OBB in OBB Tree Time taken: " << totalTimeOBB / 10.0 << " ms" << std::endl;
-    }
-
-    // Tests for getting data
     // Models' triangle count
     TEST(FlatRace, Analysis_Models_Triangle_Count)
     {

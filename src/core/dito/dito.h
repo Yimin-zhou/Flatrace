@@ -77,7 +77,7 @@ Members:
         // Calculate the surface area of an OBB
         const double area() const
         {
-            return 2.0f * (this->ext.x * this->ext.y + this->ext.y * this->ext.z + this->ext.z * this->ext.x);
+            return 8.0f * (this->ext.x * this->ext.y + this->ext.y * this->ext.z + this->ext.z * this->ext.x);
         }
     };
 

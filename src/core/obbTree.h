@@ -35,7 +35,7 @@ namespace core::obb
     {
     public:
         ObbTree() = default;
-        ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int num_clusters = 10);
+        ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize = 32, int num_clusters = 10);
 
         bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
@@ -71,15 +71,15 @@ namespace core::obb
         struct SplitBin
         {
             std::vector<DiTO::Vector<float>> obbBoundVertices;
-            DiTO::OBB<float> bound;
-//            Aabb aabb;
+            DiTO::OBB<float> binOBB;
+//            BoundingBox aabb;
             int triangleCount = 0;
         };
 
         Node *splitNode(Node *const node, bool useSAH);
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
-        std::optional<Plane> splitPlaneMid(const Node *const node, int maxSplitsPerDimension) const;
-        std::optional<Plane> splitPlaneSAH(const Node *const node, const int from, const int count, int maxSplitsPerDimension) const;
+        std::optional<Plane> splitPlaneMid(const Node *const node) const;
+        std::optional<Plane> splitPlaneSAH(const Node *const node, const int from, const int count) const;
         void linearize();
 
         int calculateMaxLeafDepth(const Node *node, int depth = 1) const;
@@ -94,6 +94,7 @@ namespace core::obb
         float evaluateSAH(const Node* const node, const glm::vec3& axis, const float candidateProj ) const;
 
         std::vector<int> m_leafDepths;
+        int m_binSize;
 
         bool _failed;
         std::vector<Node> _nodes;

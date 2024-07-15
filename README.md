@@ -172,7 +172,7 @@ On M1 Pro (8 performance cores + 2 efficiency cores) speedup compared to
 single-threaded rendering, ~7x, which is more than I had hoped for. The peak
 ray throughput for the digger model ends up over 600 million rays per second,
 at which point you should start wondering whether this task has become
-memory-bound and throwing additional cores at the problem is not going to
+memory-binOBB and throwing additional cores at the problem is not going to
 help much. 
 
 Note: the minimum rps (rays per second) figure in the above screenshot is

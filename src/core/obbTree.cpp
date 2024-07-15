@@ -10,7 +10,7 @@
 #include "src/utils/globalState.h"
 #include "Tracy.hpp"
 
-core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int num_clusters)
+core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize, int num_clusters)
         :
         _failed(false),
         _triangles(triangles),
@@ -19,7 +19,8 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH,
         _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
         m_nGroup(num_clusters),
         m_clusterOBBs(m_nGroup),
-        m_useClustering(useClustering)
+        m_useClustering(useClustering),
+        m_binSize(binSize)
 {
     std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
 
@@ -139,11 +140,11 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
         std::optional<Plane> split_plane;
         if (useSAH)
         {
-            split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 100);
+            split_plane = splitPlaneSAH(node, node->leftFrom, node->count);
         }
         else
         {
-            split_plane = splitPlaneMid(node, 100);
+            split_plane = splitPlaneMid(node);
         }
 
         if (split_plane)
@@ -170,7 +171,7 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
 }
 
 std::optional<core::Plane>
-core::obb::ObbTree::splitPlaneMid(const Node *const node, int maxSplitsPerDimension) const
+core::obb::ObbTree::splitPlaneMid(const Node *const node) const
 {
     const DiTO::OBB obb = node->obb;
     std::optional<Plane> best_plane;
@@ -263,7 +264,7 @@ float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& a
 }
 
 std::optional<core::Plane>
-core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const int count, int maxSplitsPerDimension) const
+core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const int count) const
 {
     glm::vec3 bestAxis = glm::vec3(0.0f);
     float bestCost = std::numeric_limits<float>::infinity();
@@ -282,24 +283,24 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
 
     for (int a = 0; a < 3; ++a)
     {
-        std::vector<SplitBin> bins(maxSplitsPerDimension);
+        std::vector<SplitBin> bins(m_binSize);
 
-        float minProj = 1e30f;
-        float maxProj = -1e30f;
+        float boundsMinProj = 1e30f;
+        float boundsMaxProj = -1e30f;
         for (int i = 0; i < node->count; i++)
         {
             glm::vec3 centroid = getCentroid(from + i);
             float proj = glm::dot(centroid - mid, axes[a]);
-            minProj = std::min(minProj, proj);
-            maxProj = std::max(maxProj, proj);
+            boundsMinProj = std::min(boundsMinProj, proj);
+            boundsMaxProj = std::max(boundsMaxProj, proj);
         }
 
-        if (minProj == maxProj)
+        if (boundsMinProj == boundsMaxProj)
         {
             continue;
         }
 
-        float scale = maxSplitsPerDimension / (maxProj - minProj);
+        float scale = m_binSize / (boundsMaxProj - boundsMinProj);
 
         // TODO 1: Transform triangle to unit AABB
         // TODO Compare MSE, single OBB visualization,
@@ -308,53 +309,79 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
         for (int i = 0; i < node->count; i++)
         {
             core::Triangle triangle = getTriangle(from + i);
-            int binIndex = glm::clamp(static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - minProj) * scale), 0, static_cast<int>(bins.size() - 1));
+            int binIndex = std::min(static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - boundsMinProj) * scale), static_cast<int>(m_binSize - 1));
             // TODO 1 ab = aabb of triangle
-            // bins[binIndex].aabb.extend(ab)
+//            bins[binIndex].aabb.extended(triangle);
             bins[binIndex].triangleCount++;
             // TODO Store the vertices index of the triangle in the bins
-            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z);
-            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z);
-            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z);
+             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z);
+             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z);
+             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z);
         }
-        // TODO 2:
-        // bins[i].aabb * node.Transform
-
+        // TODO:
         for (auto& bin : bins)
         {
-            // TODO 2 : Calculate the OBB of each bin outside the loop
-            DiTO::DiTO_14(bin.obbBoundVertices.data(), bin.obbBoundVertices.size(), bin.bound); // TODO Axis problem
+            // Method 2
+             DiTO::DiTO_14(bin.obbBoundVertices.data(), bin.obbBoundVertices.size(), bin.binOBB);
+
+            // Method 1, transform aabb to OBB space
+            // Get the vertices of the aabb
+//            std::vector<DiTO::Vector<float>> aabbVertices;
+//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.min.y, bin.aabb.min.z);
+//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.min.y, bin.aabb.min.z);
+//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.max.y, bin.aabb.min.z);
+//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.max.y, bin.aabb.min.z);
+//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.min.y, bin.aabb.max.z);
+//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.min.y, bin.aabb.max.z);
+//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.max.y, bin.aabb.max.z);
+//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.max.y, bin.aabb.max.z);
+//
+//            // Transform the aabb to OBB space
+//            std::vector<DiTO::Vector<float>> obbVertices;
+//            for (const auto& vertex : aabbVertices)
+//            {
+//                glm::vec3 transformedVertex = bin.boundOBB.invMatrix * glm::vec4(vertex.x, vertex.y, vertex.z, 1.0f);
+//                obbVertices.emplace_back(transformedVertex.x, transformedVertex.y, transformedVertex.z);
+//            }
+//
+//            // Construct OBB
+//            DiTO::OBB<float> obb;
+//            obb.mid =
         }
 
-        std::vector<float> leftArea(maxSplitsPerDimension- 1);
-        std::vector<float> rightArea(maxSplitsPerDimension - 1);
-        std::vector<int> leftCount(maxSplitsPerDimension - 1);
-        std::vector<int> rightCount(maxSplitsPerDimension - 1);
+        std::vector<float> leftArea(m_binSize- 1);
+        std::vector<float> rightArea(m_binSize - 1);
+        std::vector<int> leftCount(m_binSize - 1);
+        std::vector<int> rightCount(m_binSize - 1);
 
         std::vector<DiTO::Vector<float>> leftBoxVertices, rightBoxVertices;
         int leftTrianglesCountSum = 0, rightTrianglesCountSum = 0;
 
         // TODO TBB parallel_for
         // Calculate the area of the left and right of each bin
-        for (int i = 0; i < maxSplitsPerDimension - 1; i++)
+        for (int i = 0; i < m_binSize - 1; i++)
         {
             leftTrianglesCountSum += bins[i].triangleCount;
             leftCount[i] = leftTrianglesCountSum;
             leftBoxVertices.insert(leftBoxVertices.end(), bins[i].obbBoundVertices.begin(), bins[i].obbBoundVertices.end());
-            leftArea[i] = bins[i].bound.area();
+            DiTO::OBB<float> tempOBBLeft;
+            DiTO::DiTO_14(leftBoxVertices.data(), leftBoxVertices.size(), tempOBBLeft);
+            leftArea[i] = tempOBBLeft.area();
 
-            rightTrianglesCountSum += bins[maxSplitsPerDimension - 1 - i].triangleCount;
-            rightCount[maxSplitsPerDimension - 2 - i] = rightTrianglesCountSum;
-            rightBoxVertices.insert(rightBoxVertices.end(), bins[maxSplitsPerDimension - 1 - i].obbBoundVertices.begin(), bins[maxSplitsPerDimension - 1 - i].obbBoundVertices.end());
-            rightArea[maxSplitsPerDimension - 2 - i] = bins[maxSplitsPerDimension - 1 - i].bound.area();
+            rightTrianglesCountSum += bins[m_binSize - 1 - i].triangleCount;
+            rightCount[m_binSize - 2 - i] = rightTrianglesCountSum;
+            rightBoxVertices.insert(rightBoxVertices.end(), bins[m_binSize - 1 - i].obbBoundVertices.begin(), bins[m_binSize - 1 - i].obbBoundVertices.end());
+            DiTO::OBB<float> tempOBBRight;
+            DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), tempOBBRight);
+            rightArea[m_binSize - 2 - i] = tempOBBRight.area();
         }
-        DiTO::OBB<float> leftOBB, rightOBB;
-        DiTO::DiTO_14(leftBoxVertices.data(), leftBoxVertices.size(), leftOBB);
-        DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), rightOBB);
+//        DiTO::OBB<float> leftOBB, rightOBB;
+//        DiTO::DiTO_14(leftBoxVertices.data(), leftBoxVertices.size(), leftOBB);
+//        DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), rightOBB);
 
-        scale = (maxProj - minProj) / maxSplitsPerDimension;
+        scale = (boundsMaxProj - boundsMinProj) / m_binSize;
         // TODO TBB parallel_for
-        for (int i = 1; i < maxSplitsPerDimension - 1; i++)
+        for (int i = 1; i < m_binSize - 1; i++)
         {
 //            core::Triangle triangle = getTriangle(i);
 //            float candidatePosProj = minProj + scale * i;
@@ -366,7 +393,7 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
             {
                 bestCost = planeCost;
                 bestAxis = axes[a];
-                bestPos = mid + axes[a] * (minProj + scale * (i + 1));
+                bestPos = mid + axes[a] * (boundsMinProj + scale * (i + 1));
             }
         }
     }
