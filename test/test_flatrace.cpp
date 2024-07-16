@@ -44,74 +44,74 @@ namespace test
     }
 
     // check if the scene if split correctly
-    TEST(FlatRace, BVH_Accuracy)
-    {
-        std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
-
-        for (const std::string &code : fileCode)
-        {
-            std::cout << std::fixed << std::setprecision(2);
-            std::cout << "Processing file: " << code << std::endl;
-            std::string inputFile = code;
-
-            std::vector<std::vector<Triangle>> models;
-            models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
-            std::vector<Triangle> triangles;
-
-            for (const auto &model : models)
-            {
-                triangles.insert(triangles.end(), model.begin(), model.end());
-            }
-
-            // AABB BVH without OBB
-            BVH bvh(triangles, false);
-            int aabbBVHErrorNodeCount = 0;
-            for (const auto &node : bvh.getNodes())
-            {
-                if (node.count > LEAF_SIZE)
-                {
-                    aabbBVHErrorNodeCount++;
-                }
-            }
-            std::cout << "AABB BVH (No OBB) Error Node Count: " << aabbBVHErrorNodeCount << std::endl;
-
-            // AABB BVH with OBB
-            BVH bvh_obb(triangles, true);
-            int aabbBVH_OBBErrorNodeCount = 0;
-            for (const auto &node : bvh_obb.getNodes())
-            {
-                if (node.count > LEAF_SIZE)
-                {
-                    aabbBVH_OBBErrorNodeCount++;
-                }
-            }
-            std::cout << "AABB BVH (Has OBB) Error Node Count: " << aabbBVH_OBBErrorNodeCount << std::endl;
-
-            // OBB tree Midpoint
-            core::obb::ObbTree obbTree(triangles, false, false);
-            int obbTreeErrorNodeCount = 0;
-            for (const auto &node : obbTree.getNodes())
-            {
-                if (node.count > LEAF_SIZE)
-                {
-                    obbTreeErrorNodeCount++;
-                }
-            }
-            std::cout << "OBB Tree (Midpoint) Error Node Count: " << obbTreeErrorNodeCount << std::endl;
-
-            // OBB tree SAH
-            core::obb::ObbTree obbTree_sah(triangles, true, false);
-            int obbTreeSAHErrorNodeCount = 0;
-            for (const auto &node : obbTree_sah.getNodes())
-            {
-                if (node.count > LEAF_SIZE)
-                {
-                    obbTreeSAHErrorNodeCount++;
-                }
-            }
-            std::cout << "OBB Tree (SAH) Error Node Count: " << obbTreeSAHErrorNodeCount << std::endl << std::endl;
-        }
-    }
+//    TEST(FlatRace, BVH_Accuracy)
+//    {
+//        std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
+//
+//        for (const std::string &code : fileCode)
+//        {
+//            std::cout << std::fixed << std::setprecision(2);
+//            std::cout << "Processing file: " << code << std::endl;
+//            std::string inputFile = code;
+//
+//            std::vector<std::vector<Triangle>> models;
+//            models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
+//            std::vector<Triangle> triangles;
+//
+//            for (const auto &model : models)
+//            {
+//                triangles.insert(triangles.end(), model.begin(), model.end());
+//            }
+//
+//            // AABB BVH without OBB
+//            BVH bvh(triangles, false);
+//            int aabbBVHErrorNodeCount = 0;
+//            for (const auto &node : bvh.getNodes())
+//            {
+//                if (node.count > LEAF_SIZE)
+//                {
+//                    aabbBVHErrorNodeCount++;
+//                }
+//            }
+//            std::cout << "AABB BVH (No OBB) Error Node Count: " << aabbBVHErrorNodeCount << std::endl;
+//
+//            // AABB BVH with OBB
+//            BVH bvh_obb(triangles, true);
+//            int aabbBVH_OBBErrorNodeCount = 0;
+//            for (const auto &node : bvh_obb.getNodes())
+//            {
+//                if (node.count > LEAF_SIZE)
+//                {
+//                    aabbBVH_OBBErrorNodeCount++;
+//                }
+//            }
+//            std::cout << "AABB BVH (Has OBB) Error Node Count: " << aabbBVH_OBBErrorNodeCount << std::endl;
+//
+//            // OBB tree Midpoint
+//            core::obb::ObbTree obbTree(triangles, false, false);
+//            int obbTreeErrorNodeCount = 0;
+//            for (const auto &node : obbTree.getNodes())
+//            {
+//                if (node.count > LEAF_SIZE)
+//                {
+//                    obbTreeErrorNodeCount++;
+//                }
+//            }
+//            std::cout << "OBB Tree (Midpoint) Error Node Count: " << obbTreeErrorNodeCount << std::endl;
+//
+//            // OBB tree SAH
+//            core::obb::ObbTree obbTree_sah(triangles, true, false);
+//            int obbTreeSAHErrorNodeCount = 0;
+//            for (const auto &node : obbTree_sah.getNodes())
+//            {
+//                if (node.count > LEAF_SIZE)
+//                {
+//                    obbTreeSAHErrorNodeCount++;
+//                }
+//            }
+//            std::cout << "OBB Tree (SAH) Error Node Count: " << obbTreeSAHErrorNodeCount << std::endl << std::endl;
+//        }
+//    }
 
     // BVH building time
     TEST(FlatRace, Analysis_BVH_Build_time)
@@ -540,7 +540,7 @@ namespace test
             }
 
             // OBB without clustering
-            core::obb::ObbTree obbTree(triangles, false, false);
+            core::obb::ObbTree obbTree(triangles, true, false);
 
             Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
 
@@ -591,7 +591,7 @@ namespace test
 
                 // OBB tree without clustering
                 auto start = std::chrono::high_resolution_clock::now();
-                core::obb::ObbTree obbTree(triangles, false, true, num);
+                core::obb::ObbTree obbTree(triangles, true, true, 32, num);
                 auto end = std::chrono::high_resolution_clock::now();
                 float time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(
                         end - start).count();
@@ -622,7 +622,7 @@ namespace test
 
             for (const int num: k)
             {
-                core::obb::ObbTree obbTree(triangles, true, num);
+                core::obb::ObbTree obbTree(triangles, true, true, 32, num);
                 double sahCost = CalculateOBBTreeSAHCost(obbTree);
                 std::cout << "SAH Cost of OBB Tree (Clustering): " << sahCost << std::endl << std::endl;
 

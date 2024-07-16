@@ -35,7 +35,7 @@ namespace core::obb
     {
     public:
         ObbTree() = default;
-        ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize = 32, int num_clusters = 10);
+        ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize = 100, int num_clusters = 10);
 
         bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching);
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;

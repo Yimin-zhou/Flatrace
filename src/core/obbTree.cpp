@@ -310,10 +310,9 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
         {
             core::Triangle triangle = getTriangle(from + i);
             int binIndex = std::min(static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - boundsMinProj) * scale), static_cast<int>(m_binSize - 1));
-            // TODO 1 ab = aabb of triangle
-//            bins[binIndex].aabb.extended(triangle);
+
             bins[binIndex].triangleCount++;
-            // TODO Store the vertices index of the triangle in the bins
+
              bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z);
              bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z);
              bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z);
