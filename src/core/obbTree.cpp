@@ -10,34 +10,35 @@
 #include "src/utils/globalState.h"
 #include "Tracy.hpp"
 
-core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize, int num_clusters)
+core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize,
+                            int num_clusters)
         :
-        _failed(false),
-        _triangles(triangles),
-        _triangleIds(triangles.size()),
-        _triangleCentroids(triangles.size()),
-        _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
+        m_failed(false),
+        m_triangles(triangles),
+        m_triangleIds(triangles.size()),
+        m_triangleCentroids(triangles.size()),
+        m_unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
         m_nGroup(num_clusters),
-        m_clusterOBBs(m_nGroup),
         m_useClustering(useClustering),
+        m_clusterOBBs(m_nGroup),
         m_binSize(binSize)
 {
-    std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
+    std::iota(m_triangleIds.begin(), m_triangleIds.end(), 0);
 
-    std::transform(triangles.begin(), triangles.end(), _triangleCentroids.begin(), [](const Triangle &t)
+    std::transform(triangles.begin(), triangles.end(), m_triangleCentroids.begin(), [](const Triangle &t)
     {
         return (t.vertices[0] + t.vertices[1] + t.vertices[2]) / 3.0f;
     });
 
-    _nodes.reserve(triangles.size() * 2 - 1);
-    _root = &_nodes.emplace_back(0, triangles.size(), 0);
+    m_nodes.reserve(triangles.size() * 2 - 1);
+    m_root = &m_nodes.emplace_back(0, triangles.size(), 0);
 
-    splitNode(_root, useSAH);
+    splitNode(m_root, useSAH);
 
     // BVH stats
-    _maxDepth = calculateMaxLeafDepth(_root);
-    int minDepth = calculateMinLeafDepth(_root);
-    collectLeafDepths(_root);
+    m_maxDepth = calculateMaxLeafDepth(m_root);
+    int minDepth = calculateMinLeafDepth(m_root);
+    collectLeafDepths(m_root);
 
 //    std::cerr << "BVH NODE AMOUNT: " << _nodes.size() << std::endl;
 //    std::cerr << "BVH MAX DEPTH: " << _maxDepth << std::endl;
@@ -55,13 +56,14 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH,
     }
 }
 
-bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections, const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching)
+bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections,
+                                   const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching)
 {
     ZoneScopedN("OBB Tree Traversal");
 
-    const Node *node_stack[_nodes.size()];
+    const Node *node_stack[m_nodes.size()];
 
-    if (core::intersectAABB(_root->bbox, ray) == INF)
+    if (core::intersectAABB(m_root->bbox, ray) == INF)
     {
         return false;
     }
@@ -70,7 +72,7 @@ bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections, c
     {
         int stack_pointer = 0;
 
-        node_stack[stack_pointer++] = _root;
+        node_stack[stack_pointer++] = m_root;
 
         while (stack_pointer != 0)
         {
@@ -80,10 +82,9 @@ bool core::obb::ObbTree::traversal(core::Ray &ray, const int maxIntersections, c
             if (node->isLeaf())
             {
                 triangleIntersection(node, ray);
-            }
-            else
+            } else
             {
-                const Node *left = &_nodes[node->leftFrom];
+                const Node *left = &m_nodes[node->leftFrom];
                 const Node *right = left + 1;
                 float t_left = 0;
                 float t_right = 0;
@@ -135,14 +136,13 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
         }
     }
 
-    if (node->count > LEAF_SIZE)
+    if (node->count > TracerState::LEAF_SIZE)
     {
         std::optional<Plane> split_plane;
         if (useSAH)
         {
             split_plane = splitPlaneSAH(node, node->leftFrom, node->count);
-        }
-        else
+        } else
         {
             split_plane = splitPlaneMid(node);
         }
@@ -153,12 +153,12 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
 
             if (split_index)
             {
-                int left_index = _nodes.size();
-                _nodes.emplace_back(node->leftFrom, *split_index - node->leftFrom, left_index);
-                _nodes.emplace_back(*split_index, node->leftFrom + node->count - *split_index, left_index + 1);
+                int left_index = m_nodes.size();
+                m_nodes.emplace_back(node->leftFrom, *split_index - node->leftFrom, left_index);
+                m_nodes.emplace_back(*split_index, node->leftFrom + node->count - *split_index, left_index + 1);
 
-                splitNode(&_nodes[left_index], useSAH);
-                splitNode(&_nodes[left_index + 1], useSAH);
+                splitNode(&m_nodes[left_index], useSAH);
+                splitNode(&m_nodes[left_index + 1], useSAH);
 
                 // Update the original node to no longer directly contain triangles
                 node->leftFrom = left_index;
@@ -177,8 +177,9 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node) const
     std::optional<Plane> best_plane;
 
     std::vector<glm::vec3> axes = {glm::vec3(obb.v0.x, obb.v0.y, obb.v0.z),
-                                 glm::vec3(obb.v1.x, obb.v1.y, obb.v1.z),
-                                 glm::vec3(obb.v2.x, obb.v2.y, obb.v2.z)};
+                                   glm::vec3(obb.v1.x, obb.v1.y, obb.v1.z),
+                                   glm::vec3(obb.v2.x, obb.v2.y, obb.v2.z)
+    };
 
     // Find the axis with the max length
     int axis = 0;
@@ -200,6 +201,7 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node) const
     for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i)
     {
         const glm::vec3 centroid = getCentroid(i);
+        // TODO get Median triangle projection
         float projection = glm::dot(centroid - glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z), axes[axis]);
 
         minExtent = std::min(minExtent, projection);
@@ -218,7 +220,7 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node) const
 }
 
 
-float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& axis, const float candidateProj) const
+float core::obb::ObbTree::evaluateSAH(const Node *const node, const glm::vec3 &axis, const float candidateProj) const
 {
     // determine triangle counts and bounds for this split candidate
     DiTO::OBB<float> leftBox;
@@ -230,9 +232,9 @@ float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& a
     std::vector<DiTO::Vector<float>> leftVertices;
     std::vector<DiTO::Vector<float>> rightVertices;
 
-    for( uint i = 0; i < node->count; i++ )
+    for (uint i = 0; i < node->count; i++)
     {
-        core::Triangle triangle =  getTriangle(node->leftFrom + i);
+        core::Triangle triangle = getTriangle(node->leftFrom + i);
         float centroidProj = glm::dot(getCentroid(node->leftFrom + i) - mid, axis);
 
         if (centroidProj < candidateProj)
@@ -242,8 +244,7 @@ float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& a
                 leftVertices.emplace_back(triangle.vertices[j].x, triangle.vertices[j].y, triangle.vertices[j].z);
             }
             leftCount++;
-        }
-        else
+        } else
         {
             for (int j = 0; j < 3; j++)
             {
@@ -264,7 +265,7 @@ float core::obb::ObbTree::evaluateSAH(const Node* const node, const glm::vec3& a
 }
 
 std::optional<core::Plane>
-core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const int count) const
+core::obb::ObbTree::splitPlaneSAH(const Node *const node, const int from, const int count) const
 {
     glm::vec3 bestAxis = glm::vec3(0.0f);
     float bestCost = std::numeric_limits<float>::infinity();
@@ -272,18 +273,20 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
 
     float parentCost = node->obb.area() * count;
 
+    const int splitsPerDimension = std::min(count, m_binSize);
+
     glm::vec3 mid = glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z);
     glm::vec3 ext = glm::vec3(node->obb.ext.x, node->obb.ext.y, node->obb.ext.z);
     std::vector<glm::vec3> axes =
-    {
-            glm::vec3(node->obb.v0.x, node->obb.v0.y, node->obb.v0.z),
-            glm::vec3(node->obb.v1.x, node->obb.v1.y, node->obb.v1.z),
-            glm::vec3(node->obb.v2.x, node->obb.v2.y, node->obb.v2.z)
-    };
+            {
+                    glm::vec3(node->obb.v0.x, node->obb.v0.y, node->obb.v0.z),
+                    glm::vec3(node->obb.v1.x, node->obb.v1.y, node->obb.v1.z),
+                    glm::vec3(node->obb.v2.x, node->obb.v2.y, node->obb.v2.z)
+            };
 
     for (int a = 0; a < 3; ++a)
     {
-        std::vector<SplitBin> bins(m_binSize);
+        std::vector<SplitBin> bins(splitsPerDimension);
 
         float boundsMinProj = 1e30f;
         float boundsMaxProj = -1e30f;
@@ -295,98 +298,61 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
             boundsMaxProj = std::max(boundsMaxProj, proj);
         }
 
-        if (boundsMinProj == boundsMaxProj)
+        if (((boundsMaxProj - boundsMinProj) / bins.size()) <= 1e-6)
         {
             continue;
         }
 
-        float scale = m_binSize / (boundsMaxProj - boundsMinProj);
+        float scale = splitsPerDimension / (boundsMaxProj - boundsMinProj);
 
-        // TODO 1: Transform triangle to unit AABB
-        // TODO Compare MSE, single OBB visualization,
-        // TODO simple objs, plane, rotated box, sheared box, rotated plane, triangle...
-        // TODO TBB parallel_for
         for (int i = 0; i < node->count; i++)
         {
             core::Triangle triangle = getTriangle(from + i);
-            int binIndex = std::min(static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - boundsMinProj) * scale), static_cast<int>(m_binSize - 1));
+            int binIndex = std::min(
+                    static_cast<int>((glm::dot(getCentroid(from + i) - mid, axes[a]) - boundsMinProj) * scale),
+                    static_cast<int>(splitsPerDimension - 1));
 
             bins[binIndex].triangleCount++;
-
-             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y, triangle.vertices[0].z);
-             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y, triangle.vertices[1].z);
-             bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y, triangle.vertices[2].z);
-        }
-        // TODO:
-        for (auto& bin : bins)
-        {
-            // Method 2
-             DiTO::DiTO_14(bin.obbBoundVertices.data(), bin.obbBoundVertices.size(), bin.binOBB);
-
-            // Method 1, transform aabb to OBB space
-            // Get the vertices of the aabb
-//            std::vector<DiTO::Vector<float>> aabbVertices;
-//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.min.y, bin.aabb.min.z);
-//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.min.y, bin.aabb.min.z);
-//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.max.y, bin.aabb.min.z);
-//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.max.y, bin.aabb.min.z);
-//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.min.y, bin.aabb.max.z);
-//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.min.y, bin.aabb.max.z);
-//            aabbVertices.emplace_back(bin.aabb.min.x, bin.aabb.max.y, bin.aabb.max.z);
-//            aabbVertices.emplace_back(bin.aabb.max.x, bin.aabb.max.y, bin.aabb.max.z);
-//
-//            // Transform the aabb to OBB space
-//            std::vector<DiTO::Vector<float>> obbVertices;
-//            for (const auto& vertex : aabbVertices)
-//            {
-//                glm::vec3 transformedVertex = bin.boundOBB.invMatrix * glm::vec4(vertex.x, vertex.y, vertex.z, 1.0f);
-//                obbVertices.emplace_back(transformedVertex.x, transformedVertex.y, transformedVertex.z);
-//            }
-//
-//            // Construct OBB
-//            DiTO::OBB<float> obb;
-//            obb.mid =
+            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[0].x, triangle.vertices[0].y,
+                                                         triangle.vertices[0].z);
+            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[1].x, triangle.vertices[1].y,
+                                                         triangle.vertices[1].z);
+            bins[binIndex].obbBoundVertices.emplace_back(triangle.vertices[2].x, triangle.vertices[2].y,
+                                                         triangle.vertices[2].z);
         }
 
-        std::vector<float> leftArea(m_binSize- 1);
-        std::vector<float> rightArea(m_binSize - 1);
-        std::vector<int> leftCount(m_binSize - 1);
-        std::vector<int> rightCount(m_binSize - 1);
+        std::vector<float> leftArea(splitsPerDimension - 1);
+        std::vector<float> rightArea(splitsPerDimension - 1);
+        std::vector<int> leftCount(splitsPerDimension - 1);
+        std::vector<int> rightCount(splitsPerDimension - 1);
 
         std::vector<DiTO::Vector<float>> leftBoxVertices, rightBoxVertices;
         int leftTrianglesCountSum = 0, rightTrianglesCountSum = 0;
 
-        // TODO TBB parallel_for
         // Calculate the area of the left and right of each bin
-        for (int i = 0; i < m_binSize - 1; i++)
+        for (int i = 0; i < splitsPerDimension - 1; i++)
         {
             leftTrianglesCountSum += bins[i].triangleCount;
             leftCount[i] = leftTrianglesCountSum;
-            leftBoxVertices.insert(leftBoxVertices.end(), bins[i].obbBoundVertices.begin(), bins[i].obbBoundVertices.end());
+            leftBoxVertices.insert(leftBoxVertices.end(), bins[i].obbBoundVertices.begin(),
+                                   bins[i].obbBoundVertices.end());
             DiTO::OBB<float> tempOBBLeft;
             DiTO::DiTO_14(leftBoxVertices.data(), leftBoxVertices.size(), tempOBBLeft);
             leftArea[i] = tempOBBLeft.area();
 
-            rightTrianglesCountSum += bins[m_binSize - 1 - i].triangleCount;
-            rightCount[m_binSize - 2 - i] = rightTrianglesCountSum;
-            rightBoxVertices.insert(rightBoxVertices.end(), bins[m_binSize - 1 - i].obbBoundVertices.begin(), bins[m_binSize - 1 - i].obbBoundVertices.end());
+            rightTrianglesCountSum += bins[splitsPerDimension - 1 - i].triangleCount;
+            rightCount[splitsPerDimension - 2 - i] = rightTrianglesCountSum;
+            rightBoxVertices.insert(rightBoxVertices.end(), bins[splitsPerDimension - 1 - i].obbBoundVertices.begin(),
+                                    bins[splitsPerDimension - 1 - i].obbBoundVertices.end());
             DiTO::OBB<float> tempOBBRight;
             DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), tempOBBRight);
-            rightArea[m_binSize - 2 - i] = tempOBBRight.area();
+            rightArea[splitsPerDimension - 2 - i] = tempOBBRight.area();
         }
-//        DiTO::OBB<float> leftOBB, rightOBB;
-//        DiTO::DiTO_14(leftBoxVertices.data(), leftBoxVertices.size(), leftOBB);
-//        DiTO::DiTO_14(rightBoxVertices.data(), rightBoxVertices.size(), rightOBB);
 
-        scale = (boundsMaxProj - boundsMinProj) / m_binSize;
-        // TODO TBB parallel_for
-        for (int i = 1; i < m_binSize - 1; i++)
+        scale = (boundsMaxProj - boundsMinProj) / splitsPerDimension;
+
+        for (int i = 1; i < splitsPerDimension - 1; i++)
         {
-//            core::Triangle triangle = getTriangle(i);
-//            float candidatePosProj = minProj + scale * i;
-//            glm::vec3 candidatePos = mid + axes[a] * candidatePosProj;
-//
-//            float cost = evaluateSAH(node, axes[a], candidatePosProj);
             float planeCost = leftCount[i] * leftArea[i] + rightCount[i] * rightArea[i];
             if (planeCost < bestCost)
             {
@@ -402,7 +368,7 @@ core::obb::ObbTree::splitPlaneSAH(const Node* const node, const int from, const 
         return std::nullopt;
     }
 
-    return std::optional<Plane> (Plane(bestPos, bestAxis));
+    return std::optional<Plane>(Plane(bestPos, bestAxis));
 
 }
 
@@ -420,7 +386,7 @@ std::optional<int> core::obb::ObbTree::partition(const int from, const int count
             left_to++;
         } else
         {
-            std::swap(_triangleIds[left_to], _triangleIds[--right_from]);
+            std::swap(m_triangleIds[left_to], m_triangleIds[--right_from]);
         }
     }
 
@@ -436,14 +402,14 @@ void core::obb::ObbTree::linearize()
     std::vector<Triangle> linearized_triangles;
     std::vector<int> linearized_triangle_ids;
 
-    for (const int triangle_id: _triangleIds)
+    for (const int triangle_id: m_triangleIds)
     {
         linearized_triangle_ids.push_back(linearized_triangles.size());
-        linearized_triangles.push_back(_triangles[triangle_id]);
+        linearized_triangles.push_back(m_triangles[triangle_id]);
     }
 
-    std::swap(_triangleIds, linearized_triangle_ids);
-    std::swap(_triangles, linearized_triangles);
+    std::swap(m_triangleIds, linearized_triangle_ids);
+    std::swap(m_triangles, linearized_triangles);
 }
 
 std::vector<std::vector<core::obb::Node>> core::obb::ObbTree::clusterOBBsKmeans(int num_clusters)
@@ -453,17 +419,17 @@ std::vector<std::vector<core::obb::Node>> core::obb::ObbTree::clusterOBBsKmeans(
     std::vector<size_t> leafNodeIndices;
 
     // Extract leaf nodes and their indices
-    for (size_t i = 0; i < _nodes.size(); ++i)
+    for (size_t i = 0; i < m_nodes.size(); ++i)
     {
-        if (_nodes[i].isLeaf())
+        if (m_nodes[i].isLeaf())
         {
-            leafNodes.push_back(_nodes[i]);
+            leafNodes.push_back(m_nodes[i]);
             leafNodeIndices.push_back(i);
         }
     }
 
     std::vector<Eigen::Matrix<float, Eigen::Dynamic, 1>> data;
-    for (const auto& node : leafNodes)
+    for (const auto &node: leafNodes)
     {
         data.push_back(DiTO::flatten(node.obb));
     }
@@ -491,7 +457,7 @@ std::vector<std::vector<core::obb::Node>> core::obb::ObbTree::clusterOBBsKmeans(
     for (size_t i = 0; i < assignments.n_elem; ++i)
     {
         leafNodes[i].groupNumber = assignments[i];
-        _nodes[leafNodeIndices[i]].groupNumber = assignments[i];
+        m_nodes[leafNodeIndices[i]].groupNumber = assignments[i];
         clusters[assignments[i]].push_back(leafNodes[i]);
     }
 
@@ -572,7 +538,7 @@ void core::obb::ObbTree::cacheTransformations()
 {
     m_transformationCache = std::vector<glm::mat4x4>(m_nGroup);
 
-    for (auto& group : m_clusteredNodes)
+    for (auto &group: m_clusteredNodes)
     {
         if (group.empty())
         {
@@ -584,7 +550,7 @@ void core::obb::ObbTree::cacheTransformations()
         DiTO::OBB<float> tempOBB;
         std::vector<DiTO::Vector<float>> tempVertices;
 
-        for (const auto& node : group)
+        for (const auto &node: group)
         {
             for (int i = node.leftFrom; i < (node.leftFrom + node.count); ++i)
             {
@@ -602,14 +568,15 @@ void core::obb::ObbTree::cacheTransformations()
 
         // Translate all vertices to the group center
         std::vector<DiTO::Vector<float>> vertices;
-        for (const auto& node : group)
+        for (const auto &node: group)
         {
             glm::vec3 translationVector = groupCenter - glm::vec3(node.obb.mid.x, node.obb.mid.y, node.obb.mid.z);
             for (int i = node.leftFrom; i < (node.leftFrom + node.count); ++i)
             {
-                for (const auto& v : getTriangle(i).vertices)
+                for (const auto &v: getTriangle(i).vertices)
                 {
-                    DiTO::Vector<float> vertex(v.x + translationVector.x, v.y + translationVector.y, v.z + translationVector.z);
+                    DiTO::Vector<float> vertex(v.x + translationVector.x, v.y + translationVector.y,
+                                               v.z + translationVector.z);
                     vertices.push_back(vertex);
                 }
             }
@@ -625,7 +592,8 @@ void core::obb::ObbTree::cacheTransformations()
         groupOBB.ext = DiTO::Vector<float>(groupOBB.ext.x + 0.001f, groupOBB.ext.y + 0.001f, groupOBB.ext.z + 0.001f);
 
         // Create OBB matrix: transform unit AABB (-0.5 to 0.5) to OBB space
-        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * glm::vec3(groupOBB.ext.x, groupOBB.ext.y, groupOBB.ext.z));
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f),
+                                           2.0f * glm::vec3(groupOBB.ext.x, groupOBB.ext.y, groupOBB.ext.z));
 
         glm::mat4 rotationMatrix = glm::mat4(
                 glm::vec4(glm::vec3(groupOBB.v0.x, groupOBB.v0.y, groupOBB.v0.z), 0.0f),
@@ -634,7 +602,8 @@ void core::obb::ObbTree::cacheTransformations()
                 glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
         );
 
-        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(groupOBB.mid.x, groupOBB.mid.y, groupOBB.mid.z));
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f),
+                                                     glm::vec3(groupOBB.mid.x, groupOBB.mid.y, groupOBB.mid.z));
 
         // Compute the inverse matrix for the OBB
         groupOBB.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
@@ -643,7 +612,7 @@ void core::obb::ObbTree::cacheTransformations()
         m_transformationCache[group[0].groupNumber] = groupOBB.invMatrix;
 
         // Apply the representative OBB to each node in the group
-        for (const auto& node : group)
+        for (const auto &node: group)
         {
             glm::vec3 nodeCenter = glm::vec3(node.obb.mid.x, node.obb.mid.y, node.obb.mid.z);
             glm::mat4 nodeTranslationMatrix = glm::translate(glm::mat4(1.0f), nodeCenter);
@@ -655,7 +624,7 @@ void core::obb::ObbTree::cacheTransformations()
             tempNode.obb = groupOBB;
             tempNode.obb.mid = node.obb.mid;
             tempNode.obb.invMatrix = glm::inverse(finalNodeMatrix);
-            _nodes[tempNode.index] = tempNode;
+            m_nodes[tempNode.index] = tempNode;
         }
 
         // For OBB visualization (uncomment if needed)
@@ -665,16 +634,15 @@ void core::obb::ObbTree::cacheTransformations()
 }
 
 
-
-int core::obb::ObbTree::calculateMaxLeafDepth(const core::obb::Node* node, int depth) const
+int core::obb::ObbTree::calculateMaxLeafDepth(const core::obb::Node *node, int depth) const
 {
     if (node->isLeaf())
     {
         return depth;
     }
 
-    int leftDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom], depth + 1);
-    int rightDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+    int leftDepth = calculateMaxLeafDepth(&m_nodes[node->leftFrom], depth + 1);
+    int rightDepth = calculateMaxLeafDepth(&m_nodes[node->leftFrom + 1], depth + 1);
 
     return std::max(leftDepth, rightDepth);
 }
@@ -686,8 +654,8 @@ int core::obb::ObbTree::calculateMinLeafDepth(const core::obb::Node *node, int d
         return depth;
     }
 
-    int leftDepth = calculateMinLeafDepth(&_nodes[node->leftFrom], depth + 1);
-    int rightDepth = calculateMinLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+    int leftDepth = calculateMinLeafDepth(&m_nodes[node->leftFrom], depth + 1);
+    int rightDepth = calculateMinLeafDepth(&m_nodes[node->leftFrom + 1], depth + 1);
 
     return std::min(leftDepth, rightDepth);
 }
@@ -700,8 +668,8 @@ void core::obb::ObbTree::collectLeafDepths(const core::obb::Node *node, int curr
         return;
     }
 
-    collectLeafDepths(&_nodes[node->leftFrom], currentDepth + 1);
-    collectLeafDepths(&_nodes[node->leftFrom + 1], currentDepth + 1);
+    collectLeafDepths(&m_nodes[node->leftFrom], currentDepth + 1);
+    collectLeafDepths(&m_nodes[node->leftFrom + 1], currentDepth + 1);
 }
 
 template<typename F>
@@ -728,7 +696,8 @@ void core::obb::ObbTree::computeOBB(core::obb::Node *node)
 
     // create obb matrix, transform unit AABB (-0.5 - 0.5) to obb space
     // Scale matrix
-    glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * (glm::vec3(node->obb.ext.x, node->obb.ext.y, node->obb.ext.z)));
+    glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f),
+                                       2.0f * (glm::vec3(node->obb.ext.x, node->obb.ext.y, node->obb.ext.z)));
 
     // Rotation matrix
     glm::mat4 rotationMatrix = glm::mat4(
@@ -739,7 +708,8 @@ void core::obb::ObbTree::computeOBB(core::obb::Node *node)
     );
 
     // Translation matrix
-    glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z));
+    glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f),
+                                                 glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z));
 
     // Calculate the inverse of the transformation matrix
     node->obb.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
@@ -749,12 +719,12 @@ void core::obb::ObbTree::triangleIntersection(const core::obb::Node *const node,
 {
     for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
     {
-    core::intersect(_triangles[j], ray);
+        core::intersect(m_triangles[j], ray);
     }
 }
 
-void printMatricesSideBySide(const glm::mat4x4& matrix1, const std::string& name1,
-                             const glm::mat4x4& matrix2, const std::string& name2)
+void printMatricesSideBySide(const glm::mat4x4 &matrix1, const std::string &name1,
+                             const glm::mat4x4 &matrix2, const std::string &name2)
 {
     std::cout << std::setw(50) << name1 << std::setw(50) << name2 << std::endl;
     for (int i = 0; i < 4; ++i)
@@ -772,8 +742,8 @@ void printMatricesSideBySide(const glm::mat4x4& matrix1, const std::string& name
     }
 }
 
-void core::obb::ObbTree::intersectInternalNodes(const Node *node, core::Ray &ray, float& outT,
-                                                const std::vector<glm::vec3>& cachedClusterRaydirs, bool useRaycaching)
+void core::obb::ObbTree::intersectInternalNodes(const Node *node, core::Ray &ray, float &outT,
+                                                const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching)
 {
     Ray tempRay = ray;
 
@@ -784,22 +754,20 @@ void core::obb::ObbTree::intersectInternalNodes(const Node *node, core::Ray &ray
         glm::vec3 rayDirectionLocal = cachedClusterRaydirs[node->groupNumber];
         tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
         tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
-    }
-    else if (useRaycaching && !m_useClustering)
+    } else if (useRaycaching && !m_useClustering)
     {
         glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
         tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
         tempRay.rd = glm::vec3(1.0f / node->cachedRayDir.x, 1.0f / node->cachedRayDir.y, 1.0f / node->cachedRayDir.z);
-    }
-    else
-    {   
+    } else
+    {
         glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
         glm::vec3 rayDirectionLocal = (node->obb.invMatrix) * glm::vec4(tempRay.d, 0.0f);
         tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
         tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
     }
 
-    outT = core::intersectAABB(_unitAABB, tempRay);
+    outT = core::intersectAABB(m_unitAABB, tempRay);
 }
 
 

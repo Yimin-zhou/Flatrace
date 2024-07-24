@@ -13,7 +13,7 @@ debug::Visualization::Visualization(const core::obb::ObbTree &obbTree) : m_input
     traversalNodes(m_inputObbTree.getRoot(), m_triangles, triangleId);
 }
 
-void debug::Visualization::traversalNodes(const core::Node* node,
+void debug::Visualization::traversalNodes(const core::Node *node,
                                           std::vector<core::Triangle> &triangles, int &triangleId)
 {
     if (node == nullptr)
@@ -28,8 +28,7 @@ void debug::Visualization::traversalNodes(const core::Node* node,
         glm::vec3 dimensions = node->bbox.max - node->bbox.min;
         std::vector<core::Triangle> nodeTriangles = visualizeAABB(center, dimensions, triangleId);
         triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-    }
-    else
+    } else
     {
         // Recurse for children
         traversalNodes(&m_inputBVH.getNodes()[node->leftFrom], triangles, triangleId);
@@ -50,8 +49,7 @@ void debug::Visualization::traversalNodes(const core::obb::Node *node, std::vect
         // Visualize OBB
         std::vector<core::Triangle> nodeTriangles = visualizeOBB(node->obb, triangleId);
         triangles.insert(triangles.end(), nodeTriangles.begin(), nodeTriangles.end());
-    }
-    else
+    } else
     {
         // Recurse for children
         traversalNodes(&m_inputObbTree.getNodes()[node->leftFrom], triangles, triangleId);
@@ -66,7 +64,7 @@ debug::Visualization::visualizeAABB(const glm::vec3 &center, const glm::vec3 &di
     glm::vec3 halfDimensions = dimensions * 0.5f;
 
     // Calculate vertices based on center and dimensions
-    std::array<glm::vec3, 8> vertices ={
+    std::array<glm::vec3, 8> vertices = {
             center + glm::vec3(-halfDimensions.x, -halfDimensions.y, -halfDimensions.z),
             center + glm::vec3(halfDimensions.x, -halfDimensions.y, -halfDimensions.z),
             center + glm::vec3(halfDimensions.x, halfDimensions.y, -halfDimensions.z),

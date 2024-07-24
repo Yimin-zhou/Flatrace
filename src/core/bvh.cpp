@@ -29,28 +29,28 @@ namespace core
 
     BVH::BVH(const std::vector<Triangle> &triangles, bool useOBB, float offset)
             :
-            _failed(false),
-            _triangles(triangles),
-            _triangleIds(triangles.size()),
-            _triangleCentroids(triangles.size()),
-            _unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
+            m_failed(false),
+            m_triangles(triangles),
+            m_triangleIds(triangles.size()),
+            m_triangleCentroids(triangles.size()),
+            m_unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
             m_offset(offset)
     {
-        std::iota(_triangleIds.begin(), _triangleIds.end(), 0);
+        std::iota(m_triangleIds.begin(), m_triangleIds.end(), 0);
 
-        std::transform(triangles.begin(), triangles.end(), _triangleCentroids.begin(), [](const Triangle &t)
+        std::transform(triangles.begin(), triangles.end(), m_triangleCentroids.begin(), [](const Triangle &t)
         {
             return (t.vertices[0] + t.vertices[1] + t.vertices[2]) / 3.0f;
         });
 
-        _nodes.reserve(triangles.size() * 2 - 1);
-        _root = &_nodes.emplace_back(0, triangles.size());
+        m_nodes.reserve(triangles.size() * 2 - 1);
+        m_root = &m_nodes.emplace_back(0, triangles.size());
 
-        splitNode(_root, useOBB);
+        splitNode(m_root, useOBB);
 
-        _maxDepth = calculateMaxLeafDepth(_root);
-        int minDepth = calculateMinLeafDepth(_root);
-        collectLeafDepths(_root);
+        m_maxDepth = calculateMaxLeafDepth(m_root);
+        int minDepth = calculateMinLeafDepth(m_root);
+        collectLeafDepths(m_root);
 
 //        std::cerr << "NODE STRUCT SIZE: " << sizeof(Node) << std::endl;
 //        std::cerr << "BVH SIZE: " << _nodes.size() << std::endl;
@@ -68,44 +68,44 @@ namespace core
         std::vector<Triangle> linearized_triangles;
         std::vector<int> linearized_triangle_ids;
 
-        for (const int triangle_id: _triangleIds)
+        for (const int triangle_id: m_triangleIds)
         {
             linearized_triangle_ids.push_back(linearized_triangles.size());
-            linearized_triangles.push_back(_triangles[triangle_id]);
+            linearized_triangles.push_back(m_triangles[triangle_id]);
         }
 
-        std::swap(_triangleIds, linearized_triangle_ids);
-        std::swap(_triangles, linearized_triangles);
+        std::swap(m_triangleIds, linearized_triangle_ids);
+        std::swap(m_triangles, linearized_triangles);
     }
 
 
-    int  BVH::calculateMaxLeafDepth(const Node* node, int depth) const
+    int BVH::calculateMaxLeafDepth(const Node *node, int depth) const
     {
         if (node->isLeaf())
         {
             return depth;
         }
 
-        int leftDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom], depth + 1);
-        int rightDepth = calculateMaxLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+        int leftDepth = calculateMaxLeafDepth(&m_nodes[node->leftFrom], depth + 1);
+        int rightDepth = calculateMaxLeafDepth(&m_nodes[node->leftFrom + 1], depth + 1);
 
         return std::max(leftDepth, rightDepth);
     }
 
-    int  BVH::calculateMinLeafDepth(const Node *node, int depth) const
+    int BVH::calculateMinLeafDepth(const Node *node, int depth) const
     {
         if (node->isLeaf())
         {
             return depth;
         }
 
-        int leftDepth = calculateMinLeafDepth(&_nodes[node->leftFrom], depth + 1);
-        int rightDepth = calculateMinLeafDepth(&_nodes[node->leftFrom + 1], depth + 1);
+        int leftDepth = calculateMinLeafDepth(&m_nodes[node->leftFrom], depth + 1);
+        int rightDepth = calculateMinLeafDepth(&m_nodes[node->leftFrom + 1], depth + 1);
 
         return std::min(leftDepth, rightDepth);
     }
 
-    void  BVH::collectLeafDepths(const Node *node, int currentDepth)
+    void BVH::collectLeafDepths(const Node *node, int currentDepth)
     {
         if (node->isLeaf())
         {
@@ -113,8 +113,8 @@ namespace core
             return;
         }
 
-        collectLeafDepths(&_nodes[node->leftFrom], currentDepth + 1);
-        collectLeafDepths(&_nodes[node->leftFrom + 1], currentDepth + 1);
+        collectLeafDepths(&m_nodes[node->leftFrom], currentDepth + 1);
+        collectLeafDepths(&m_nodes[node->leftFrom + 1], currentDepth + 1);
     }
 
 
@@ -122,9 +122,9 @@ namespace core
     {
         ZoneScopedN("AABB BVH Traversal");
 
-        const Node *node_stack[_nodes.size()];
+        const Node *node_stack[m_nodes.size()];
 
-        if (core::intersectAABB(_root->bbox, ray) == INF)
+        if (core::intersectAABB(m_root->bbox, ray) == INF)
         {
             return false;
         }
@@ -133,7 +133,7 @@ namespace core
         {
             int stack_pointer = 0;
 
-            node_stack[stack_pointer++] = _root;
+            node_stack[stack_pointer++] = m_root;
 
             while (stack_pointer != 0)
             {
@@ -143,10 +143,9 @@ namespace core
                 if (node->isLeaf())
                 {
                     triangleIntersection(node, ray);
-                }
-                else
+                } else
                 {
-                    const Node *left = &_nodes[node->leftFrom];
+                    const Node *left = &m_nodes[node->leftFrom];
                     const Node *right = left + 1;
 
                     float t_left = 0;
@@ -183,7 +182,7 @@ namespace core
     {
         static const __m256 inf_x8 = _mm256_set1_ps(INF);
 
-        const Node *node_stack[_nodes.size()];
+        const Node *node_stack[m_nodes.size()];
 
         bool hit = false;
         bool dead = false;
@@ -192,7 +191,7 @@ namespace core
         {
             int stack_pointer = 0;
 
-            node_stack[stack_pointer++] = _root;
+            node_stack[stack_pointer++] = m_root;
 
             while (stack_pointer != 0)
             {
@@ -202,11 +201,11 @@ namespace core
                 {
                     for (int i = node->leftFrom; i < (node->leftFrom + node->count); i++)
                     {
-                        core::intersect4x4(_triangles[i], rays);
+                        core::intersect4x4(m_triangles[i], rays);
                     }
                 } else
                 {
-                    const Node *child_0 = &_nodes[node->leftFrom];
+                    const Node *child_0 = &m_nodes[node->leftFrom];
                     const Node *child_1 = child_0 + 1;
 
                     float t_0 = core::intersect4x4(child_0->bbox, rays);
@@ -251,9 +250,9 @@ namespace core
     {
         ZoneScopedN("OBB in AABB BVH Traversal");
 
-        const Node *node_stack[_nodes.size()];
+        const Node *node_stack[m_nodes.size()];
 
-        if (core::intersectAABB(_root->bbox, ray) == INF)
+        if (core::intersectAABB(m_root->bbox, ray) == INF)
         {
             return false;
         }
@@ -262,7 +261,7 @@ namespace core
         {
             int stack_pointer = 0;
 
-            node_stack[stack_pointer++] = _root;
+            node_stack[stack_pointer++] = m_root;
 
             while (stack_pointer != 0)
             {
@@ -274,13 +273,13 @@ namespace core
 
                     for (int j = node->leftFrom; j < (node->leftFrom + node->count); j++)
                     {
-                        core::intersect(_triangles[j], ray);
+                        core::intersect(m_triangles[j], ray);
                     }
                 } else
                 {
                     ZoneScopedN("Internal OBB Intersect");
 
-                    const Node *left = &_nodes[node->leftFrom];
+                    const Node *left = &m_nodes[node->leftFrom];
                     const Node *right = left + 1;
 
                     // transform ray to obb space for both left and right node
@@ -318,9 +317,9 @@ namespace core
     {
         ZoneScopedN("Hybrid BVH Traversal");
 
-        const Node *node_stack[_nodes.size()];
+        const Node *node_stack[m_nodes.size()];
 
-        if (core::intersectAABB(_root->bbox, ray) == INF)
+        if (core::intersectAABB(m_root->bbox, ray) == INF)
         {
             return false;
         }
@@ -329,7 +328,7 @@ namespace core
         {
             int stack_pointer = 0;
 
-            node_stack[stack_pointer++] = _root;
+            node_stack[stack_pointer++] = m_root;
 
             while (stack_pointer != 0)
             {
@@ -339,10 +338,9 @@ namespace core
                 if (node->isLeaf())
                 {
                     triangleIntersection(node, ray);
-                }
-                else
+                } else
                 {
-                    const Node *left = &_nodes[node->leftFrom];
+                    const Node *left = &m_nodes[node->leftFrom];
                     const Node *right = left + 1;
 
                     float t_left = 0;
@@ -416,7 +414,7 @@ namespace core
         }
 
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
-        if (node->count > LEAF_SIZE)
+        if (node->count > TracerState::LEAF_SIZE)
         {
             const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 100);
 
@@ -426,17 +424,17 @@ namespace core
 
                 if (split_index)
                 {
-                    const int left_index = _nodes.size();
+                    const int left_index = m_nodes.size();
                     const int right_index = left_index + 1;
 
                     const int left_count = *split_index - node->leftFrom;
                     const int right_count = node->count - left_count;
 
-                    _nodes.emplace_back(node->leftFrom, left_count);
-                    _nodes.emplace_back(*split_index, right_count);
+                    m_nodes.emplace_back(node->leftFrom, left_count);
+                    m_nodes.emplace_back(*split_index, right_count);
 
-                    splitNode(&_nodes[left_index], useOBB);
-                    splitNode(&_nodes[right_index], useOBB);
+                    splitNode(&m_nodes[left_index], useOBB);
+                    splitNode(&m_nodes[right_index], useOBB);
 
                     node->leftFrom = left_index;
                     node->count = 0;
@@ -457,10 +455,10 @@ namespace core
     {
         const std::array<SplitDim, 3> split_dims =
                 {
-                SplitDim{{1.0f, 0.0f, 0.0f}, node->bbox.min.x, node->bbox.max.x},
-                SplitDim{{0.0f, 1.0f, 0.0f}, node->bbox.min.y, node->bbox.max.y},
-                SplitDim{{0.0f, 0.0f, 1.0f}, node->bbox.min.z, node->bbox.max.z},
-        };
+                        SplitDim{{1.0f, 0.0f, 0.0f}, node->bbox.min.x, node->bbox.max.x},
+                        SplitDim{{0.0f, 1.0f, 0.0f}, node->bbox.min.y, node->bbox.max.y},
+                        SplitDim{{0.0f, 0.0f, 1.0f}, node->bbox.min.z, node->bbox.max.z},
+                };
 
         const int splitsPerDimension = std::min(count, maxSplitsPerDimension);
 
@@ -566,7 +564,7 @@ namespace core
                 left_to++;
             } else
             {
-                std::swap(_triangleIds[left_to], _triangleIds[--right_from]);
+                std::swap(m_triangleIds[left_to], m_triangleIds[--right_from]);
             }
         }
 
@@ -588,7 +586,8 @@ namespace core
         {
             glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
             tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-            tempRay.rd = glm::vec3(1.0f / node->cachedRayDir.x, 1.0f / node->cachedRayDir.y, 1.0f / node->cachedRayDir.z);
+            tempRay.rd = glm::vec3(1.0f / node->cachedRayDir.x, 1.0f / node->cachedRayDir.y,
+                                   1.0f / node->cachedRayDir.z);
         } else
         {
             glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
@@ -598,7 +597,7 @@ namespace core
                                    1.0f / rayDirectionLocal.z);
         }
 
-        outT = core::intersectAABB(_unitAABB, tempRay);
+        outT = core::intersectAABB(m_unitAABB, tempRay);
     }
 
     void BVH::triangleIntersection(const core::Node *const node, Ray &ray)
@@ -633,7 +632,8 @@ namespace core
 
         // create obb matrix, transform unit AABB (-0.5 - 0.5) to obb space
         // Scale matrix
-        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * (glm::vec3(node->obb.ext.x, node->obb.ext.y, node->obb.ext.z)));
+        glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f),
+                                           2.0f * (glm::vec3(node->obb.ext.x, node->obb.ext.y, node->obb.ext.z)));
 
         // Rotation matrix
         glm::mat4 rotationMatrix = glm::mat4(
@@ -644,7 +644,8 @@ namespace core
         );
 
         // Translation matrix
-        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z));
+        glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f),
+                                                     glm::vec3(node->obb.mid.x, node->obb.mid.y, node->obb.mid.z));
 
         // Calculate the inverse of the transformation matrix
         node->obb.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);

@@ -7,7 +7,7 @@
 auto getMaterial()
 {
     std::array<std::array<float, 4>, 8> COLORS;
-    if (GlobalState::bboxView)
+    if (DebugState::BBOX_VIEW)
     {
         COLORS = {{
                           {{1.0f, 0.5f, 0.5f, 1.0f}},
@@ -62,17 +62,18 @@ glm::vec3 getColorMap(int value, int minVal, int maxVal)
 }
 
 // For AABB tree
-void cacheRayDirsAABBTree(core::BVH& bvh, const glm::vec3& rayDir)
+void cacheRayDirsAABBTree(core::BVH &bvh, const glm::vec3 &rayDir)
 {
     // Loop over all nodes in the tree
-    for (auto& node : bvh.getNodes())
+    for (auto &node: bvh.getNodes())
     {
         node.cachedRayDir = glm::vec3((node.obb.invMatrix) * glm::vec4(rayDir, 0.0f));
     }
 }
 
 // Reference implementation that traces 1 ray at a time (no SIMD)
-void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh, bool useCaching)
+void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh,
+                  bool useCaching)
 {
     const glm::vec3 ray_direction = camera.dir;
 
@@ -122,7 +123,7 @@ void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const 
                     {
                         __m128 cf = _mm_set1_ps(0.0f);
 
-                        if (GlobalState::heatmapView)
+                        if (DebugState::HEATMAP_VIEW)
                         {
                             glm::vec3 heat_map_color = getColorMap(ray.bvh_nodes_visited, 1, 200);
                             cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
@@ -212,7 +213,7 @@ void render_frameHybrid(const core::Camera &camera, core::BVH &bvh, core::RGBA *
                     {
                         __m128 cf = _mm_set1_ps(0.0f);
 
-                        if (GlobalState::heatmapView)
+                        if (DebugState::HEATMAP_VIEW)
                         {
                             glm::vec3 heat_map_color = getColorMap(ray.bvh_nodes_visited, 1, 200);
                             cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);
@@ -337,26 +338,27 @@ void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RG
 }
 
 // For OBBs
-void cacheRayDirs(core::obb::ObbTree &obbTree, std::vector<glm::vec3>& out, const glm::vec3& rayDir)
+void cacheRayDirs(core::obb::ObbTree &obbTree, std::vector<glm::vec3> &out, const glm::vec3 &rayDir)
 {
     std::vector<glm::mat4x4> cachedObbTransformations = obbTree.getTransformationCache();
-    for (auto& obbTransformation : cachedObbTransformations)
+    for (auto &obbTransformation: cachedObbTransformations)
     {
         out.emplace_back(obbTransformation * glm::vec4(rayDir, 0.0f));
     }
 }
 
-void cacheRayDirsNoClustering(core::obb::ObbTree &obbTree, const glm::vec3& rayDir)
+void cacheRayDirsNoClustering(core::obb::ObbTree &obbTree, const glm::vec3 &rayDir)
 {
     // Loop over all nodes in the tree
-    for (auto& node : obbTree.getNodes())
+    for (auto &node: obbTree.getNodes())
     {
         node.cachedRayDir = glm::vec3((node.obb.invMatrix) * glm::vec4(rayDir, 0.0f));
     }
 }
 
 // OBB tree traversal
-void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obbTree, core::RGBA *const frameBuffer, bool useClustering, bool useRayCaching)
+void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obbTree, core::RGBA *const frameBuffer,
+                     bool useClustering, bool useRayCaching)
 {
     ZoneScopedN("Render OBB Tree");
     // BEFORE LOOPING. SHARE READ ONLY
@@ -366,8 +368,7 @@ void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obbTree, co
     if (useRayCaching && useClustering)
     {
         cacheRayDirs(obbTree, cachedRayDirs, ray_direction);
-    }
-    else if (useRayCaching && !useClustering)
+    } else if (useRayCaching && !useClustering)
     {
         cacheRayDirsNoClustering(obbTree, ray_direction);
     }
@@ -405,7 +406,7 @@ void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obbTree, co
                     {
                         __m128 cf = _mm_set1_ps(0.0f);
 
-                        if (GlobalState::heatmapView)
+                        if (DebugState::HEATMAP_VIEW)
                         {
                             glm::vec3 heat_map_color = getColorMap(ray.bvh_nodes_visited, 1, 200);
                             cf = _mm_set_ps(1.0f, heat_map_color.z, heat_map_color.y, heat_map_color.x);

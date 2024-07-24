@@ -14,10 +14,13 @@ namespace debug
     {
     public:
         Visualization() = default;
+
         Visualization(const core::BVH &bvh);
+
         Visualization(const core::obb::ObbTree &obbTree);
 
         void visualizationClustering(const std::vector<DiTO::OBB<float>> &clusters);
+
         std::vector<core::Triangle> getTriangles() const { return m_triangles; }
 
     private:
@@ -26,9 +29,10 @@ namespace debug
 
         std::vector<core::Triangle> m_triangles;
 
-        void traversalNodes(const core::Node* node,
+        void traversalNodes(const core::Node *node,
                             std::vector<core::Triangle> &triangles, int &triangleId);
-        void traversalNodes(const core::obb::Node* node,
+
+        void traversalNodes(const core::obb::Node *node,
                             std::vector<core::Triangle> &triangles, int &triangleId);
 
         std::vector<core::Triangle> visualizeAABB(const glm::vec3 &center,

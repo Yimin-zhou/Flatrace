@@ -41,12 +41,17 @@ constexpr auto MAX_INTERSECTIONS = 3;
 constexpr auto SPEED = 0.0f;
 
 // AABB
-void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh, bool useCaching);
+void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh,
+                  bool useCaching);
+
 void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer);
 
 // OBB
-void cacheRayDirs(core::obb::ObbTree &obbTree, std::vector<glm::vec3>& out, const glm::vec3& rayDir);
-void render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer, bool useClustering, bool useRayCaching);
+void cacheRayDirs(core::obb::ObbTree &obbTree, std::vector<glm::vec3> &out, const glm::vec3 &rayDir);
+
+void
+render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer, bool useClustering,
+                bool useRayCaching);
 
 // Hybrid
 void render_frameHybrid(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool useCaching);

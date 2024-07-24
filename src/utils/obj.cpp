@@ -194,7 +194,7 @@ namespace utils::Obj
 
                 if (!normalize)
                 {
-                    scaleModel(triangles, glm::vec3(MODEL_SCALE));
+                    scaleModel(triangles, glm::vec3(TracerState::MODEL_SCALE));
                 }
                 return triangles;
             } else
@@ -208,10 +208,13 @@ namespace utils::Obj
         }
     }
 
-    std::vector<std::vector<core::Triangle>> loadAllObjFilesInFolder(const std::string &folderPath, const bool normalize) {
+    std::vector<std::vector<core::Triangle>>
+    loadAllObjFilesInFolder(const std::string &folderPath, const bool normalize)
+    {
         std::vector<std::vector<core::Triangle>> allTriangles;
 
-        try {
+        try
+        {
             fs::path folder = fs::path(fs::current_path().parent_path() / folderPath);
 
             // Check if the folder exists
@@ -222,15 +225,18 @@ namespace utils::Obj
             }
 
             // Iterate over all items in the directory specified by folderPath
-            for (const auto &entry : fs::directory_iterator(folder)) {
+            for (const auto &entry: fs::directory_iterator(folder))
+            {
                 // Check if the entry is a file and ends with ".obj"
-                if (entry.is_regular_file() && entry.path().extension() == ".obj") {
+                if (entry.is_regular_file() && entry.path().extension() == ".obj")
+                {
                     std::string filename = entry.path().string();
                     std::vector<core::Triangle> triangles = utils::Obj::read(filename, normalize);
                     allTriangles.push_back(triangles);
                 }
             }
-        } catch (const std::exception &e) {
+        } catch (const std::exception &e)
+        {
             std::cerr << "Error processing OBJ files: " << e.what() << std::endl;
         }
 

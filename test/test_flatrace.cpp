@@ -24,7 +24,7 @@ namespace test
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -34,7 +34,7 @@ namespace test
             models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
             std::vector<Triangle> triangles;
 
-            for (const auto &model : models)
+            for (const auto &model: models)
             {
                 triangles.insert(triangles.end(), model.begin(), model.end());
             }
@@ -43,82 +43,12 @@ namespace test
         }
     }
 
-    // check if the scene if split correctly
-//    TEST(FlatRace, BVH_Accuracy)
-//    {
-//        std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
-//
-//        for (const std::string &code : fileCode)
-//        {
-//            std::cout << std::fixed << std::setprecision(2);
-//            std::cout << "Processing file: " << code << std::endl;
-//            std::string inputFile = code;
-//
-//            std::vector<std::vector<Triangle>> models;
-//            models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
-//            std::vector<Triangle> triangles;
-//
-//            for (const auto &model : models)
-//            {
-//                triangles.insert(triangles.end(), model.begin(), model.end());
-//            }
-//
-//            // AABB BVH without OBB
-//            BVH bvh(triangles, false);
-//            int aabbBVHErrorNodeCount = 0;
-//            for (const auto &node : bvh.getNodes())
-//            {
-//                if (node.count > LEAF_SIZE)
-//                {
-//                    aabbBVHErrorNodeCount++;
-//                }
-//            }
-//            std::cout << "AABB BVH (No OBB) Error Node Count: " << aabbBVHErrorNodeCount << std::endl;
-//
-//            // AABB BVH with OBB
-//            BVH bvh_obb(triangles, true);
-//            int aabbBVH_OBBErrorNodeCount = 0;
-//            for (const auto &node : bvh_obb.getNodes())
-//            {
-//                if (node.count > LEAF_SIZE)
-//                {
-//                    aabbBVH_OBBErrorNodeCount++;
-//                }
-//            }
-//            std::cout << "AABB BVH (Has OBB) Error Node Count: " << aabbBVH_OBBErrorNodeCount << std::endl;
-//
-//            // OBB tree Midpoint
-//            core::obb::ObbTree obbTree(triangles, false, false);
-//            int obbTreeErrorNodeCount = 0;
-//            for (const auto &node : obbTree.getNodes())
-//            {
-//                if (node.count > LEAF_SIZE)
-//                {
-//                    obbTreeErrorNodeCount++;
-//                }
-//            }
-//            std::cout << "OBB Tree (Midpoint) Error Node Count: " << obbTreeErrorNodeCount << std::endl;
-//
-//            // OBB tree SAH
-//            core::obb::ObbTree obbTree_sah(triangles, true, false);
-//            int obbTreeSAHErrorNodeCount = 0;
-//            for (const auto &node : obbTree_sah.getNodes())
-//            {
-//                if (node.count > LEAF_SIZE)
-//                {
-//                    obbTreeSAHErrorNodeCount++;
-//                }
-//            }
-//            std::cout << "OBB Tree (SAH) Error Node Count: " << obbTreeSAHErrorNodeCount << std::endl << std::endl;
-//        }
-//    }
-
     // BVH building time
     TEST(FlatRace, Analysis_BVH_Build_time)
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -128,7 +58,7 @@ namespace test
             models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
             std::vector<Triangle> triangles;
 
-            for (const auto &model : models)
+            for (const auto &model: models)
             {
                 triangles.insert(triangles.end(), model.begin(), model.end());
             }
@@ -144,8 +74,10 @@ namespace test
             start = std::chrono::high_resolution_clock::now();
             BVH bvh_obb(triangles, true);
             end = std::chrono::high_resolution_clock::now();
-            float time_aabb_withobb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            std::cout << "AABB BVH (Has OBB) Construction Time taken: " << time_aabb_withobb_construction << " ms"   << std::endl;;
+            float time_aabb_withobb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    end - start).count();
+            std::cout << "AABB BVH (Has OBB) Construction Time taken: " << time_aabb_withobb_construction << " ms"
+                      << std::endl;;
 
             // OBB tree Midpoint
             start = std::chrono::high_resolution_clock::now();
@@ -158,8 +90,10 @@ namespace test
             start = std::chrono::high_resolution_clock::now();
             core::obb::ObbTree obbTree_sah(triangles, true, false);
             end = std::chrono::high_resolution_clock::now();
-            float time_obb_sah_construction = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            std::cout << "OBB Tree (SAH) Construction Time taken: " << time_obb_sah_construction << " ms" << std::endl << std::endl;
+            float time_obb_sah_construction = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    end - start).count();
+            std::cout << "OBB Tree (SAH) Construction Time taken: " << time_obb_sah_construction << " ms" << std::endl
+                      << std::endl;
         }
     }
 
@@ -191,10 +125,10 @@ namespace test
     {
         std::vector<core::obb::Node> nodes = obbTree.getNodes();
         double totalSAHCost = 0.0;
-        for (const auto &node : nodes)
+        for (const auto &node: nodes)
         {
             // DO not consider the child nodes
-            totalSAHCost += node.obb.area()  * node.count;;
+            totalSAHCost += node.obb.area() * node.count;;
         }
         return totalSAHCost;
     }
@@ -204,7 +138,7 @@ namespace test
         std::vector<Node> nodes = bvh.getNodes();
         double totalSAHCost = 0.0;
 
-        for (const auto &node : nodes)
+        for (const auto &node: nodes)
         {
             if (node.obbFlag)
             {
@@ -221,7 +155,7 @@ namespace test
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -231,7 +165,7 @@ namespace test
             models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
             std::vector<Triangle> triangles;
 
-            for (const auto &model : models)
+            for (const auto &model: models)
             {
                 triangles.insert(triangles.end(), model.begin(), model.end());
             }
@@ -263,7 +197,7 @@ namespace test
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -273,7 +207,7 @@ namespace test
             models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
             std::vector<Triangle> triangles;
 
-            for (const auto &model : models)
+            for (const auto &model: models)
             {
                 triangles.insert(triangles.end(), model.begin(), model.end());
             }
@@ -317,7 +251,7 @@ namespace test
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -396,7 +330,55 @@ namespace test
             std::cout << "Average Render Semiconductor OBB (Midpoint) Time taken: " << totalTimeOBB / 10.0 << " ms"
                       << std::endl;
             std::cout << "Average Render Semiconductor OBB (SAH) Time taken: " << totalTimeOBBSAH / 10.0 << " ms"
-                    << std::endl << std::endl;
+                      << std::endl << std::endl;
+        }
+    }
+
+    // Test OBB SAH Bin num
+    TEST(FlatRace, OBB_SAH_Bin)
+    {
+        std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
+        std::vector<int> binNum = {4, 8, 16, 32, 64, 128};
+
+        for (const std::string &code: fileCode)
+        {
+            std::cout << std::fixed << std::setprecision(2);
+            std::cout << "Processing file: " << code << std::endl;
+            std::string inputFile = code;
+
+            std::vector<std::vector<core::Triangle>> models;
+            models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + code, false);
+            std::vector<core::Triangle> triangles;
+            for (const auto &model: models)
+            {
+                triangles.insert(triangles.end(), model.begin(), model.end());
+            }
+
+            for (int num: binNum)
+            {
+                // OBB SAH
+                core::obb::ObbTree obbTreeSAH(triangles, true, false, num);
+
+                Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
+                double totalTimeOBBSAH = 0.0;
+
+                for (int i = 0; i < 10; ++i)
+                {
+                    float angle = 2 * PI * i / 10;
+                    float cx = std::cos(angle) * 2.0f;
+                    float cz = std::sin(angle) * 2.0f;
+                    Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
+
+                    // OBB SAH
+                    auto start = std::chrono::high_resolution_clock::now();
+                    render_frameOBB(camera, obbTreeSAH, frame.pixels.get(), false, false);
+                    auto end = std::chrono::high_resolution_clock::now();
+                    auto time_obb_sah = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                    totalTimeOBBSAH += time_obb_sah;
+                }
+                std::cout << "Average Render Semiconductor OBB (SAH) Time taken (Bin Num: " << num << "): "
+                          << totalTimeOBBSAH / 10.0 << " ms" << std::endl;
+            }
         }
     }
 
@@ -406,7 +388,7 @@ namespace test
         std::vector<std::string> fileCode = {"a"};
         std::vector<float> offsets = {0.01, 0.05, 0.1, 0.5, 1, 1.5, 2};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -426,7 +408,8 @@ namespace test
                 core::BVH hybrid(triangles, true, num);
                 auto end = std::chrono::high_resolution_clock::now();
                 auto time_hybrid_build = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                std::cout << "Hybrid Tree (Offset: " << num << ") Construction Time taken: " << time_hybrid_build << " ms" << std::endl;
+                std::cout << "Hybrid Tree (Offset: " << num << ") Construction Time taken: " << time_hybrid_build
+                          << " ms" << std::endl;
 
                 // SAH
                 double sahCost = calculateHybridTreeSAHCost(hybrid);
@@ -450,7 +433,8 @@ namespace test
                     auto time_hybrid = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
                     totalTime += time_hybrid;
                 }
-                std::cout << "Average Render Hybrid Tree (Offset: " << num << ") Time taken: " << totalTime / 10.0 << " ms" << std::endl;
+                std::cout << "Average Render Hybrid Tree (Offset: " << num << ") Time taken: " << totalTime / 10.0
+                          << " ms" << std::endl;
 
                 // Render (caching)
                 Frame frame_caching(FRAME_WIDTH, FRAME_HEIGHT);
@@ -470,7 +454,8 @@ namespace test
                     auto time_hybrid = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
                     totalTime_caching += time_hybrid;
                 }
-                std::cout << "Average Render Hybrid Tree(caching) (Offset: " << num << ") Time taken: " << totalTime_caching / 10.0 << " ms" << std::endl << std::endl;
+                std::cout << "Average Render Hybrid Tree(caching) (Offset: " << num << ") Time taken: "
+                          << totalTime_caching / 10.0 << " ms" << std::endl << std::endl;
 
             }
         }
@@ -481,7 +466,7 @@ namespace test
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -516,7 +501,8 @@ namespace test
                 totalTimeOBB += time_obb;
             }
 
-            std::cout << "Average Render Semiconductor AABB Tree(With OBB, With Caching) Time taken: " << totalTimeOBB / 10.0 << " ms"
+            std::cout << "Average Render Semiconductor AABB Tree(With OBB, With Caching) Time taken: "
+                      << totalTimeOBB / 10.0 << " ms"
                       << std::endl << std::endl;
         }
     }
@@ -525,7 +511,7 @@ namespace test
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -561,52 +547,18 @@ namespace test
                 totalTimeOBB += time_obb;
             }
 
-            std::cout << "Average Render Semiconductor OBB (Midpoint, No Clustering, With Caching) Time taken: " << totalTimeOBB / 10.0 << " ms"
+            std::cout << "Average Render Semiconductor OBB (No Clustering, With Caching) Time taken: "
+                      << totalTimeOBB / 10.0 << " ms"
                       << std::endl << std::endl;
-        }
-    }
-
-    // Test clustering
-    TEST(FlatRace, Build_Clustering)
-    {
-        std::vector<std::string> fileCode = {"a"};
-        std::vector<int> k = {1 , 10 , 100 , 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000};
-
-        for (const std::string &code : fileCode)
-        {
-            std::cout << std::fixed << std::setprecision(2);
-            std::cout << "Processing file: " << code << std::endl;
-            std::string inputFile = code;
-
-            for (const int num: k)
-            {
-                std::vector<std::vector<Triangle>> models;
-                models = utils::Obj::loadAllObjFilesInFolder(TEST_OBJ_FOLDER_Semi + inputFile, false);
-                std::vector<Triangle> triangles;
-
-                for (const auto &model: models)
-                {
-                    triangles.insert(triangles.end(), model.begin(), model.end());
-                }
-
-                // OBB tree without clustering
-                auto start = std::chrono::high_resolution_clock::now();
-                core::obb::ObbTree obbTree(triangles, true, true, 32, num);
-                auto end = std::chrono::high_resolution_clock::now();
-                float time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        end - start).count();
-                std::cout << "OBB Tree: k =  " << num << " Clustering, Construction Time taken: " << time_obb_construction << " ms"
-                          << std::endl;
-            }
         }
     }
 
     TEST(FlatRace, Render_KMeans)
     {
         std::vector<std::string> fileCode = {"a"};
-        std::vector<int> k = {1 , 10 , 100 , 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000};
+        std::vector<int> k = {1, 10, 100, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000};
 
-        for (const std::string &code : fileCode)
+        for (const std::string &code: fileCode)
         {
             std::cout << std::fixed << std::setprecision(2);
             std::cout << "Processing file: " << code << std::endl;
@@ -622,9 +574,17 @@ namespace test
 
             for (const int num: k)
             {
+                auto start = std::chrono::high_resolution_clock::now();
                 core::obb::ObbTree obbTree(triangles, true, true, 32, num);
+                auto end = std::chrono::high_resolution_clock::now();
+                float time_obb_construction = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        end - start).count();
+                std::cout << "OBB Tree: k =  " << num << " Clustering, Construction Time taken: "
+                          << time_obb_construction << " ms"
+                          << std::endl;
+
                 double sahCost = CalculateOBBTreeSAHCost(obbTree);
-                std::cout << "SAH Cost of OBB Tree (Clustering): " << sahCost << std::endl << std::endl;
+                std::cout << "SAH Cost of OBB Tree (Clustering): " << sahCost << std::endl;
 
                 Frame frame(FRAME_WIDTH, FRAME_HEIGHT);
 
@@ -645,7 +605,8 @@ namespace test
                     totalTimeOBB += time_obb;
                 }
 
-                std::cout << "Average Render Semiconductor OBB (Clustering) k = " << num << " Time taken: " << totalTimeOBB / 10.0
+                std::cout << "Average Render Semiconductor OBB (Clustering) k = " << num << " Time taken: "
+                          << totalTimeOBB / 10.0
                           << " ms"
                           << std::endl << std::endl;
             }

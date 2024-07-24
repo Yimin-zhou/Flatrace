@@ -55,7 +55,9 @@ first casting the array pointer to DiTO::Vector<F>* (where, e.g., F = float or F
     struct Vector
     {
         Vector(F x, F y, F z) : x(x), y(y), z(z) {}
+
         Vector() : x(0), y(0), z(0) {}
+
         F x, y, z;
     };
 
@@ -83,7 +85,7 @@ Members:
 
     // Flatten an OBB into a vector
     template<typename F>
-    Eigen::Matrix<F, Eigen::Dynamic, 1> flatten(const OBB<F>& obb)
+    Eigen::Matrix<F, Eigen::Dynamic, 1> flatten(const OBB<F> &obb)
     {
         Eigen::Matrix<F, Eigen::Dynamic, 1> flattened(12); // 4 vectors of 3 components each
 

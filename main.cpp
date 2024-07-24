@@ -17,7 +17,7 @@ int main()
 
     try
     {
-        models = utils::Obj::loadAllObjFilesInFolder(input_folder, MODEL_NORMALIZE);
+        models = utils::Obj::loadAllObjFilesInFolder(input_folder, TracerState::MODEL_NORMALIZE);
     }
     catch (std::runtime_error &e)
     {
@@ -34,7 +34,7 @@ int main()
     std::cerr << "Triangle count: " << triangles.size() << std::endl;
 
     // Flip y/z coordinates if '1' was passed on the command line, after the input file name
-    if (MODEL_FLIP)
+    if (TracerState::MODEL_FLIP)
     {
         std::transform(triangles.begin(), triangles.end(), triangles.begin(), [](const Triangle &t) -> Triangle
         {
@@ -52,46 +52,63 @@ int main()
 
     Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
+    BVH bvh;
+    core::obb::ObbTree obbTree;
+
     const auto start_bvh = steady_clock::now();
 
-#if ENABLE_OBB_BVH
-    core::obb::ObbTree obbTree(triangles, ENABLE_OBB_SAH, ENABLE_CLUSTERING, NUM_CLUSTERS);
-    if (obbTree.failed())
+    if (TracerState::ENABLE_OBB_BVH)
     {
-        std::cerr << "ObbTree construction failed" << std::endl;
-        return EXIT_FAILURE;
+        obbTree = core::obb::ObbTree(triangles, TracerState::ENABLE_OBB_SAH, TracerState::ENABLE_CLUSTERING, TracerState::NUM_BINS, TracerState::NUM_CLUSTERS);
+        if (obbTree.failed())
+        {
+            std::cerr << "ObbTree construction failed" << std::endl;
+            return EXIT_FAILURE;
+        }
     }
-#elif ENABLE_HYBRID_BVH
-    BVH bvh(triangles, ENABLE_HYBRID_BVH, 0);
-    if (bvh.failed())
+    else if (TracerState::ENABLE_HYBRID_BVH)
     {
-        std::cerr << "BVH construction failed" << std::endl;
-        return EXIT_FAILURE;
+        bvh = BVH(triangles, TracerState::ENABLE_HYBRID_BVH, 0);
+        if (bvh.failed())
+        {
+            std::cerr << "BVH construction failed" << std::endl;
+            return EXIT_FAILURE;
+        }
     }
-#else
-    BVH bvh(triangles, ENABLE_AABB_WITH_OBB);
-    if (bvh.failed())
+    else
     {
-        std::cerr << "BVH construction failed" << std::endl;
-        return EXIT_FAILURE;
+        bvh = BVH(triangles, TracerState::ENABLE_AABB_WITH_OBB, 0);
+        if (bvh.failed())
+        {
+            std::cerr << "BVH construction failed" << std::endl;
+            return EXIT_FAILURE;
+        }
     }
-#endif
+
+    debug::Visualization visualization;
+    BVH boundingBoxBVH;
 
     // Bounding box visualization
-#if ENABLE_OBB_BVH
-    #if ENABLE_CLUSTERING
-        debug::Visualization visualization(obbTree);
-        visualization.visualizationClustering(obbTree.getClusterOBBs());
-        std::vector<core::Triangle> temTris = visualization.getTriangles();
-        BVH boundingBoxBVH(temTris);
-    #else
-        debug::Visualization visualization(obbTree);
-        BVH boundingBoxBVH(visualization.getTriangles(), false);
-    #endif
-#else
-    debug::Visualization visualization(bvh);
-    BVH boundingBoxBVH(visualization.getTriangles(), false);
-#endif
+    if (TracerState::ENABLE_OBB_BVH)
+    {
+        if (TracerState::ENABLE_CLUSTERING)
+        {
+            visualization = debug::Visualization(obbTree);
+            visualization.visualizationClustering(obbTree.getClusterOBBs());
+            std::vector<core::Triangle> temTris = visualization.getTriangles();
+            boundingBoxBVH = BVH(temTris, false);
+        }
+        else
+        {
+            debug::Visualization visualization(obbTree);
+            boundingBoxBVH = BVH(visualization.getTriangles(), false);
+        }
+    }
+    else
+    {
+        debug::Visualization visualization(bvh);
+        boundingBoxBVH = BVH(visualization.getTriangles(), false);
+    }
 
     const auto end_bvh = steady_clock::now();
 
@@ -150,14 +167,20 @@ int main()
     float max_rps = -INF;
     float min_rps = INF;
 
+    int maxDepth;
+    int nodeCount;
+
     // For debugging BVH nodes
-#if ENABLE_OBB_BVH
-    int maxDepth = obbTree.getMaxDepth();
-    int nodeCount = obbTree.getNodes().size();
-#else
-    int maxDepth = bvh.getMaxDepth();
-    int nodeCount = bvh.getNodes().size();
-#endif
+    if (TracerState::ENABLE_OBB_BVH)
+    {
+        maxDepth = obbTree.getMaxDepth();
+        nodeCount = obbTree.getNodes().size();
+    }
+    else
+    {
+        maxDepth = bvh.getMaxDepth();
+        nodeCount = bvh.getNodes().size();
+    }
 
     while (!quit)
     {
@@ -192,35 +215,38 @@ int main()
 
         // not use SIMD for now
         #if 1
-            #if ENABLE_OBB_BVH
-                if (GlobalState::bboxView)
+            if (TracerState::ENABLE_OBB_BVH)
+            {
+                if (DebugState::BBOX_VIEW)
                 {
                     render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
-                }
-                else
+                } else
                 {
-                    render_frameOBB(camera, obbTree, frame.pixels.get(), ENABLE_CLUSTERING, ENABLE_CACHING);
+                    render_frameOBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
                 }
-            #elif ENABLE_HYBRID_BVH
-                if (GlobalState::bboxView)
+            }
+            else if (TracerState::ENABLE_HYBRID_BVH)
+            {
+                if (DebugState::BBOX_VIEW)
                 {
                     render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
-                }
-                else
+                } else
                 {
-                    render_frameHybrid(camera, bvh, frame.pixels.get(), ENABLE_CACHING);
+                    render_frameHybrid(camera, bvh, frame.pixels.get(), TracerState::ENABLE_CACHING);
                 }
+            }
+            else
+            {
+                if (DebugState::BBOX_VIEW)
+                {
+                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
+                } else
+                {
+                    render_frame(camera, bvh, frame.pixels.get(), TracerState::ENABLE_AABB_WITH_OBB,
+                                 TracerState::ENABLE_CACHING);
+                }
+            }
 
-            #else
-                if (GlobalState::bboxView)
-                {
-                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
-                }
-                else
-                {
-                    render_frame(camera, bvh, frame.pixels.get(), ENABLE_AABB_WITH_OBB, ENABLE_CACHING);
-                }
-            #endif
         #else
             render_frame_4x4(camera, bvh, frame.pixels.get());
         #endif
@@ -270,22 +296,18 @@ int main()
                 ImGui::Separator();
                 if (ImGui::CollapsingHeader("BVH Nodes", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-#if ENABLE_OBB_BVH
+                    if (!TracerState::ENABLE_OBB_BVH) debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
 
-#else
-                    debug::renderBVHtree(bvh.getRoot(), bvh.getNodes());
-#endif
                 }
-
                 ImGui::Separator();
 
-                if (ImGui::Checkbox("Ray heatmap view", &GlobalState::heatmapView))
+                if (ImGui::Checkbox("Ray heatmap view", &DebugState::HEATMAP_VIEW))
                 {
-                    GlobalState::bboxView = false;
+                    DebugState::BBOX_VIEW = false;
                 }
-                if (ImGui::Checkbox("BVH bounding box view", &GlobalState::bboxView))
+                if (ImGui::Checkbox("BVH bounding box view", &DebugState::BBOX_VIEW))
                 {
-                    GlobalState::heatmapView = false;
+                    DebugState::HEATMAP_VIEW = false;
                 }
             }
 

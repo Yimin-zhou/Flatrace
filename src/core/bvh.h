@@ -1,10 +1,3 @@
-// Implements a bounding volume hierarchy class for accelerated ray/triangle intersections.
-//
-// This code is based on the article 'How to build a BVH [2] & [3] by Jacco Bikker
-//
-// [2] https://jacco.ompf2.com/2022/04/18/how-to-build-a-bvh-part-2-faster-rays/
-// [3] https://jacco.ompf2.com/2022/04/21/how-to-build-a-bvh-part-3-quick-builds/
-
 #pragma once
 
 #include "types.h"
@@ -43,6 +36,7 @@ namespace core
     {
     public:
         BVH() = default;
+
         BVH(const std::vector<Triangle> &triangles, bool useOBB, float offset = 0);
 
         bool traversal(Ray &ray, const int maxIntersections);
@@ -53,17 +47,18 @@ namespace core
 
         bool traversalHybrid(Ray &ray, const int maxIntersections, bool useCaching);
 
-        bool failed() const { return _failed; }
+        bool failed() const { return m_failed; }
 
-        const Triangle &getTriangle(const int i) const { return _triangles[_triangleIds[i]]; };
+        const Triangle &getTriangle(const int i) const { return m_triangles[m_triangleIds[i]]; };
 
-        const glm::vec3 &getCentroid(const int i) const { return _triangleCentroids[_triangleIds[i]]; };
+        const glm::vec3 &getCentroid(const int i) const { return m_triangleCentroids[m_triangleIds[i]]; };
 
-        const Node *getRoot() const { return _root; }
+        const Node *getRoot() const { return m_root; }
 
-        std::vector<Node> &getNodes() { return _nodes; }
+        std::vector<Node> &getNodes() { return m_nodes; }
 
-        int getMaxDepth() const { return _maxDepth; }
+        int getMaxDepth() const { return m_maxDepth; }
+
         std::vector<int> getLeafDepths() const { return m_leafDepths; }
 
         // Generate obb
@@ -100,29 +95,32 @@ namespace core
         void linearize();
 
         int calculateMaxLeafDepth(const Node *node, int depth = 1) const;
+
         int calculateMinLeafDepth(const Node *node, int depth = 1) const;
+
         void collectLeafDepths(const Node *node, int currentDepth = 1);
 
         // Ray intersection
         void triangleIntersection(const core::Node *const node, core::Ray &ray);
+
         void intersectInternalNodesAABB(const Node *node, Ray &ray, float &outT);
 
-        void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float& outT, bool useRaycaching) const;
+        void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float &outT, bool useRaycaching) const;
 
         std::vector<int> m_leafDepths;
 
-        bool _failed;
+        bool m_failed;
 
-        std::vector<Node> _nodes;
-        std::vector<Triangle> _triangles;
+        std::vector<Node> m_nodes;
+        std::vector<Triangle> m_triangles;
 
-        std::vector<int> _triangleIds;
-        std::vector<glm::vec3> _triangleCentroids;
+        std::vector<int> m_triangleIds;
+        std::vector<glm::vec3> m_triangleCentroids;
 
-        Node *_root;
+        Node *m_root;
 
-        int _maxDepth;
-        BoundingBox _unitAABB;
+        int m_maxDepth;
+        BoundingBox m_unitAABB;
 
         float m_offset;
 
