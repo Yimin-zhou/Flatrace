@@ -338,7 +338,7 @@ namespace test
     TEST(FlatRace, OBB_SAH_Bin)
     {
         std::vector<std::string> fileCode = {"a", "b", "c", "d", "e", "f", "g"};
-        std::vector<int> binNum = {4, 8, 16, 32, 64, 128};
+        std::vector<int> binNum = {4, 8, 16, 32, 64, 128}; // TODO more bin numbers
 
         for (const std::string &code: fileCode)
         {

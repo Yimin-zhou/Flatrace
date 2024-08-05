@@ -197,21 +197,31 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node) const
     float minExtent = std::numeric_limits<float>::infinity();
     float maxExtent = -std::numeric_limits<float>::infinity();
 
+    // Median method
+//    std::vector<float> projections;
+
     // Find min and max extents of the triangles along the current axis
     for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i)
     {
         const glm::vec3 centroid = getCentroid(i);
-        // TODO get Median triangle projection
         float projection = glm::dot(centroid - glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z), axes[axis]);
 
         minExtent = std::min(minExtent, projection);
         maxExtent = std::max(maxExtent, projection);
+        // Median method
+//        projections.push_back(projection);
     }
 
     // Calculate the midpoint along the current axis
     float midPoint = (minExtent + maxExtent) * 0.5f;
 
+    // Sort // Median method
+//    std::sort(projections.begin(), projections.end());
+//    float midPoint = projections[projections.size() / 2];
+
     glm::dvec3 planePoint = glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z) + axes[axis] * midPoint;
+
+//    glm::dvec3 planePoint = glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z) + axes[axis] * midPoint;
     glm::dvec3 planeNormal = axes[axis];
 
     best_plane = Plane(planePoint, planeNormal);
