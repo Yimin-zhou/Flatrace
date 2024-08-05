@@ -152,95 +152,92 @@ in the header file. One of them can be commented out to save memory if it is not
         tMinVert[6] = vertArr[0];
         tMaxVert[6] = vertArr[0];
 
-        tbb::parallel_for(tbb::blocked_range<int>(1, nv), [&](const tbb::blocked_range<int> &r)
+        for (i = 1; i < nv; i++)
         {    // Slab 0: dir {1, 0, 0}
-            for (int i = r.begin(); i < r.end(); ++i)
+            proj = vertArr[i].x;
+            if (proj < tMinProj[0])
             {
-                proj = vertArr[i].x;
-                if (proj < tMinProj[0])
-                {
-                    tMinProj[0] = proj;
-                    tMinVert[0] = vertArr[i];
-                }
-                if (proj > tMaxProj[0])
-                {
-                    tMaxProj[0] = proj;
-                    tMaxVert[0] = vertArr[i];
-                }
-                // Slab 1: dir {0, 1, 0}
-                proj = vertArr[i].y;
-                if (proj < tMinProj[1])
-                {
-                    tMinProj[1] = proj;
-                    tMinVert[1] = vertArr[i];
-                }
-                if (proj > tMaxProj[1])
-                {
-                    tMaxProj[1] = proj;
-                    tMaxVert[1] = vertArr[i];
-                }
-                // Slab 2: dir {0, 0, 1}
-                proj = vertArr[i].z;
-                if (proj < tMinProj[2])
-                {
-                    tMinProj[2] = proj;
-                    tMinVert[2] = vertArr[i];
-                }
-                if (proj > tMaxProj[2])
-                {
-                    tMaxProj[2] = proj;
-                    tMaxVert[2] = vertArr[i];
-                }
-                // Slab 3: dir {1, 1, 1}
-                proj = vertArr[i].x + vertArr[i].y + vertArr[i].z;
-                if (proj < tMinProj[3])
-                {
-                    tMinProj[3] = proj;
-                    tMinVert[3] = vertArr[i];
-                }
-                if (proj > tMaxProj[3])
-                {
-                    tMaxProj[3] = proj;
-                    tMaxVert[3] = vertArr[i];
-                }
-                // Slab 4: dir {1, 1, -1}
-                proj = vertArr[i].x + vertArr[i].y - vertArr[i].z;
-                if (proj < tMinProj[4])
-                {
-                    tMinProj[4] = proj;
-                    tMinVert[4] = vertArr[i];
-                }
-                if (proj > tMaxProj[4])
-                {
-                    tMaxProj[4] = proj;
-                    tMaxVert[4] = vertArr[i];
-                }
-                // Slab 5: dir {1, -1, 1}
-                proj = vertArr[i].x - vertArr[i].y + vertArr[i].z;
-                if (proj < tMinProj[5])
-                {
-                    tMinProj[5] = proj;
-                    tMinVert[5] = vertArr[i];
-                }
-                if (proj > tMaxProj[5])
-                {
-                    tMaxProj[5] = proj;
-                    tMaxVert[5] = vertArr[i];
-                }
-                // Slab 6: dir {1, -1, -1}
-                proj = vertArr[i].x - vertArr[i].y - vertArr[i].z;
-                if (proj < tMinProj[6])
-                {
-                    tMinProj[6] = proj;
-                    tMinVert[6] = vertArr[i];
-                }
-                if (proj > tMaxProj[6])
-                {
-                    tMaxProj[6] = proj;
-                    tMaxVert[6] = vertArr[i];
-                }
+                tMinProj[0] = proj;
+                tMinVert[0] = vertArr[i];
             }
-        });
+            if (proj > tMaxProj[0])
+            {
+                tMaxProj[0] = proj;
+                tMaxVert[0] = vertArr[i];
+            }
+            // Slab 1: dir {0, 1, 0}
+            proj = vertArr[i].y;
+            if (proj < tMinProj[1])
+            {
+                tMinProj[1] = proj;
+                tMinVert[1] = vertArr[i];
+            }
+            if (proj > tMaxProj[1])
+            {
+                tMaxProj[1] = proj;
+                tMaxVert[1] = vertArr[i];
+            }
+            // Slab 2: dir {0, 0, 1}
+            proj = vertArr[i].z;
+            if (proj < tMinProj[2])
+            {
+                tMinProj[2] = proj;
+                tMinVert[2] = vertArr[i];
+            }
+            if (proj > tMaxProj[2])
+            {
+                tMaxProj[2] = proj;
+                tMaxVert[2] = vertArr[i];
+            }
+            // Slab 3: dir {1, 1, 1}
+            proj = vertArr[i].x + vertArr[i].y + vertArr[i].z;
+            if (proj < tMinProj[3])
+            {
+                tMinProj[3] = proj;
+                tMinVert[3] = vertArr[i];
+            }
+            if (proj > tMaxProj[3])
+            {
+                tMaxProj[3] = proj;
+                tMaxVert[3] = vertArr[i];
+            }
+            // Slab 4: dir {1, 1, -1}
+            proj = vertArr[i].x + vertArr[i].y - vertArr[i].z;
+            if (proj < tMinProj[4])
+            {
+                tMinProj[4] = proj;
+                tMinVert[4] = vertArr[i];
+            }
+            if (proj > tMaxProj[4])
+            {
+                tMaxProj[4] = proj;
+                tMaxVert[4] = vertArr[i];
+            }
+            // Slab 5: dir {1, -1, 1}
+            proj = vertArr[i].x - vertArr[i].y + vertArr[i].z;
+            if (proj < tMinProj[5])
+            {
+                tMinProj[5] = proj;
+                tMinVert[5] = vertArr[i];
+            }
+            if (proj > tMaxProj[5])
+            {
+                tMaxProj[5] = proj;
+                tMaxVert[5] = vertArr[i];
+            }
+            // Slab 6: dir {1, -1, -1}
+            proj = vertArr[i].x - vertArr[i].y - vertArr[i].z;
+            if (proj < tMinProj[6])
+            {
+                tMinProj[6] = proj;
+                tMinVert[6] = vertArr[i];
+            }
+            if (proj > tMaxProj[6])
+            {
+                tMaxProj[6] = proj;
+                tMaxVert[6] = vertArr[i];
+            }
+        }
 
         // Note: Normalization of the extremal projection values can be done here.
         // DiTO-14 only needs the extremal vertices, and the extremal projection values for slab 0-2 (to set the initial AABB).
@@ -252,16 +249,13 @@ in the header file. One of them can be commented out to save memory if it is not
         //tMinProj[6] *= 0.57735027f; tMaxProj[6] *= 0.57735027f;
 
         // Copy the result to the caller
-        tbb::parallel_for(tbb::blocked_range<int>(0, 7), [&](const tbb::blocked_range<int> &r)
+        for (int i = 0; i < 7; ++i)
         {
-            for (int i = r.begin(); i < r.end(); ++i)
-            {
-                minProj[i] = tMinProj[i];
-                maxProj[i] = tMaxProj[i];
-                minVert[i] = tMinVert[i];
-                maxVert[i] = tMaxVert[i];
-            }
-        });
+            minProj[i] = tMinProj[i];
+            maxProj[i] = tMaxProj[i];
+            minVert[i] = tMinVert[i];
+            maxVert[i] = tMaxVert[i];
+        }
     }
 
     template<typename F>
@@ -270,15 +264,12 @@ in the header file. One of them can be commented out to save memory if it is not
         F proj = dot(vertArr[0], normal);
         F tMinProj = proj, tMaxProj = proj;
 
-        tbb::parallel_for(tbb::blocked_range<int>(1, nv), [&](const tbb::blocked_range<int> &r)
+        for (int i = 1; i < nv; i++)
         {
-            for (int i = r.begin(); i < r.end(); ++i)
-            {
-                proj = dot(vertArr[i], normal);
-                if (proj < tMinProj) { tMinProj = proj; }
-                if (proj > tMaxProj) { tMaxProj = proj; }
-            }
-        });
+            proj = dot(vertArr[i], normal);
+            if (proj < tMinProj) { tMinProj = proj; }
+            if (proj > tMaxProj) { tMaxProj = proj; }
+        }
 
         minProj = tMinProj;
         maxProj = tMaxProj;
@@ -294,23 +285,20 @@ in the header file. One of them can be commented out to save memory if it is not
         F tMinProj = proj, tMaxProj = proj;
         Vector<F> tMinVert = vertArr[0], tMaxVert = vertArr[0];
 
-        tbb::parallel_for(tbb::blocked_range<int>(1, nv), [&](const tbb::blocked_range<int> &r)
+        for (int i = 1; i < nv; i++)
         {
-            for (int i = r.begin(); i < r.end(); ++i)
+            proj = dot(vertArr[i], normal);
+            if (proj < tMinProj)
             {
-                proj = dot(vertArr[i], normal);
-                if (proj < tMinProj)
-                {
-                    tMinProj = proj;
-                    tMinVert = vertArr[i];
-                }
-                if (proj > tMaxProj)
-                {
-                    tMaxProj = proj;
-                    tMaxVert = vertArr[i];
-                }
+                tMinProj = proj;
+                tMinVert = vertArr[i];
             }
-        });
+            if (proj > tMaxProj)
+            {
+                tMaxProj = proj;
+                tMaxVert = vertArr[i];
+            }
+        }
 
         // Transfer the result to the caller
         minProj = tMinProj;
@@ -338,18 +326,15 @@ in the header file. One of them can be commented out to save memory if it is not
 
         sqDistPointInfiniteEdge(vertArr[0], p0, e0, maxSqDist);
 
-        tbb::parallel_for(tbb::blocked_range<int>(1, nv), [&](const tbb::blocked_range<int> &r)
+        for (int i = 1; i < nv; i++)
         {
-            for (int i = r.begin(); i < r.end(); ++i)
+            sqDistPointInfiniteEdge(vertArr[i], p0, e0, sqDist);
+            if (sqDist > maxSqDist)
             {
-                sqDistPointInfiniteEdge(vertArr[i], p0, e0, sqDist);
-                if (sqDist > maxSqDist)
-                {
-                    maxSqDist = sqDist;
-                    maxIndex = i;
-                }
+                maxSqDist = sqDist;
+                maxIndex = i;
             }
-        });
+        }
         p = vertArr[maxIndex];
         return maxSqDist;
     }
@@ -368,18 +353,15 @@ in the header file. One of them can be commented out to save memory if it is not
         int indexFurthestPair = 0;
         F sqDist, maxSqDist;
         maxSqDist = sqPtPtDist(maxVert[0], minVert[0]);
-        tbb::parallel_for(tbb::blocked_range<int>(1, n), [&](const tbb::blocked_range<int> &r)
+        for (int k = 1; k < n; k++)
         {
-            for (int k = r.begin(); k < r.end(); ++k)
+            sqDist = sqPtPtDist(maxVert[k], minVert[k]);
+            if (sqDist > maxSqDist)
             {
-                sqDist = sqPtPtDist(maxVert[k], minVert[k]);
-                if (sqDist > maxSqDist)
-                {
-                    maxSqDist = sqDist;
-                    indexFurthestPair = k;
-                }
+                maxSqDist = sqDist;
+                indexFurthestPair = k;
             }
-        });
+        }
         p0 = minVert[indexFurthestPair];
         p1 = maxVert[indexFurthestPair];
     }
