@@ -11,8 +11,9 @@ struct TracerState
     // OBB Tree
     static bool ENABLE_OBB_BVH;
     static bool ENABLE_CLUSTERING;
-    static int NUM_CLUSTERS;
     static bool ENABLE_OBB_SAH;
+    static bool ENABLE_OBB_MEDIAN;
+    static int NUM_CLUSTERS;
     static int NUM_BINS;
 
     // Hybrid Tree

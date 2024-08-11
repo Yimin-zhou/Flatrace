@@ -11,7 +11,7 @@
 #include "Tracy.hpp"
 
 core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize,
-                            int num_clusters)
+                            int num_clusters, bool useMedian)
         :
         m_failed(false),
         m_triangles(triangles),
@@ -21,7 +21,9 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH,
         m_nGroup(num_clusters),
         m_useClustering(useClustering),
         m_clusterOBBs(m_nGroup),
-        m_binSize(binSize)
+        m_binSize(binSize),
+        m_useMedian(useMedian),
+        m_useSAH(useSAH)
 {
     std::iota(m_triangleIds.begin(), m_triangleIds.end(), 0);
 
@@ -33,7 +35,7 @@ core::obb::ObbTree::ObbTree(const std::vector<Triangle> &triangles, bool useSAH,
     m_nodes.reserve(triangles.size() * 2 - 1);
     m_root = &m_nodes.emplace_back(0, triangles.size(), 0);
 
-    splitNode(m_root, useSAH);
+    splitNode(m_root);
 
     // BVH stats
     m_maxDepth = calculateMaxLeafDepth(m_root);
@@ -120,7 +122,7 @@ bool core::obb::ObbTree::traversal4x4(core::Ray4x4 &rays, const int maxIntersect
     return false;
 }
 
-core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool useSAH)
+core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node)
 {
     computeOBB<float>(node);
 
@@ -139,7 +141,7 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
     if (node->count > TracerState::LEAF_SIZE)
     {
         std::optional<Plane> split_plane;
-        if (useSAH)
+        if (m_useSAH)
         {
             split_plane = splitPlaneSAH(node, node->leftFrom, node->count);
         } else
@@ -157,8 +159,8 @@ core::obb::Node *core::obb::ObbTree::splitNode(core::obb::Node *const node, bool
                 m_nodes.emplace_back(node->leftFrom, *split_index - node->leftFrom, left_index);
                 m_nodes.emplace_back(*split_index, node->leftFrom + node->count - *split_index, left_index + 1);
 
-                splitNode(&m_nodes[left_index], useSAH);
-                splitNode(&m_nodes[left_index + 1], useSAH);
+                splitNode(&m_nodes[left_index]);
+                splitNode(&m_nodes[left_index + 1]);
 
                 // Update the original node to no longer directly contain triangles
                 node->leftFrom = left_index;
@@ -198,7 +200,7 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node) const
     float maxExtent = -std::numeric_limits<float>::infinity();
 
     // Median method
-//    std::vector<float> projections;
+    std::vector<float> projections;
 
     // Find min and max extents of the triangles along the current axis
     for (int i = node->leftFrom; i < node->leftFrom + node->count; ++i)
@@ -209,19 +211,25 @@ core::obb::ObbTree::splitPlaneMid(const Node *const node) const
         minExtent = std::min(minExtent, projection);
         maxExtent = std::max(maxExtent, projection);
         // Median method
-//        projections.push_back(projection);
+        if (m_useMedian)
+        {
+            projections.push_back(projection);
+        }
     }
 
     // Calculate the midpoint along the current axis
     float midPoint = (minExtent + maxExtent) * 0.5f;
 
     // Sort // Median method
-//    std::sort(projections.begin(), projections.end());
-//    float midPoint = projections[projections.size() / 2];
+    if (m_useMedian)
+    {
+        std::sort(projections.begin(), projections.end());
+        midPoint = projections[projections.size() / 2];
+    }
+
 
     glm::dvec3 planePoint = glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z) + axes[axis] * midPoint;
 
-//    glm::dvec3 planePoint = glm::vec3(obb.mid.x, obb.mid.y, obb.mid.z) + axes[axis] * midPoint;
     glm::dvec3 planeNormal = axes[axis];
 
     best_plane = Plane(planePoint, planeNormal);

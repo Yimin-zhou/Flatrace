@@ -37,7 +37,7 @@ namespace core::obb
         ObbTree() = default;
 
         ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize = 16,
-                int num_clusters = 10);
+                int num_clusters = 10, bool useMedian = false);
 
         bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs,
                        bool useRaycaching);
@@ -89,7 +89,7 @@ namespace core::obb
             int triangleCount = 0;
         };
 
-        Node *splitNode(Node *const node, bool useSAH);
+        Node *splitNode(Node *const node);
 
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
 
@@ -116,6 +116,9 @@ namespace core::obb
 
         std::vector<int> m_leafDepths;
         int m_binSize;
+
+        bool m_useMedian;
+        bool m_useSAH;
 
         bool m_failed;
         std::vector<Node> m_nodes;

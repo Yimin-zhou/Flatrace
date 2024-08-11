@@ -37,7 +37,7 @@ namespace core
     public:
         BVH() = default;
 
-        BVH(const std::vector<Triangle> &triangles, bool useOBB, float offset = 0);
+        BVH(const std::vector<Triangle> &triangles, bool useOBB, int binSize = 100);
 
         bool traversal(Ray &ray, const int maxIntersections);
 
@@ -85,7 +85,7 @@ namespace core
             int trianglesRight = 0;
         };
 
-        Node *splitNode(Node *const node, bool useOBB);
+        Node *splitNode(Node *const node);
 
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
 
@@ -111,6 +111,9 @@ namespace core
 
         bool m_failed;
 
+        bool m_useOBB;
+        int m_binSize;
+
         std::vector<Node> m_nodes;
         std::vector<Triangle> m_triangles;
 
@@ -121,8 +124,6 @@ namespace core
 
         int m_maxDepth;
         BoundingBox m_unitAABB;
-
-        float m_offset;
 
     };
 

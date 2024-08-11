@@ -27,14 +27,15 @@
 namespace core
 {
 
-    BVH::BVH(const std::vector<Triangle> &triangles, bool useOBB, float offset)
+    BVH::BVH(const std::vector<Triangle> &triangles, bool useOBB, int binSize)
             :
             m_failed(false),
             m_triangles(triangles),
             m_triangleIds(triangles.size()),
             m_triangleCentroids(triangles.size()),
             m_unitAABB(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.5f, 0.5f, 0.5f)),
-            m_offset(offset)
+            m_useOBB(useOBB),
+            m_binSize(binSize)
     {
         std::iota(m_triangleIds.begin(), m_triangleIds.end(), 0);
 
@@ -46,7 +47,7 @@ namespace core
         m_nodes.reserve(triangles.size() * 2 - 1);
         m_root = &m_nodes.emplace_back(0, triangles.size());
 
-        splitNode(m_root, useOBB);
+        splitNode(m_root);
 
         m_maxDepth = calculateMaxLeafDepth(m_root);
         int minDepth = calculateMinLeafDepth(m_root);
@@ -386,10 +387,10 @@ namespace core
         return (ray.t[0] != core::INF);
     }
 
-    Node *BVH::splitNode(Node *const node, bool useOBB)
+    Node *BVH::splitNode(Node *const node)
     {
         // generate obb
-        if (useOBB)
+        if (m_useOBB)
         {
             computeOBB<float>(node);
         }
@@ -405,9 +406,9 @@ namespace core
         }
 
         // Compare surface area of AABB and OBB
-        if (useOBB)
+        if (m_useOBB)
         {
-            if (node->bbox.area() > node->obb.area() + m_offset)
+            if (node->bbox.area() > node->obb.area())
             {
                 node->obbFlag = true;
             }
@@ -416,7 +417,7 @@ namespace core
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
         if (node->count > TracerState::LEAF_SIZE)
         {
-            const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, 100);
+            const std::optional<Plane> split_plane = splitPlaneSAH(node, node->leftFrom, node->count, m_binSize);
 
             if (split_plane)
             {
@@ -433,8 +434,8 @@ namespace core
                     m_nodes.emplace_back(node->leftFrom, left_count);
                     m_nodes.emplace_back(*split_index, right_count);
 
-                    splitNode(&m_nodes[left_index], useOBB);
-                    splitNode(&m_nodes[right_index], useOBB);
+                    splitNode(&m_nodes[left_index]);
+                    splitNode(&m_nodes[right_index]);
 
                     node->leftFrom = left_index;
                     node->count = 0;

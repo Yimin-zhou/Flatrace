@@ -11,7 +11,8 @@ bool TracerState::ENABLE_AABB_WITH_OBB = false;
 bool TracerState::ENABLE_OBB_BVH = true;
 bool TracerState::ENABLE_CLUSTERING = false;
 int TracerState::NUM_CLUSTERS = 10;
-bool TracerState::ENABLE_OBB_SAH = true;
+bool TracerState::ENABLE_OBB_SAH = false;
+bool TracerState::ENABLE_OBB_MEDIAN = true;
 int TracerState::NUM_BINS = 16;
 
 // Hybrid Tree

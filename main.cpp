@@ -10,7 +10,7 @@ int main()
     using namespace core;
 
     // Set a default model
-    const std::string input_folder("test/input/stacks/stack_c");
+    const std::string input_folder("test/input/stacks/stack_a");
 
     // Load getTriangle data
     std::vector<std::vector<Triangle>> models;
@@ -68,7 +68,7 @@ int main()
     }
     else if (TracerState::ENABLE_HYBRID_BVH)
     {
-        bvh = BVH(triangles, TracerState::ENABLE_HYBRID_BVH, 0);
+        bvh = BVH(triangles, TracerState::ENABLE_HYBRID_BVH);
         if (bvh.failed())
         {
             std::cerr << "BVH construction failed" << std::endl;
@@ -77,7 +77,7 @@ int main()
     }
     else
     {
-        bvh = BVH(triangles, TracerState::ENABLE_AABB_WITH_OBB, 0);
+        bvh = BVH(triangles, TracerState::ENABLE_AABB_WITH_OBB);
         if (bvh.failed())
         {
             std::cerr << "BVH construction failed" << std::endl;
