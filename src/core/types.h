@@ -220,9 +220,6 @@ namespace core
             alignas(32) std::array<float, 16> oy;
             alignas(32) std::array<float, 16> oz;
 
-            // For debugging: Initialize the node visit counters
-//    std::fill(bvh_nodes_visited.begin(), bvh_nodes_visited.end(), 0);
-
             for (int i = 0; i < 4; i++)
             {
                 for (int j = 0; j < 4; j++)

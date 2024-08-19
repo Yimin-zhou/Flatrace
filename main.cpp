@@ -66,18 +66,9 @@ int main()
             return EXIT_FAILURE;
         }
     }
-    else if (TracerState::ENABLE_HYBRID_BVH)
-    {
-        bvh = BVH(triangles, TracerState::ENABLE_HYBRID_BVH);
-        if (bvh.failed())
-        {
-            std::cerr << "BVH construction failed" << std::endl;
-            return EXIT_FAILURE;
-        }
-    }
     else
     {
-        bvh = BVH(triangles, TracerState::ENABLE_AABB_WITH_OBB);
+        bvh = BVH(triangles, TracerState::ENABLE_AABB_WITH_OBB, TracerState::ENABLE_HYBRID_BVH);
         if (bvh.failed())
         {
             std::cerr << "BVH construction failed" << std::endl;
@@ -96,18 +87,18 @@ int main()
             visualization = debug::Visualization(obbTree);
             visualization.visualizationClustering(obbTree.getClusterOBBs());
             std::vector<core::Triangle> temTris = visualization.getTriangles();
-            boundingBoxBVH = BVH(temTris, false);
+            boundingBoxBVH = BVH(temTris, false, false);
         }
         else
         {
             debug::Visualization visualization(obbTree);
-            boundingBoxBVH = BVH(visualization.getTriangles(), false);
+            boundingBoxBVH = BVH(visualization.getTriangles(), false, false);
         }
     }
     else
     {
         debug::Visualization visualization(bvh);
-        boundingBoxBVH = BVH(visualization.getTriangles(), false);
+        boundingBoxBVH = BVH(visualization.getTriangles(), false, false);
     }
 
     const auto end_bvh = steady_clock::now();
@@ -222,7 +213,7 @@ int main()
                     render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
                 } else
                 {
-                    render_frameOBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
+                    render_frame_4x4OBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
                 }
             }
             else if (TracerState::ENABLE_HYBRID_BVH)
@@ -232,7 +223,7 @@ int main()
                     render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
                 } else
                 {
-                    render_frameHybrid(camera, bvh, frame.pixels.get(), TracerState::ENABLE_CACHING);
+                    render_frameHybrid(camera, bvh, frame.pixels.get(), TracerState::ENABLE_CACHING, TracerState::ENABLE_CLUSTERING);
                 }
             }
             else
@@ -243,7 +234,7 @@ int main()
                 } else
                 {
                     render_frame(camera, bvh, frame.pixels.get(), TracerState::ENABLE_AABB_WITH_OBB,
-                                 TracerState::ENABLE_CACHING);
+                                 TracerState::ENABLE_CACHING, TracerState::ENABLE_CLUSTERING);
                 }
             }
 
