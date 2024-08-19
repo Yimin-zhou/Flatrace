@@ -37,12 +37,12 @@ namespace core::obb
         ObbTree() = default;
 
         ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize = 16,
-                int num_clusters = 10);
+                int num_clusters = 10, bool useMedian = false);
 
         bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs,
                        bool useRaycaching);
 
-        bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
+        bool traversal4x4(Ray4x4 &rays, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching) const;
 
         bool failed() const { return m_failed; }
 
@@ -73,6 +73,8 @@ namespace core::obb
         // For cluster obb visualization
         std::vector<DiTO::OBB<float>> getClusterOBBs() const { return m_clusterOBBs; }
 
+        int getLeafSize() const { return m_leafSize; }
+
     private:
         struct SplitDim
         {
@@ -89,7 +91,7 @@ namespace core::obb
             int triangleCount = 0;
         };
 
-        Node *splitNode(Node *const node, bool useSAH);
+        Node *splitNode(Node *const node);
 
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
 
@@ -111,11 +113,19 @@ namespace core::obb
         void intersectInternalNodes(const Node *node, core::Ray &ray, float &outT,
                                     const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching);
 
+        float intersectInternalNodes4x4(const Node *node, core::Ray4x4 &rays,
+                                  const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching) const;
+
         // SAH
         float evaluateSAH(const Node *const node, const glm::vec3 &axis, const float candidateProj) const;
 
         std::vector<int> m_leafDepths;
         int m_binSize;
+
+        int m_leafSize;
+
+        bool m_useMedian;
+        bool m_useSAH;
 
         bool m_failed;
         std::vector<Node> m_nodes;

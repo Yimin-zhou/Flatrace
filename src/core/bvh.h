@@ -14,17 +14,18 @@ namespace core
     struct Node
     {
     public:
-        Node(const int from, const int count)
+        Node(const int from, const int count, const uint32_t index)
                 :
-                leftFrom(from), count(count)
+                leftFrom(from), count(count), index(index)
         {
         }
-
+        uint32_t index;
         BoundingBox bbox;
         DiTO::OBB<float> obb;
 
         int leftFrom;
         int count;
+        int groupNumber = -1;
         glm::vec3 cachedRayDir;
 
         bool obbFlag;
@@ -37,15 +38,15 @@ namespace core
     public:
         BVH() = default;
 
-        BVH(const std::vector<Triangle> &triangles, bool useOBB, float offset = 0);
+        BVH(const std::vector<Triangle> &triangles, bool useOBB, bool isHybrid, int binSize = 100, bool useClustering = false, int nGroup = 10);
 
         bool traversal(Ray &ray, const int maxIntersections);
 
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
-        bool traversalOBB(Ray &ray, const int maxIntersections, bool useCaching) const;
+        bool traversalOBB(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useCaching) const;
 
-        bool traversalHybrid(Ray &ray, const int maxIntersections, bool useCaching);
+        bool traversalHybrid(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useCaching);
 
         bool failed() const { return m_failed; }
 
@@ -64,6 +65,10 @@ namespace core
         // Generate obb
         template<typename F>
         void computeOBB(Node *node);
+
+        // Clustering
+        std::vector<glm::mat4x4> getTransformationCache() { return m_transformationCache; }
+        int getOBBLeafSize() { return m_enabledOBBLeafSize; }
 
     private:
         struct SplitDim
@@ -85,7 +90,7 @@ namespace core
             int trianglesRight = 0;
         };
 
-        Node *splitNode(Node *const node, bool useOBB);
+        Node *splitNode(Node *const node);
 
         std::optional<int> partition(const int from, const int count, const Plane &splitPlane);
 
@@ -105,11 +110,25 @@ namespace core
 
         void intersectInternalNodesAABB(const Node *node, Ray &ray, float &outT);
 
-        void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float &outT, bool useRaycaching) const;
+        void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float &outT,
+                                       const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching) const;
+
+        // Clustering for OBB
+        std::vector<std::vector<Node>> clusterOBBsKmeans(int num_clusters);
+        void cacheTransformations();
+
+        int m_nGroup;
+        std::vector<glm::mat4x4> m_transformationCache;
+        std::vector<std::vector<Node>> m_clusteredNodes;
+        bool m_useClustering;
+        int m_enabledOBBLeafSize;
 
         std::vector<int> m_leafDepths;
 
         bool m_failed;
+
+        bool m_useOBB;
+        int m_binSize;
 
         std::vector<Node> m_nodes;
         std::vector<Triangle> m_triangles;
@@ -122,8 +141,8 @@ namespace core
         int m_maxDepth;
         BoundingBox m_unitAABB;
 
-        float m_offset;
-
+        // Hybrid
+        bool m_isHybrid;
     };
 
 

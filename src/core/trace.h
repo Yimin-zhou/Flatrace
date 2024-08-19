@@ -42,7 +42,7 @@ constexpr auto SPEED = 0.0f;
 
 // AABB
 void render_frame(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool obbInAABBbvh,
-                  bool useCaching);
+                  bool useCaching, bool useClustering);
 
 void render_frame_4x4(const core::Camera &camera, const core::BVH &bvh, core::RGBA *const frameBuffer);
 
@@ -53,6 +53,9 @@ void
 render_frameOBB(const core::Camera &camera, core::obb::ObbTree &obb, core::RGBA *const frameBuffer, bool useClustering,
                 bool useRayCaching);
 
+void render_frame_4x4OBB(const core::Camera &camera, core::obb::ObbTree &obbTree, core::RGBA *const frameBuffer,
+                         bool useClustering, bool useRayCaching);
+
 // Hybrid
-void render_frameHybrid(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool useCaching);
+void render_frameHybrid(const core::Camera &camera, core::BVH &bvh, core::RGBA *const frameBuffer, bool useCaching, bool useClustering);
 

@@ -11,15 +11,16 @@ bool TracerState::ENABLE_AABB_WITH_OBB = false;
 bool TracerState::ENABLE_OBB_BVH = true;
 bool TracerState::ENABLE_CLUSTERING = false;
 int TracerState::NUM_CLUSTERS = 10;
-bool TracerState::ENABLE_OBB_SAH = false;
-int TracerState::NUM_BINS = 16;
+bool TracerState::ENABLE_OBB_SAH = true;
+bool TracerState::ENABLE_OBB_MEDIAN = false;
+int TracerState::NUM_BINS = 32;
 
 // Hybrid Tree
 bool TracerState::ENABLE_HYBRID_BVH = false;
 
 bool TracerState::MODEL_NORMALIZE = false;
 float TracerState::MODEL_SCALE = 0.00035f;
-// float GlobalState::MODEL_SCALE = 1.0f;
+// float TracerState::MODEL_SCALE = 1.0f;
 bool TracerState::MODEL_FLIP = false;
 
 bool DebugState::HEATMAP_VIEW = false;

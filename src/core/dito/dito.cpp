@@ -37,6 +37,7 @@ Version: 1.0
 
 #include "dito.h"
 #include <cmath>
+#include <tbb/parallel_for.h>
 
 namespace DiTO
 {
