@@ -1,12 +1,68 @@
 # Intro
-This a thesis project.
+Thesis for ASML and TUD.
 
 # Environment
-Linux.
+Linux or MacOS with CMake and a C++ compiler.
 
-More info will be added to README later.
+# Libraries
+- glm
+- Boost
+- TBB
+- SDL2
+- GTest
+- Eigen3
+- mlpack
 
-Below is the original README.md from the flatrace project from Wouter.
+# Settings
+The settings are in the src/utils/globalState.cpp.
+The Model path is hardcoded in the src/main.cpp.
+
+```bash c++
+// Optimization
+int TracerState::LEAF_SIZE = 15; // threshold for leaf node
+bool TracerState::ENABLE_CACHING = false; // Ray direction caching
+
+// AABB Tree
+bool TracerState::ENABLE_AABB_WITH_OBB = false; // Should tracing OBB in AABB tree?
+
+// OBB Tree
+bool TracerState::ENABLE_OBB_BVH = true; // use OBB Tree
+bool TracerState::ENABLE_CLUSTERING = false; // use clustering method (only for BVHs with OBB)
+int TracerState::NUM_CLUSTERS = 10; // number of clusters
+bool TracerState::ENABLE_OBB_SAH = true; // use SAH for OBB Tree 
+bool TracerState::ENABLE_OBB_MEDIAN = false; // use median for OBB Tree
+int TracerState::NUM_BINS = 32; // number of bins for SAH
+bool TracerState::ENABLE_OBB_SIMD = false; // use SIMD for OBB Tree
+
+// Hybrid Tree
+bool TracerState::ENABLE_HYBRID_BVH = false;
+
+bool TracerState::MODEL_NORMALIZE = false;
+float TracerState::MODEL_SCALE = 0.00035f;
+// float TracerState::MODEL_SCALE = 1.0f;
+bool TracerState::MODEL_FLIP = false;
+
+bool DebugState::HEATMAP_VIEW = false;
+bool DebugState::BBOX_VIEW = false;
+
+```
+
+# Build
+I'm using Clion for development.
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
+
+# Run
+```bash
+./flatrace
+```
+
+
+Below is the original README.md from the flatrace project by Wouter.
 ----------------------------------------------------------------------
 # flatrace
 

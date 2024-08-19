@@ -14,6 +14,7 @@ int TracerState::NUM_CLUSTERS = 10;
 bool TracerState::ENABLE_OBB_SAH = true;
 bool TracerState::ENABLE_OBB_MEDIAN = false;
 int TracerState::NUM_BINS = 32;
+bool TracerState::ENABLE_OBB_SIMD = true;
 
 // Hybrid Tree
 bool TracerState::ENABLE_HYBRID_BVH = false;

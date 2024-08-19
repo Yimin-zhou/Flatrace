@@ -213,7 +213,14 @@ int main()
                     render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
                 } else
                 {
-                    render_frame_4x4OBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
+                    if (TracerState::ENABLE_OBB_SIMD)
+                    {
+                        render_frame_4x4OBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
+                    }
+                    else
+                    {
+                        render_frameOBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
+                    }
                 }
             }
             else if (TracerState::ENABLE_HYBRID_BVH)

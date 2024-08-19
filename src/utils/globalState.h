@@ -15,6 +15,7 @@ struct TracerState
     static bool ENABLE_OBB_MEDIAN;
     static int NUM_CLUSTERS;
     static int NUM_BINS;
+    static bool ENABLE_OBB_SIMD;
 
     // Hybrid Tree
     static bool ENABLE_HYBRID_BVH;
