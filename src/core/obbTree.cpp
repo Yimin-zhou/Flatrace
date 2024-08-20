@@ -796,39 +796,55 @@ float core::obb::ObbTree::intersectInternalNodes4x4(const Node *node, core::Ray4
 {
     core::Ray4x4 tempRay = rays;
 
-    for (int i = 0; i < 2; i++)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            __m128 row = _mm_loadu_ps(&node->obb.invMatrix[j][0]);
-            __m128 vec = _mm_loadu_ps(&tempRay.ox_x8[i * 8 + j]);
-            __m128 prod = _mm_mul_ps(row, vec);
+    // load rays origin into vectors
+    //    Ray tempRay = ray;
+    //    glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
 
-            prod = _mm_hadd_ps(prod, prod);
-            prod = _mm_hadd_ps(prod, prod);
-            _mm_store_ss(&tempRay.ox_x8.data()[i * 8 + j], prod);
+    __m256 ox_x8 = _mm256_load_ps(tempRay.ox_x8.data());
+    __m256 oy_x8 = _mm256_load_ps(tempRay.oy_x8.data());
+    __m256 oz_x8 = _mm256_load_ps(tempRay.oz_x8.data());
+    // w component is 1.0f
+    __m256 ow_x8 = _mm256_set1_ps(1.0f);
+
+    for (int j = 0; j < 3; j++)
+    {
+        // row by row
+        __m256 factor_x = _mm256_set1_ps(node->obb.invMatrix[j][0]);
+        __m256 factor_y = _mm256_set1_ps(node->obb.invMatrix[j][1]);
+        __m256 factor_z = _mm256_set1_ps(node->obb.invMatrix[j][2]);
+        __m256 factor_w = _mm256_set1_ps(node->obb.invMatrix[j][3]);
+
+        __m256 ox_x8_temp = _mm256_mul_ps(factor_x, ox_x8);
+        __m256 oy_x8_temp = _mm256_mul_ps(factor_y, oy_x8);
+        __m256 oz_x8_temp = _mm256_mul_ps(factor_z, oz_x8);
+        __m256 ow_x8_temp = _mm256_mul_ps(factor_w, ow_x8);
+
+        __m256 result = _mm256_add_ps(ox_x8_temp, oy_x8_temp);
+        result = _mm256_add_ps(result, oz_x8_temp);
+        result = _mm256_add_ps(result, ow_x8_temp);
+
+        if (j == 0)
+        {
+            _mm256_store_ps(tempRay.ox_x8.data(), result);
+        }
+        else if (j == 1)
+        {
+            _mm256_store_ps(tempRay.oy_x8.data(), result);
+        }
+        else if (j == 2)
+        {
+            _mm256_store_ps(tempRay.oz_x8.data(), result);
         }
     }
 
     if (node->isLeaf() && m_useClustering && useRaycaching)
     {
-        glm::vec3 rayDirectionLocal = glm::vec3(1.0f / cachedClusterRaydirs[node->groupNumber].x,
-                                                1.0f / cachedClusterRaydirs[node->groupNumber].y,
-                                                1.0f / cachedClusterRaydirs[node->groupNumber].z);
-
-        tempRay.rd = glm::vec3(1.0f / cachedClusterRaydirs[node->groupNumber].x,
-                               1.0f / cachedClusterRaydirs[node->groupNumber].y,
-                               1.0f / cachedClusterRaydirs[node->groupNumber].z);
-    }
-    else if (useRaycaching && !m_useClustering)
-    {
-        glm::vec3 rayDirectionLocal = glm::vec3(1.0f / node->cachedRayDir.x,
-                                                1.0f / node->cachedRayDir.y,
-                                                1.0f / node->cachedRayDir.z);
-
+        glm::vec3 rayDirectionLocal = cachedClusterRaydirs[node->groupNumber];
         tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
-    }
-    else
+    } else if (useRaycaching && !m_useClustering)
+    {
+        tempRay.rd = glm::vec3(1.0f / node->cachedRayDir.x, 1.0f / node->cachedRayDir.y, 1.0f / node->cachedRayDir.z);
+    } else
     {
         glm::vec3 rayDirectionLocal = (node->obb.invMatrix) * glm::vec4(tempRay.d, 0.0f);
         tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
