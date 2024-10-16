@@ -9,6 +9,9 @@ namespace utils::Ppm
 
     void write(const std::string &filename, const core::Frame &frame)
     {
+        // Create a PPM file and write the frame to it if it doesn't exist
+
+
         std::ofstream out(filename, std::ios::binary);
 
         if (!out.is_open())

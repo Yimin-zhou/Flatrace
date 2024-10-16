@@ -8,6 +8,7 @@
 #include <vector>
 #include <optional>
 #include <numeric>
+#include <tbb/concurrent_hash_map.h>
 
 namespace core::obb
 {
@@ -26,7 +27,6 @@ namespace core::obb
         int leftFrom;
         int count;
         int groupNumber = -1;
-        glm::vec3 cachedRayDir;
 
         bool isLeaf() const { return (count != 0); }
     };
@@ -39,10 +39,9 @@ namespace core::obb
         ObbTree(const std::vector<Triangle> &triangles, bool useSAH, bool useClustering, int binSize = 16,
                 int num_clusters = 10, bool useMedian = false);
 
-        bool traversal(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs,
-                       bool useRaycaching);
+        bool traversal(Ray &ray, const int maxIntersections);
 
-        bool traversal4x4(Ray4x4 &rays, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching) const;
+        bool traversal4x4(Ray4x4 &rays, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs) const;
 
         bool failed() const { return m_failed; }
 
@@ -74,6 +73,11 @@ namespace core::obb
         std::vector<DiTO::OBB<float>> getClusterOBBs() const { return m_clusterOBBs; }
 
         int getLeafSize() const { return m_leafSize; }
+
+        // Clear the ray direction cache
+        void clearRayDirCache() { m_cachedClusterRaydirs = std::vector<glm::vec3>(m_nGroup); }
+
+        bool useClustering() const { return m_useClustering; }
 
     private:
         struct SplitDim
@@ -110,14 +114,14 @@ namespace core::obb
         // Ray intersection
         void triangleIntersection(const core::obb::Node *const node, core::Ray &ray);
 
-        void intersectInternalNodes(const Node *node, core::Ray &ray, float &outT,
-                                    const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching);
+        void intersectInternalNodes(const Node *node, core::Ray &ray, float &outT);
 
         float intersectInternalNodes4x4(const Node *node, core::Ray4x4 &rays,
-                                  const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching) const;
+                                  const std::vector<glm::vec3> &cachedClusterRaydirs) const;
 
         // SAH
         float evaluateSAH(const Node *const node, const glm::vec3 &axis, const float candidateProj) const;
+
 
         std::vector<int> m_leafDepths;
         int m_binSize;
@@ -144,6 +148,7 @@ namespace core::obb
 
         // for visualization
         std::vector<DiTO::OBB<float>> m_clusterOBBs;
+        std::vector<glm::vec3> m_cachedClusterRaydirs;
     };
 }
 

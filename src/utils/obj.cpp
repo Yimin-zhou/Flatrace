@@ -70,7 +70,8 @@ namespace utils::Obj
             vertexIndex = qi::int_ >> qi::omit[*('/' >> -qi::int_)];
             face = qi::lexeme['f'] >> (qi::repeat(3, 4)[vertexIndex] > qi::eol);
 
-            material = qi::lexeme["usemtl"] >> (label > qi::eol);
+            material = qi::lexeme["usemtl"] >> (label > qi::eol)
+                       | qi::lexeme["mtllib"] >> (label > qi::eol);
 
             unknown = *(qi::char_ - qi::eol) >> qi::eol;
 

@@ -66,7 +66,8 @@ set(TRACY_DIR "${PROJECT_SOURCE_DIR}/third_party/tracy/public")
 include_directories ("${TRACY_DIR}/tracy")
 # Adding TracyClient.cpp only in Profile build
 if (CMAKE_BUILD_TYPE STREQUAL "Profile")
-  set(TRACY_SOURCES "${TRACY_DIR}/TracyClient.cpp")
+  set(TRACY_SOURCES "${TRACY_DIR}/TracyClient.cpp"
+          src/core/obbTree.cpp)
 endif()
 
 include_directories (PRIVATE ".")

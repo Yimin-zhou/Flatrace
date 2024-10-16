@@ -2,18 +2,20 @@
 
 // Optimization
 int TracerState::LEAF_SIZE = 15;
-bool TracerState::ENABLE_CACHING = false;
+int TracerState::HEATMAP_SIZE = 256;
 
 // AABB Tree
 bool TracerState::ENABLE_AABB_WITH_OBB = false;
+bool TracerState::ENABLE_AABB_SIMD = false;
 
 // OBB Tree
 bool TracerState::ENABLE_OBB_BVH = true;
 bool TracerState::ENABLE_CLUSTERING = false;
-int TracerState::NUM_CLUSTERS = 10;
+//bool TracerState::ENABLE_CACHING = false;
+int TracerState::NUM_CLUSTERS = 200;
 bool TracerState::ENABLE_OBB_SAH = true;
 bool TracerState::ENABLE_OBB_MEDIAN = false;
-int TracerState::NUM_BINS = 32;
+int TracerState::NUM_BINS = 100;
 bool TracerState::ENABLE_OBB_SIMD = true;
 
 // Hybrid Tree

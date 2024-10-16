@@ -47,9 +47,9 @@ int main()
     }
 
     // camera
-    const float cx = std::cos(2.0f) * 2.0f;
-    const float cz = std::sin(2.0f) * 2.0f;
-
+    float angle = 2.0f;
+    float cx = std::cos(angle) * 2.0f;
+    float cz = std::sin(angle) * 2.0f;
     Camera camera = {{cx, 1.0f, cz}, {-cx, -1.0f, -cz}, {0.0f, 1.0f, 0.0f}, 5.0f};
 
     BVH bvh;
@@ -68,7 +68,7 @@ int main()
     }
     else
     {
-        bvh = BVH(triangles, TracerState::ENABLE_AABB_WITH_OBB, TracerState::ENABLE_HYBRID_BVH);
+        bvh = BVH(triangles, TracerState::ENABLE_AABB_WITH_OBB, TracerState::ENABLE_HYBRID_BVH, TracerState::NUM_BINS, TracerState::ENABLE_CLUSTERING, TracerState::NUM_CLUSTERS);
         if (bvh.failed())
         {
             std::cerr << "BVH construction failed" << std::endl;
@@ -204,50 +204,50 @@ int main()
         // Render frame
         const auto start = steady_clock::now();
 
-        // not use SIMD for now
-        #if 1
-            if (TracerState::ENABLE_OBB_BVH)
+        if (TracerState::ENABLE_OBB_BVH)
+        {
+            if (DebugState::BBOX_VIEW)
             {
-                if (DebugState::BBOX_VIEW)
+                render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
+            } else
+            {
+                if (TracerState::ENABLE_OBB_SIMD)
                 {
-                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
-                } else
+                    render_frame_4x4OBB(camera, obbTree, frame.pixels.get());
+                }
+                else
                 {
-                    if (TracerState::ENABLE_OBB_SIMD)
-                    {
-                        render_frame_4x4OBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
-                    }
-                    else
-                    {
-                        render_frameOBB(camera, obbTree, frame.pixels.get(), TracerState::ENABLE_CLUSTERING, TracerState::ENABLE_CACHING);
-                    }
+                    render_frameOBB(camera, obbTree, frame.pixels.get());
                 }
             }
-            else if (TracerState::ENABLE_HYBRID_BVH)
+        }
+        else if (TracerState::ENABLE_HYBRID_BVH)
+        {
+            if (DebugState::BBOX_VIEW)
             {
-                if (DebugState::BBOX_VIEW)
+                render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
+            } else
+            {
+                render_frameHybrid(camera, bvh, frame.pixels.get());
+            }
+        }
+        else
+        {
+            if (DebugState::BBOX_VIEW)
+            {
+                render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
+            } else
+            {
+                if (TracerState::ENABLE_AABB_SIMD)
                 {
-                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
-                } else
+                    render_frame_4x4(camera, bvh, frame.pixels.get());
+                }
+                else
                 {
-                    render_frameHybrid(camera, bvh, frame.pixels.get(), TracerState::ENABLE_CACHING, TracerState::ENABLE_CLUSTERING);
+                    render_frame(camera, bvh, frame.pixels.get(), TracerState::ENABLE_AABB_WITH_OBB);
                 }
             }
-            else
-            {
-                if (DebugState::BBOX_VIEW)
-                {
-                    render_frame_4x4(camera, boundingBoxBVH, frame.pixels.get());
-                } else
-                {
-                    render_frame(camera, bvh, frame.pixels.get(), TracerState::ENABLE_AABB_WITH_OBB,
-                                 TracerState::ENABLE_CACHING, TracerState::ENABLE_CLUSTERING);
-                }
-            }
-
-        #else
-            render_frame_4x4(camera, bvh, frame.pixels.get());
-        #endif
+        }
 
         const auto end = steady_clock::now();
 

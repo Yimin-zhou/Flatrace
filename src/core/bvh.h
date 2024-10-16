@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <optional>
+#include <tbb/concurrent_hash_map.h>
+
 
 namespace core
 {
@@ -16,7 +18,7 @@ namespace core
     public:
         Node(const int from, const int count, const uint32_t index)
                 :
-                leftFrom(from), count(count), index(index)
+                index(index), leftFrom(from), count(count)
         {
         }
         uint32_t index;
@@ -26,7 +28,6 @@ namespace core
         int leftFrom;
         int count;
         int groupNumber = -1;
-        glm::vec3 cachedRayDir;
 
         bool obbFlag;
 
@@ -44,9 +45,9 @@ namespace core
 
         bool traversal4x4(Ray4x4 &rays, const int maxIntersections) const;
 
-        bool traversalOBB(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useCaching) const;
+        bool traversalOBB(Ray &ray, const int maxIntersections);
 
-        bool traversalHybrid(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useCaching);
+        bool traversalHybrid(Ray &ray, const int maxIntersections);
 
         bool failed() const { return m_failed; }
 
@@ -69,6 +70,8 @@ namespace core
         // Clustering
         std::vector<glm::mat4x4> getTransformationCache() { return m_transformationCache; }
         int getOBBLeafSize() { return m_enabledOBBLeafSize; }
+
+        void clearRayDirCache() { m_cachedClusterRaydirs = std::vector<glm::vec3>(m_nGroup); }
 
     private:
         struct SplitDim
@@ -110,8 +113,7 @@ namespace core
 
         void intersectInternalNodesAABB(const Node *node, Ray &ray, float &outT);
 
-        void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float &outT,
-                                       const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching) const;
+        void intersectInternalNodesOBB(const Node *node, core::Ray &ray, float &outT);
 
         // Clustering for OBB
         std::vector<std::vector<Node>> clusterOBBsKmeans(int num_clusters);
@@ -143,6 +145,13 @@ namespace core
 
         // Hybrid
         bool m_isHybrid;
+
+        // for visualization
+        std::vector<DiTO::OBB<float>> m_clusterOBBs;
+        std::vector<glm::vec3> m_cachedClusterRaydirs;
+
+
+
     };
 
 

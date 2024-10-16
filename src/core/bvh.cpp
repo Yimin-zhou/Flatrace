@@ -40,7 +40,8 @@ namespace core
             m_binSize(binSize),
             m_useClustering(useClustering),
             m_nGroup(nGroup),
-            m_isHybrid(isHybrid)
+            m_isHybrid(isHybrid),
+            m_cachedClusterRaydirs(nGroup)
     {
         std::iota(m_triangleIds.begin(), m_triangleIds.end(), 0);
 
@@ -259,7 +260,7 @@ namespace core
         return hit;
     }
 
-    bool BVH::traversalOBB(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useCaching) const
+    bool BVH::traversalOBB(Ray &ray, const int maxIntersections)
     {
         ZoneScopedN("OBB in AABB BVH Traversal");
 
@@ -298,8 +299,8 @@ namespace core
                     // transform ray to obb space for both left and right node
                     float t_left;
                     float t_right;
-                    intersectInternalNodesOBB(left, ray, t_left, cachedClusterRaydirs, useCaching);
-                    intersectInternalNodesOBB(right, ray, t_right, cachedClusterRaydirs, useCaching);
+                    intersectInternalNodesOBB(left, ray, t_left);
+                    intersectInternalNodesOBB(right, ray, t_right);
 
                     if (t_left > t_right)
                     {
@@ -326,7 +327,7 @@ namespace core
 
     }
 
-    bool BVH::traversalHybrid(Ray &ray, const int maxIntersections, const std::vector<glm::vec3> &cachedClusterRaydirs, bool useCaching)
+    bool BVH::traversalHybrid(Ray &ray, const int maxIntersections)
     {
         ZoneScopedN("Hybrid BVH Traversal");
 
@@ -361,7 +362,7 @@ namespace core
 
                     if (left->obbFlag)
                     {
-                        intersectInternalNodesOBB(left, ray, t_left, cachedClusterRaydirs, useCaching);
+                        intersectInternalNodesOBB(left, ray, t_left);
                     } else
                     {
                         intersectInternalNodesAABB(left, ray, t_left);
@@ -369,7 +370,7 @@ namespace core
 
                     if (right->obbFlag)
                     {
-                        intersectInternalNodesOBB(right, ray, t_right, cachedClusterRaydirs, useCaching);
+                        intersectInternalNodesOBB(right, ray, t_right);
                     } else
                     {
                         intersectInternalNodesAABB(right, ray, t_right);
@@ -401,31 +402,19 @@ namespace core
 
     std::vector<std::vector<Node>> BVH::clusterOBBsKmeans(int num_clusters)
     {
-        std::vector<std::vector<Node>> finalGroups(num_clusters);
-        std::vector<Node> leafNodes;
+        std::vector<std::vector<core::Node>> finalGroups(num_clusters);
+        std::vector<core::Node> leafNodes;
         std::vector<size_t> leafNodeIndices;
 
-        // Extract leaf nodes and their indices (do it only for OBB with flag on)
+        // Extract leaf nodes and their indices
         for (size_t i = 0; i < m_nodes.size(); ++i)
         {
-            if (m_nodes[i].isLeaf())
+            if (m_nodes[i].isLeaf() && m_nodes[i].obbFlag)
             {
-                if (m_isHybrid)
-                {
-                    if (m_nodes[i].obbFlag)
-                    {
-                        leafNodes.push_back(m_nodes[i]);
-                        leafNodeIndices.push_back(i);
-                    }
-                }
-                else
-                {
-                    leafNodes.push_back(m_nodes[i]);
-                    leafNodeIndices.push_back(i);
-                }
+                leafNodes.push_back(m_nodes[i]);
+                leafNodeIndices.push_back(i);
             }
         }
-
         m_enabledOBBLeafSize = leafNodes.size();
 
         std::vector<Eigen::Matrix<float, Eigen::Dynamic, 1>> data;
@@ -453,7 +442,7 @@ namespace core
         kmeans.Cluster(dataset, num_clusters, assignments);
 
         // Create clusters and update the original nodes with new group numbers
-        std::vector<std::vector<Node>> clusters(num_clusters);
+        std::vector<std::vector<core::Node>> clusters(num_clusters);
         for (size_t i = 0; i < assignments.n_elem; ++i)
         {
             leafNodes[i].groupNumber = assignments[i];
@@ -470,7 +459,7 @@ namespace core
     {
         m_transformationCache = std::vector<glm::mat4x4>(m_nGroup);
 
-        for (auto &group: m_clusteredNodes)
+        for (auto& group : m_clusteredNodes)
         {
             if (group.empty())
             {
@@ -479,10 +468,9 @@ namespace core
 
             // Calculate the group OBB based on the vertices of all nodes
             DiTO::OBB<float> groupOBB;
-            DiTO::OBB<float> tempOBB;
             std::vector<DiTO::Vector<float>> tempVertices;
 
-            for (const auto &node: group)
+            for (const auto& node : group)
             {
                 for (int i = node.leftFrom; i < (node.leftFrom + node.count); ++i)
                 {
@@ -495,20 +483,19 @@ namespace core
             }
 
             // Calculate the OBB for the entire group of vertices
-            DiTO::DiTO_14(tempVertices.data(), tempVertices.size(), tempOBB);
-            glm::vec3 groupCenter = glm::vec3(tempOBB.mid.x, tempOBB.mid.y, tempOBB.mid.z);
+            DiTO::DiTO_14(tempVertices.data(), tempVertices.size(), groupOBB);
+            glm::vec3 groupCenter = glm::vec3(groupOBB.mid.x, groupOBB.mid.y, groupOBB.mid.z);
 
             // Translate all vertices to the group center
             std::vector<DiTO::Vector<float>> vertices;
-            for (const auto &node: group)
+            for (const auto& node : group)
             {
                 glm::vec3 translationVector = groupCenter - glm::vec3(node.obb.mid.x, node.obb.mid.y, node.obb.mid.z);
                 for (int i = node.leftFrom; i < (node.leftFrom + node.count); ++i)
                 {
-                    for (const auto &v: getTriangle(i).vertices)
+                    for (const auto& v : getTriangle(i).vertices)
                     {
-                        DiTO::Vector<float> vertex(v.x + translationVector.x, v.y + translationVector.y,
-                                                   v.z + translationVector.z);
+                        DiTO::Vector<float> vertex(v.x + translationVector.x, v.y + translationVector.y, v.z + translationVector.z);
                         vertices.push_back(vertex);
                     }
                 }
@@ -524,8 +511,7 @@ namespace core
             groupOBB.ext = DiTO::Vector<float>(groupOBB.ext.x + 0.001f, groupOBB.ext.y + 0.001f, groupOBB.ext.z + 0.001f);
 
             // Create OBB matrix: transform unit AABB (-0.5 to 0.5) to OBB space
-            glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f),
-                                               2.0f * glm::vec3(groupOBB.ext.x, groupOBB.ext.y, groupOBB.ext.z));
+            glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), 2.0f * glm::vec3(groupOBB.ext.x, groupOBB.ext.y, groupOBB.ext.z));
 
             glm::mat4 rotationMatrix = glm::mat4(
                     glm::vec4(glm::vec3(groupOBB.v0.x, groupOBB.v0.y, groupOBB.v0.z), 0.0f),
@@ -534,8 +520,7 @@ namespace core
                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
             );
 
-            glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f),
-                                                         glm::vec3(groupOBB.mid.x, groupOBB.mid.y, groupOBB.mid.z));
+            glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(groupOBB.mid.x, groupOBB.mid.y, groupOBB.mid.z));
 
             // Compute the inverse matrix for the OBB
             groupOBB.invMatrix = glm::inverse(translationMatrix * rotationMatrix * scaleMatrix);
@@ -544,7 +529,7 @@ namespace core
             m_transformationCache[group[0].groupNumber] = groupOBB.invMatrix;
 
             // Apply the representative OBB to each node in the group
-            for (const auto &node: group)
+            for (auto& node : group)
             {
                 glm::vec3 nodeCenter = glm::vec3(node.obb.mid.x, node.obb.mid.y, node.obb.mid.z);
                 glm::mat4 nodeTranslationMatrix = glm::translate(glm::mat4(1.0f), nodeCenter);
@@ -557,10 +542,12 @@ namespace core
                 tempNode.obb.mid = node.obb.mid;
                 tempNode.obb.invMatrix = glm::inverse(finalNodeMatrix);
                 m_nodes[tempNode.index] = tempNode;
+
+                m_clusterOBBs.push_back(tempNode.obb);
             }
 
             // For OBB visualization (uncomment if needed)
-//        m_clusterOBBs[group[0].groupNumber] = groupOBB;
+//            m_clusterOBBs[group[0].groupNumber] = groupOBB;
         }
         std::cout << "Cached transformations" << std::endl;
     }
@@ -585,12 +572,15 @@ namespace core
         }
 
         // Compare surface area of AABB and OBB
-        if (m_useOBB)
+        if (m_isHybrid)
         {
             if (node->bbox.area() > node->obb.area())
             {
                 node->obbFlag = true;
             }
+        } else if(m_useOBB)
+        {
+            node->obbFlag = true;
         }
 
         // Subdivide if this is not a leaf node (getTriangle count below cutoff)
@@ -758,25 +748,22 @@ namespace core
         outT = core::intersectAABB(node->bbox, ray);
     }
 
-    void BVH::intersectInternalNodesOBB(const Node *node, Ray &ray, float &outT,
-                                        const std::vector<glm::vec3> &cachedClusterRaydirs, bool useRaycaching) const
+    void BVH::intersectInternalNodesOBB(const Node *node, Ray &ray, float &outT)
     {
         Ray tempRay = ray;
+        glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
 
-        if (node->isLeaf() && m_useClustering && useRaycaching)
+        if (node->isLeaf() && m_useClustering)
         {
-            glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
-            glm::vec3 rayDirectionLocal = cachedClusterRaydirs[node->groupNumber];
+            if (m_cachedClusterRaydirs[node->groupNumber] == glm::vec3(0.0f))
+            {
+                m_cachedClusterRaydirs[node->groupNumber] = (node->obb.invMatrix) * glm::vec4(tempRay.d, 0);
+            }
+            glm::vec3 rayDirectionLocal = m_cachedClusterRaydirs[node->groupNumber];
             tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
             tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
-        } else if (useRaycaching && !m_useClustering)
-        {
-            glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
-            tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
-            tempRay.rd = glm::vec3(1.0f / node->cachedRayDir.x, 1.0f / node->cachedRayDir.y, 1.0f / node->cachedRayDir.z);
         } else
         {
-            glm::vec4 rayOriginalLocal = (node->obb.invMatrix) * glm::vec4(tempRay.o, 1.0f);
             glm::vec3 rayDirectionLocal = (node->obb.invMatrix) * glm::vec4(tempRay.d, 0.0f);
             tempRay.o = glm::vec3(rayOriginalLocal.x, rayOriginalLocal.y, rayOriginalLocal.z);
             tempRay.rd = glm::vec3(1.0f / rayDirectionLocal.x, 1.0f / rayDirectionLocal.y, 1.0f / rayDirectionLocal.z);
